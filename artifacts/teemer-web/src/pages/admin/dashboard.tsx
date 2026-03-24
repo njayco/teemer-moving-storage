@@ -37,7 +37,7 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div className="w-64 bg-[#0B132B] text-white flex flex-col hidden lg:flex">
         <div className="h-16 flex items-center px-6 border-b border-white/10 bg-black/20">
-          <span className="font-display font-bold text-xl tracking-wide">TEEMER <span className="text-primary text-xs ml-1">OS</span></span>
+          <span className="font-display font-bold text-sm tracking-wide">TEEMER M&S <span className="text-primary text-xs ml-1">OS</span></span>
         </div>
         <div className="p-4">
           <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 px-2">Main Menu</div>
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <div className="flex items-center text-secondary font-semibold text-lg">
             <span className="hidden sm:inline">Operations Control Center</span>
-            <span className="sm:hidden">Teemer OS</span>
+            <span className="sm:hidden">Teemer Moving & Storage OS</span>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative hidden md:block">

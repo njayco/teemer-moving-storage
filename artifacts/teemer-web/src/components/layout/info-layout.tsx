@@ -51,8 +51,8 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
-            <span className="ml-3 text-2xl font-bold font-display tracking-tight text-secondary group-hover:text-primary transition-colors">
-              Teemer
+            <span className="ml-3 text-xl font-bold font-display tracking-tight text-secondary group-hover:text-primary transition-colors">
+              Teemer Moving & Storage
             </span>
           </Link>
 
@@ -146,7 +146,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div>
             <div className="flex items-center mb-6">
-              <span className="text-2xl font-bold font-display text-white">Teemer</span>
+              <span className="text-xl font-bold font-display text-white">Teemer Moving & Storage</span>
             </div>
             <p className="mb-6">{companyInfo.tagline}</p>
             <div className="space-y-3">

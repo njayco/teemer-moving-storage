@@ -242,7 +242,7 @@ export default function InfoHomePage() {
           {/* Why Choose Us */}
           <div className="p-5 md:p-6 border-b border-slate-100">
             <h2 className="font-black text-secondary text-sm uppercase tracking-wide leading-snug mb-4">
-              The Teemer Difference:<br />Why Choose Us?
+              The Teemer Moving & Storage Difference:<br />Why Choose Us?
             </h2>
             <ul className="space-y-2.5">
               {WHY_CHOOSE.map((item, i) => (
@@ -273,15 +273,21 @@ export default function InfoHomePage() {
             <h3 className="font-black text-secondary text-xs uppercase tracking-widest text-center mb-4">
               Hear From Our Satisfied Customers
             </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {testimonials.slice(0, 3).map((t, i) => (
-                <div key={i} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight mb-1">{t.location}:</p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed mb-2 line-clamp-3">"{t.text}"</p>
-                  <div className="flex text-amber-400">
-                    {[...Array(t.rating)].map((_, idx) => (
-                      <Star key={idx} className="fill-current w-2.5 h-2.5" />
-                    ))}
+            <div className="grid grid-cols-2 gap-2">
+              {testimonials.map((t, i) => (
+                <div key={i} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex flex-col">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight mb-0.5">{t.name}</p>
+                  <p className="text-[9px] text-slate-400 mb-1">{t.location}</p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed mb-2 line-clamp-4 flex-1">"{t.text}"</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex text-amber-400">
+                      {[...Array(t.rating)].map((_, idx) => (
+                        <Star key={idx} className="fill-current w-2.5 h-2.5" />
+                      ))}
+                    </div>
+                    {"source" in t && (
+                      <span className="text-[8px] text-slate-400 font-medium">via {(t as {source: string}).source}</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -337,7 +343,7 @@ export default function InfoHomePage() {
           <div className="bg-secondary text-white p-6 md:p-8 text-center flex-1 flex flex-col items-center justify-center">
             <h3 className="font-black text-base md:text-lg uppercase leading-snug mb-4">
               Ready for a Stress-Free Move?<br />
-              <span className="text-primary">Let Teemer Take the Heavy Lifting.</span>
+              <span className="text-primary">Let Teemer Moving & Storage Take the Heavy Lifting.</span>
             </h3>
             <Link
               href="/info/quote"

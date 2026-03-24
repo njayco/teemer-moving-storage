@@ -89,21 +89,19 @@ export const faqs = [
 
 export const testimonials = [
   {
-    name: "Sarah M.",
-    location: "Long Beach, NY",
-    text: "Teemer made my move from a 3rd-floor walkup an absolute breeze. The crew was fast, polite, and everything arrived safely. Highly recommend!",
+    name: "Marilyn B.",
+    location: "Carle Place, NY",
+    text: "I highly recommend Teemer Moving and Storage Company. The owner Alan and his staff are extremely professional. They handle your furniture as if it was their own taking very good care of packing and unpacking it. They also work at a very good pace. If you are looking for an extremely competent and friendly moving company I highly recommend them.",
     rating: 5,
+    source: "Angi",
+    date: "November 2024",
   },
   {
-    name: "David K.",
-    location: "Manhattan, NY",
-    text: "Used them for our office relocation. They minimized our downtime significantly and handled all our sensitive equipment with care.",
+    name: "Evan P.",
+    location: "New York, NY",
+    text: "Moved from New York to Florida and was having trouble finding a moving company. Came across Teemer Moving and Storage Company and couldn't be any happier. Great door to door service. Gets right to work and makes sure your belongings are safe and secured. Don't hesitate to contact them for fast reliable service!",
     rating: 5,
-  },
-  {
-    name: "Elena R.",
-    location: "Queens, NY",
-    text: "The packing service saved me so much stress. The movers were professional and the 10% veteran discount was greatly appreciated.",
-    rating: 5,
+    source: "Angi",
+    date: "November 2021",
   },
 ];
