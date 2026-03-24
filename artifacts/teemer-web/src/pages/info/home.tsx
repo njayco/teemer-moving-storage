@@ -71,6 +71,22 @@ export default function InfoHomePage() {
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-secondary to-transparent" />
           </div>
 
+          {/* Teemer logo overlaid on the truck cargo box */}
+          <img
+            src="/images/teemer-logo-full.jpg"
+            alt="Teemer Moving & Storage Co. logo on truck"
+            className="absolute pointer-events-none select-none"
+            style={{
+              zIndex: 5,
+              right: "10%",
+              top: "18%",
+              width: "clamp(90px, 18%, 155px)",
+              opacity: 0.90,
+              borderRadius: "2px",
+              mixBlendMode: "multiply",
+            }}
+          />
+
           {/* Text — left-aligned, truck visible on the right */}
           <div className="relative z-10 flex flex-col justify-center px-8 py-12 md:px-12 max-w-[52%]" style={{ minHeight: 560 }}>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
