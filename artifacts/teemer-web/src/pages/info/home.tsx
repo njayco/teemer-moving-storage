@@ -37,51 +37,6 @@ const SERVICE_CARDS = [
   },
 ];
 
-function TeemerTruckSVG() {
-  return (
-    <svg viewBox="0 0 520 170" className="w-full" style={{ opacity: 0.38 }} fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* ── Cargo box ── */}
-      <rect x="10" y="18" width="330" height="122" rx="5" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="2" />
-      {/* Cargo door vertical lines */}
-      {[60,110,160,210,260,310].map(x => (
-        <line key={x} x1={x} y1="18" x2={x} y2="140" stroke="white" strokeOpacity="0.15" strokeWidth="1" />
-      ))}
-      {/* Rear bumper lip */}
-      <rect x="10" y="138" width="330" height="8" rx="2" fill="white" fillOpacity="0.15" />
-      {/* TEEMER text on cargo box */}
-      <text x="34" y="80" fontSize="30" fontWeight="800" fill="white" fillOpacity="0.6" letterSpacing="6" fontFamily="sans-serif">TEEMER</text>
-      <text x="34" y="102" fontSize="11" fill="white" fillOpacity="0.4" letterSpacing="2" fontFamily="sans-serif">MOVING &amp; STORAGE CO.</text>
-
-      {/* ── Cab ── */}
-      <path d="M340 52 L340 140 L496 140 L496 90 Q496 52 462 52 Z" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="2" />
-      {/* Windshield */}
-      <path d="M346 58 L346 96 L488 96 L488 80 Q472 58 450 58 Z" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1" />
-      {/* Side window */}
-      <rect x="346" y="100" width="60" height="30" rx="2" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="0.8" />
-      {/* Door handle */}
-      <rect x="360" y="118" width="18" height="4" rx="2" fill="white" fillOpacity="0.4" />
-      {/* Front bumper/grill */}
-      <rect x="482" y="112" width="14" height="28" rx="2" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1" />
-      {/* Headlight */}
-      <circle cx="492" cy="108" r="5" fill="white" fillOpacity="0.5" />
-      {/* Exhaust stack */}
-      <rect x="474" y="10" width="6" height="45" rx="3" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1" />
-
-      {/* ── Wheels ── */}
-      {/* Rear dual wheels */}
-      <circle cx="82" cy="155" r="18" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="2" />
-      <circle cx="82" cy="155" r="8" fill="white" fillOpacity="0.15" />
-      <circle cx="120" cy="155" r="18" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="2" />
-      <circle cx="120" cy="155" r="8" fill="white" fillOpacity="0.15" />
-      {/* Front wheel */}
-      <circle cx="440" cy="155" r="18" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="2" />
-      <circle cx="440" cy="155" r="8" fill="white" fillOpacity="0.15" />
-
-      {/* ── Ground shadow line ── */}
-      <line x1="10" y1="168" x2="510" y2="168" stroke="white" strokeOpacity="0.1" strokeWidth="1.5" />
-    </svg>
-  );
-}
 
 function LongIslandSilhouette() {
   return (
@@ -169,15 +124,26 @@ export default function InfoHomePage() {
 
         {/* ══ LEFT: Hero (dark, ~58%) ══ */}
         <div className="lg:w-[58%] bg-secondary relative overflow-hidden" style={{ minHeight: 560 }}>
-          <div className="flex" style={{ minHeight: 560 }}>
 
-            {/* Left side of hero — text + truck watermark */}
-            <div className="w-[52%] flex flex-col justify-center px-7 py-10 md:px-10 relative">
-              {/* Truck SVG watermark — sits behind text content */}
-              <div className="absolute bottom-0 left-0 right-0 z-0 pointer-events-none select-none">
-                <TeemerTruckSVG />
-              </div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative z-10">
+          {/* Truck photo — full background of dark section */}
+          <div className="absolute inset-0 z-0 pointer-events-none select-none">
+            <img
+              src="/images/teemer-truck.png"
+              alt="Teemer Moving & Storage truck"
+              className="w-full h-full object-cover object-center"
+              style={{ opacity: 0.42 }}
+            />
+            {/* Dark gradient: strong on left (text area), fades right */}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(30,41,59,0.97) 0%, rgba(30,41,59,0.82) 45%, rgba(30,41,59,0.55) 70%, rgba(30,41,59,0.20) 100%)" }} />
+            {/* Bottom vignette for groundline */}
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-secondary/60 to-transparent" />
+          </div>
+
+          <div className="flex relative z-10" style={{ minHeight: 560 }}>
+
+            {/* Left side of hero — text */}
+            <div className="w-[52%] flex flex-col justify-center px-7 py-10 md:px-10">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <h1 className="text-3xl md:text-4xl lg:text-[2.6rem] font-black text-white uppercase leading-tight mb-2">
                   Make Moving<br />A Breeze
                 </h1>
@@ -231,7 +197,7 @@ export default function InfoHomePage() {
                 </div>
               </div>
               {/* Left fade into text */}
-              <div className="absolute top-0 left-0 bottom-0 w-10 bg-gradient-to-r from-secondary to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-0 bottom-0 w-10 bg-gradient-to-r from-secondary/40 to-transparent pointer-events-none" />
             </div>
           </div>
         </div>
