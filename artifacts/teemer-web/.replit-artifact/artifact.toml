@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Teemer Moving & Storage"
+version = "1.0.0"
+id = "artifacts/teemer-web"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25308
+
+[services.development]
+run = "pnpm --filter @workspace/teemer-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/teemer-web", "run", "build" ]
+publicDir = "artifacts/teemer-web/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25308"
+BASE_PATH = "/"

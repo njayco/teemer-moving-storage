@@ -1,0 +1,714 @@
+Teemer Moving Storage
+
+Build a modern, responsive web application for a moving company called “Teemer Moving & Storage” with two main product experiences:
+
+1. Information Website
+2. Teemer Moving Platform
+
+The splash screen / landing page should act as the front door to both experiences and give users a clear choice between:
+- Enter Information Site
+- Request / Find a Moving Job
+
+The product should feel like a premium, tech-enabled logistics platform — a real “Uber for Moving” experience — while still preserving trust, professionalism, and the real-world moving company feel.
+
+TECH STACK
+Use:
+- Next.js (App Router)
+- React
+- Tailwind CSS
+- TypeScript
+- Reusable component architecture
+- Clean file structure
+- Mobile-first responsive design
+
+OPTIONAL
+Structure the app so it can later connect to:
+- PostgreSQL
+- Supabase or Firebase
+- Stripe
+- Mapbox
+- Realtime tracking via websockets
+
+OVERALL PRODUCT VISION
+Teemer Moving Platform is a tech-enabled moving platform that transforms Teemer into a scalable logistics company.
+
+Core platform concept:
+- App-based booking
+- Instant upfront pricing
+- Real-time truck tracking
+- Smart dispatch system
+
+The app should be designed like a real startup product, not just a brochure website.
+
+APP STRUCTURE
+
+Create these main sections/routes:
+
+1. Splash Screen / Landing Portal
+2. Information Site
+3. Request / Find a Moving Job Platform
+4. Admin Dashboard
+5. Optional Login / Role Selection UI
+
+SPLASH SCREEN REQUIREMENTS
+
+The landing page should be visually strong and conversion-focused.
+
+It must include:
+- Teemer branding
+- Hero headline
+- Short subheadline
+- Two primary action cards or buttons:
+  1. Enter Information Site
+  2. Request / Find a Moving Job
+
+Suggested hero copy:
+Headline:
+Teemer Moving Platform
+
+Subheadline:
+A smarter way to book, manage, and fulfill moving jobs across Long Island and NYC.
+
+CTA options:
+- Learn About Teemer
+- Request / Find a Moving Job
+
+The splash page should visually communicate both sides of the product:
+- trusted moving company
+- modern logistics platform
+
+Add a subtle section below the hero that previews:
+- App-based booking
+- Instant upfront pricing
+- Real-time truck tracking
+- Smart dispatch system
+
+INFORMATION SITE REQUIREMENTS
+
+Build a polished information website experience for Teemer Moving & Storage.
+
+This section should feel like the public-facing marketing site for the company.
+
+Create these pages:
+
+A. Home / Overview
+- Hero section
+- About section
+- Services preview
+- Why choose Teemer
+- CTA to request a move
+- CTA to call/contact
+
+B. About / Information Page
+Include:
+- Who Teemer Moving & Storage is
+- Company overview
+- What services are offered
+- Why customers choose Teemer
+- Service areas
+- Hours of operation
+- Contact information
+- Stress-free moving process
+- Trust-building content
+
+C. Services Page
+Include service cards for:
+- Residential Moving
+- Commercial Moving
+- Packing / Unpacking
+- Storage Services
+- Piano Moving
+- Packing Supplies
+- Short-Distance Moving
+- Long-Distance Moving
+- Large Hauls
+
+D. Service Area Page
+Include:
+- Long Beach
+- Nassau County
+- Suffolk County
+- Manhattan
+- Queens
+- Brooklyn
+
+E. FAQ Page
+Examples:
+- How do I request a quote?
+- Do you offer local and long-distance moving?
+- Do you provide packing and unpacking?
+- Can I track my move?
+- Do moving crews use the platform?
+- How do companies accept moving jobs?
+
+F. Contact Page
+Include:
+- contact form
+- phone CTA
+- hours block
+- service area block
+- call to action to request a moving job
+
+INFORMATION SITE DESIGN
+The information site should feel:
+- clean
+- trustworthy
+- premium
+- conversion-focused
+- service-business oriented
+
+Use:
+- white / light backgrounds
+- green accents
+- strong typography
+- rounded cards
+- subtle shadows
+- polished layouts
+- clean iconography
+
+REQUEST / FIND A MOVING JOB PLATFORM REQUIREMENTS
+
+This is the platform side of the product.
+
+This section should be built like a moving marketplace.
+
+Users should be able to either:
+- Request a Moving Job
+- Find / Fulfill a Moving Job
+
+This should be a role-based experience:
+- Customer
+- Service Member / Moving Company
+
+Create a dedicated platform route such as:
+/platform
+
+Within the platform, create a tabbed or segmented interface:
+- Request a Move
+- Find a Job
+- Track a Job
+
+CUSTOMER EXPERIENCE REQUIREMENTS
+
+Build a customer-side experience where users can:
+
+1. Enter move details
+2. Receive instant quote
+3. Book within seconds
+4. Track movers live
+5. Pay seamlessly
+
+Customer request form should include:
+- Move type
+- Residential or commercial
+- Origin address
+- Destination address
+- Move date
+- Move size
+- Number of rooms
+- Packing help needed
+- Special items
+- Storage needed
+- Contact name
+- Phone
+- Email
+- Additional notes
+
+After submission, show:
+- estimated quote card
+- job summary
+- next steps
+- CTA to confirm booking
+
+Build a quote results screen with:
+- estimated price
+- pricing breakdown
+- availability status
+- optional storage add-on
+- special item add-on
+- CTA: Book This Move
+
+Build a track job screen showing:
+- assigned mover
+- truck status
+- ETA
+- status timeline
+- map/tracking placeholder
+- job updates
+
+Suggested statuses:
+- Request Submitted
+- Quote Sent
+- Booking Confirmed
+- Crew Assigned
+- En Route
+- Loading
+- In Transit
+- Delivered
+- Completed
+
+SERVICE MEMBER / MOVING COMPANY EXPERIENCE
+
+Build a service-member side where moving providers can:
+
+1. Browse available jobs
+2. Accept jobs via app
+3. Use optimized navigation
+4. Update job status
+5. View job details
+6. Track earnings
+
+Create a “Find a Moving Job” interface with:
+- job marketplace
+- job cards
+- filter by area
+- filter by date
+- filter by move type
+- filter by payout
+- accept job button
+
+Each job card should show:
+- pickup location
+- destination
+- move type
+- date/time
+- estimated payout
+- special requirements
+- job size
+- accept button
+
+After accepting a job, the provider should see:
+- job details
+- customer details
+- navigation button
+- update status controls
+- completion button
+- earnings summary
+
+Add a provider dashboard with:
+- Today’s jobs
+- Upcoming jobs
+- Completed jobs
+- Earnings dashboard
+- Truck / crew assignment
+- Performance metrics
+
+ADMIN DASHBOARD REQUIREMENTS
+
+Build an admin dashboard UI for Teemer operations.
+
+This should include:
+- Dispatch control center
+- Route optimization overview
+- Crew management
+- Truck management
+- Revenue tracking
+- Active jobs board
+- Status monitoring
+- Quote requests queue
+- Accepted job monitoring
+- Customer support / issue panel
+
+Admin dashboard widgets:
+- total active jobs
+- pending requests
+- jobs in transit
+- completed today
+- available crews
+- available trucks
+- revenue today
+- weekly revenue chart placeholder
+
+Add job management table with:
+- job ID
+- customer
+- provider
+- pickup
+- destination
+- status
+- payout
+- actions
+
+ROLE / EXPERIENCE FLOW
+
+Create a smooth UX so users can clearly understand where they belong.
+
+Recommended flow:
+Splash Screen
+→ Learn About Teemer
+or
+→ Request / Find a Moving Job
+
+Inside the platform, allow user to choose:
+- I’m a Customer
+- I’m a Moving Provider
+
+Each role should have its own clean dashboard and workflow.
+
+DESIGN DIRECTION
+
+Overall style:
+- modern logistics startup
+- premium moving company
+- clean and trustworthy
+- sleek, slightly tech-forward
+- polished mobile and desktop UI
+
+Visual inspiration:
+- Uber
+- DoorDash
+- logistics SaaS dashboard
+- premium service marketplace
+
+Use:
+- green brand accents
+- white / off-white layout backgrounds
+- charcoal text
+- soft shadows
+- clean cards
+- large CTAs
+- map placeholders
+- status chips
+- modern forms
+
+COMPONENTS TO BUILD
+
+Create reusable components for:
+- Navbar
+- Portal selection cards
+- Hero section
+- CTA blocks
+- Service cards
+- Feature cards
+- Quote form
+- Job cards
+- Status timeline
+- Tracking panel
+- Map placeholder
+- Dashboard stat cards
+- Earnings summary cards
+- Admin data tables
+- FAQ accordion
+- Contact form
+- Footer
+
+DYNAMIC CONTENT / DATA STRUCTURE
+
+Structure content and UI data cleanly in reusable objects or JSON-like files.
+
+Create data models for:
+- companyInfo
+- services
+- serviceAreas
+- faqs
+- platformFeatures
+- jobListings
+- statusTimeline
+- dashboardStats
+- testimonials
+
+SEO REQUIREMENTS
+
+Add metadata and SEO-friendly copy for the public information pages.
+
+Use search-friendly language such as:
+- moving company Long Island
+- movers Long Beach NY
+- moving and storage NYC
+- request a moving quote
+- platform for moving jobs
+- moving company marketplace
+
+UX DETAILS
+
+Important UX requirements:
+- mobile-first experience
+- sticky CTA buttons where useful
+- clear role-based entry points
+- easy switching between Information Site and Platform
+- polished success/confirmation states
+- empty states for jobs and dashboards
+- accessible forms and semantic HTML
+- smooth hover/focus states
+- loading skeletons for marketplace and dashboard cards
+
+PLACEHOLDER FEATURES TO PREPARE FOR FUTURE INTEGRATION
+
+Even if backend is mocked for now, structure UI for future connection to:
+- instant pricing engine
+- live tracking
+- driver GPS
+- booking system
+- user accounts
+- payments
+- dispatch engine
+- notifications
+- SMS/email updates
+
+COPY DIRECTION
+
+Tone should be:
+- confident
+- professional
+- modern
+- trustworthy
+- operationally sharp
+
+The platform should make users feel:
+- this is easy
+- this is reliable
+- this is smarter than calling random movers
+
+DELIVERABLES
+
+Build:
+1. Splash screen with dual-entry experience
+2. Full Information Website
+3. Full Teemer Moving Platform UI
+4. Customer request and tracking flows
+5. Provider job marketplace and dashboard
+6. Admin dispatch dashboard
+7. Clean reusable component system
+8. Responsive polished frontend ready for backend integration
+
+IMPORTANT
+Do not build a generic template.
+Build this like a real startup product for a moving company evolving into a logistics platform.
+
+The final result should clearly show two connected but distinct experiences:
+- Information Site
+- Request / Find a Moving Job Platform
+
+Information Website
+
+Use this Replit prompt:
+
+Build a production-quality, responsive website for a real moving company called “Teemer Moving & Storage” using Next.js, React, Tailwind CSS, and a clean modern UI. The site should feel premium, trustworthy, fast, and conversion-focused for customers in Long Island and NYC.
+
+PROJECT GOAL
+Create a dynamic marketing website for Teemer Moving & Storage with:
+1. A strong homepage
+2. An Information page that includes real business details
+3. Service pages
+4. Contact and booking CTAs
+5. A clean admin-friendly structure so content can be edited later
+6. SEO-friendly pages and metadata
+7. Mobile-first responsive design
+
+BRAND / COMPANY DETAILS TO INCLUDE
+Business name: Teemer Moving & Storage
+Primary phone: (516) 269-3724
+Location: Long Beach, NY 11561
+Service area: Long Beach, Nassau County, Suffolk County, Manhattan, Queens, and Brooklyn, NY
+Hours:
+- Mon: 7:00 AM–6:00 PM
+- Tue: 7:00 AM–6:00 PM
+- Wed: 7:00 AM–6:00 PM
+- Thu: 7:00 AM–6:00 PM
+- Fri: 7:00 AM–6:00 PM
+- Sat: Appointment by phone call
+- Sun: Appointment by phone call
+
+PROMOTIONAL MESSAGES TO FEATURE
+- “We offer 10% discount for Senior & Veterans on all services, call us today!”
+- “Make Moving a Breeze”
+- “Keep Your Items Safe & Secure”
+- “Work with our residential and commercial moving company in Long Beach, Nassau County, Suffolk County, Manhattan, Queens, and Brooklyn NY”
+- “Free estimates and quotes”
+- “Stress-free moving from start to finish”
+
+SERVICES TO INCLUDE
+- Residential Moving
+- Commercial Moving
+- Packing / Unpacking
+- Storage Services
+- Piano Moving
+- Packing Supplies
+- Short-distance moving
+- Long-distance moving
+- Large hauls
+
+KEY SELLING POINTS TO INCLUDE
+- Years of experience
+- Free estimates and quotes
+- Residential and commercial moves
+- Short- and long-distance capability
+- Packing supplies available
+- Great customer service
+- Quick and efficient crews
+
+SITE ARCHITECTURE
+Create these pages/routes:
+
+1. Homepage
+- Hero section with headline, subheadline, and CTA buttons (“Get a Free Quote”, “Call Now”)
+- Service highlights cards
+- Senior/Veteran 10% discount banner
+- “Why Choose Teemer” section
+- Service area section
+- Testimonials section with placeholder content
+- CTA strip before footer
+
+2. Information Page (/information)
+This page must clearly present the business details in a polished layout:
+- About Teemer Moving & Storage
+- Business overview
+- Location
+- Phone number
+- Service area
+- Hours of operation
+- What the company offers
+- Why customers hire Teemer
+- A short “What to Expect” section describing a smooth, stress-free moving process
+- A “Contact Teemer” CTA block
+
+Use this copy direction:
+Teemer Moving & Storage is a Long Beach, New York moving and storage company serving Long Island and key NYC boroughs. The company offers residential and commercial moving, packing and unpacking, storage services, piano moving, and packing supplies. The business emphasizes stress-free moves, efficient crews, free estimates, and strong customer service.
+
+3. Services Overview Page (/services)
+- Grid of service cards
+- Each card links to a detail page
+
+4. Residential Moving Page
+- Explain local and long-distance residential moving
+- Mention dorm, apartment, and home moves
+- Mention storage services, packing services, and large hauls
+
+5. Packing / Unpacking Page
+- Explain full-service packing
+- Mention boxes, tape, and supplies available for purchase
+- Emphasize quick, efficient, stress-free, and comprehensive service
+
+6. Commercial Moving Page
+- Explain business relocation support
+- Focus on efficiency, organization, and minimizing downtime
+
+7. Service Area Page
+- Interactive-style section or well-designed list covering:
+  Long Beach, Nassau County, Suffolk County, Manhattan, Queens, Brooklyn
+
+8. Gallery Page
+- Build a photo gallery with placeholder moving-related images
+- Use image cards with subtle hover effects
+
+9. FAQ Page
+Include FAQs such as:
+- Do you offer free estimates?
+- Do you handle local and long-distance moves?
+- Do you offer packing and unpacking?
+- Do you provide storage?
+- What areas do you serve?
+- When are you open?
+- How do I book?
+
+10. Contact Page
+- Contact form with fields: name, phone, email, move date, move type, origin, destination, details
+- Phone CTA
+- Hours and service area block
+- Success state for form submission
+
+11. Book an Appointment / Quote Request Page
+- Multi-step quote request form
+- Fields for move type, date, inventory size, packing help needed, origin/destination, special items like piano, contact info
+- Show friendly confirmation screen after submit
+
+DYNAMIC / STRUCTURED CONTENT REQUIREMENTS
+Set up content as reusable data objects or JSON files so the business info can easily be changed later.
+Create structured data for:
+- companyInfo
+- services
+- serviceAreas
+- faqs
+- testimonials
+- promos
+
+DESIGN DIRECTION
+- Premium moving-company aesthetic
+- Clean white background with deep green accents inspired by moving/logistics branding
+- Strong typography
+- Large CTA buttons
+- Rounded cards
+- Soft shadows
+- Professional, trustworthy feel
+- Mobile-first
+- Smooth animations, but not overdone
+
+COMPONENTS TO BUILD
+- Navbar
+- Mobile menu
+- Hero section
+- Promo banner
+- Service cards
+- About/info section
+- Hours table
+- Service area section
+- FAQ accordion
+- Quote form
+- Contact form
+- CTA banner
+- Footer
+
+NAVIGATION
+Navbar links:
+- Home
+- Information
+- Services
+- Packing/Unpacking
+- Commercial Moving
+- Service Area
+- Gallery
+- FAQ
+- Contact
+- Book an Appointment
+
+TECHNICAL REQUIREMENTS
+- Use Next.js App Router
+- Use Tailwind CSS
+- Use reusable components
+- Use accessible semantic HTML
+- Optimize for SEO
+- Add metadata and page titles
+- Add favicon placeholder
+- Use server/client boundaries correctly
+- Include loading and empty states where needed
+- Keep code clean and organized
+
+SEO REQUIREMENTS
+Create SEO-friendly titles and descriptions for each page using terms like:
+- moving company Long Beach NY
+- movers Nassau County
+- moving and storage Long Island
+- residential movers Queens Brooklyn Manhattan
+- packing and unpacking services Long Beach NY
+
+CONTENT TONE
+Professional, trustworthy, clear, and conversion-focused.
+Do not make up awards, certifications, or reviews.
+Use tasteful placeholder testimonials where necessary and label them as sample testimonials if needed.
+
+HOMEPAGE HERO COPY IDEA
+Headline: Make Moving a Breeze
+Subheadline: Work with a trusted residential and commercial moving company serving Long Beach, Nassau County, Suffolk County, Manhattan, Queens, and Brooklyn, NY.
+Buttons: Get a Free Quote / Call (516) 269-3724
+
+FOOTER
+Include:
+- Teemer Moving & Storage
+- Long Beach, NY 11561
+- (516) 269-3724
+- Hours
+- Service area
+- Navigation links
+- Copyright line
+
+DELIVERABLES
+1. Full working frontend
+2. Clean folder structure
+3. Reusable data-driven content
+4. Ready-to-edit business information page
+5. Polished responsive UI
+6. Sample images/placeholders where needed
+
+IMPORTANT
+Use only the business details provided in this prompt for Teemer Moving & Storage informational content. Do not invent extra facts beyond these provided details. Focus on presenting the company clearly and professionally.
+

@@ -1,15 +1,20 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Teemer Moving & Storage API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: quotes
+    description: Quote request operations
+  - name: jobs
+    description: Moving job operations
+  - name: contact
+    description: Contact form operations
 paths:
   /healthz:
     get:
@@ -24,6 +29,158 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /quotes:
+    post:
+      operationId: submitQuoteRequest
+      tags: [quotes]
+      summary: Submit a quote request
+      description: Submit a moving quote request from a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRequest"
+      responses:
+        "201":
+          description: Quote request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteResponse"
+    get:
+      operationId: listQuoteRequests
+      tags: [quotes]
+      summary: List all quote requests
+      description: Get all quote requests (admin only)
+      responses:
+        "200":
+          description: List of quote requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuoteResponse"
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List available moving jobs
+      description: Get available moving jobs for providers
+      parameters:
+        - name: area
+          in: query
+          schema:
+            type: string
+        - name: moveType
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+    post:
+      operationId: createJob
+      tags: [jobs]
+      summary: Create a moving job
+      description: Create a new moving job from a quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "201":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+  /jobs/{jobId}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get a specific job
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+    patch:
+      operationId: updateJobStatus
+      tags: [jobs]
+      summary: Update job status
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJobStatusRequest"
+      responses:
+        "200":
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+  /contact:
+    post:
+      operationId: submitContactForm
+      tags: [contact]
+      summary: Submit contact form
+      description: Submit a contact form message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactFormRequest"
+      responses:
+        "201":
+          description: Contact form submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactFormResponse"
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [jobs]
+      summary: Get admin dashboard stats
+      description: Get stats for the admin dashboard
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +190,228 @@ components:
           type: string
       required:
         - status
-
+    QuoteRequest:
+      type: object
+      properties:
+        moveType:
+          type: string
+          description: "local or long-distance"
+        residentialOrCommercial:
+          type: string
+          description: "residential or commercial"
+        originAddress:
+          type: string
+        destinationAddress:
+          type: string
+        moveDate:
+          type: string
+        moveSize:
+          type: string
+          description: "studio, 1br, 2br, 3br, 4br+, house"
+        numberOfRooms:
+          type: integer
+        packingHelpNeeded:
+          type: string
+          description: "full, partial, none"
+        specialItems:
+          type: string
+        storageNeeded:
+          type: boolean
+        contactName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        additionalNotes:
+          type: string
+      required:
+        - moveType
+        - originAddress
+        - destinationAddress
+        - moveDate
+        - contactName
+        - phone
+        - email
+    QuoteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        estimatedPriceLow:
+          type: number
+        estimatedPriceHigh:
+          type: number
+        status:
+          type: string
+        createdAt:
+          type: string
+        quoteRequest:
+          $ref: "#/components/schemas/QuoteRequest"
+      required:
+        - id
+        - estimatedPriceLow
+        - estimatedPriceHigh
+        - status
+        - createdAt
+        - quoteRequest
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        jobId:
+          type: string
+        customer:
+          type: string
+        provider:
+          type: string
+        pickupLocation:
+          type: string
+        destination:
+          type: string
+        moveType:
+          type: string
+        dateTime:
+          type: string
+        estimatedPayout:
+          type: number
+        specialRequirements:
+          type: string
+        jobSize:
+          type: string
+        status:
+          type: string
+          description: "Request Submitted, Quote Sent, Booking Confirmed, Crew Assigned, En Route, Loading, In Transit, Delivered, Completed"
+        assignedMover:
+          type: string
+        truckStatus:
+          type: string
+        eta:
+          type: string
+      required:
+        - id
+        - pickupLocation
+        - destination
+        - moveType
+        - dateTime
+        - estimatedPayout
+        - status
+    CreateJobRequest:
+      type: object
+      properties:
+        quoteId:
+          type: string
+        customer:
+          type: string
+        pickupLocation:
+          type: string
+        destination:
+          type: string
+        moveType:
+          type: string
+        dateTime:
+          type: string
+        estimatedPayout:
+          type: number
+        specialRequirements:
+          type: string
+        jobSize:
+          type: string
+      required:
+        - customer
+        - pickupLocation
+        - destination
+        - moveType
+        - dateTime
+        - estimatedPayout
+    UpdateJobStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+        assignedMover:
+          type: string
+        truckStatus:
+          type: string
+        eta:
+          type: string
+      required:
+        - status
+    ContactFormRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        moveDate:
+          type: string
+        moveType:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        message:
+          type: string
+      required:
+        - name
+        - phone
+        - email
+        - message
+    ContactFormResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+    AdminStats:
+      type: object
+      properties:
+        totalActiveJobs:
+          type: integer
+        pendingRequests:
+          type: integer
+        jobsInTransit:
+          type: integer
+        completedToday:
+          type: integer
+        availableCrews:
+          type: integer
+        availableTrucks:
+          type: integer
+        revenueToday:
+          type: number
+        weeklyRevenue:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+              amount:
+                type: number
+            required:
+              - day
+              - amount
+        recentJobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Job"
+      required:
+        - totalActiveJobs
+        - pendingRequests
+        - jobsInTransit
+        - completedToday
+        - availableCrews
+        - availableTrucks
+        - revenueToday
+        - weeklyRevenue
+        - recentJobs

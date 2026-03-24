@@ -1,0 +1,19 @@
+packages:
+  "framer-motion": "For page transitions, smooth entries, and interactive micro-animations"
+  "recharts": "For the Admin Dashboard revenue charts"
+  "react-hook-form": "For form state management in contact and quote requests"
+  "@hookform/resolvers": "For zod validation integration with react-hook-form"
+  "zod": "For client-side form schema validation"
+  "date-fns": "For formatting dates in job lists and dashboards"
+  "clsx": "Utility for constructing className strings"
+  "tailwind-merge": "Utility for merging Tailwind classes safely"
+
+images:
+  - path: "artifacts/teemer-web/public/images/splash-bg.png"
+    description: "Premium dark navy and deep green abstract background with soft glowing logistics and moving map nodes, clean professional tech aesthetic"
+    aspect_ratio: "16:9"
+
+notes:
+  - React Query hooks are imported from @workspace/api-client-react
+  - Routing is handled via wouter
+  - Mock data is used for informational pages and initial platform states where APIs might return empty lists
