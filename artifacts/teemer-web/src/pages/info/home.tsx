@@ -38,79 +38,6 @@ const SERVICE_CARDS = [
 ];
 
 
-function LongIslandSilhouette() {
-  return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-3">
-      <svg viewBox="0 0 300 110" className="w-full max-w-[280px]" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* ── Long Island main body ── */}
-        {/* North shore (top edge) runs left-right */}
-        {/* South shore (bottom edge) runs left-right, straighter */}
-        <path
-          d="
-            M18,52
-            Q20,44 28,40 Q36,36 48,34 Q60,32 74,30
-            Q90,28 108,28 Q126,27 144,28
-            Q162,29 178,30 Q194,31 208,32
-            Q222,33 234,35 Q244,37 250,40
-            Q256,42 258,46
-            Q262,42 266,38 Q270,34 272,32
-            Q276,30 280,32 Q284,34 282,40
-            Q280,44 276,48 Q272,52 268,54
-            Q260,60 252,62
-            Q244,64 232,64 Q216,65 200,64
-            Q184,63 168,62 Q152,61 136,62
-            Q120,63 106,65 Q92,67 80,68
-            Q64,70 50,68 Q36,66 26,60
-            Q18,56 18,52 Z
-          "
-          fill="white"
-          fillOpacity="0.15"
-          stroke="white"
-          strokeWidth="1.5"
-          strokeOpacity="0.7"
-        />
-        {/* North Fork (upper eastern fork) */}
-        <path
-          d="M258,46 Q262,42 266,38 Q270,34 272,32 Q276,30 280,32 Q284,34 282,40 Q280,44 276,48 Q272,52 268,54 Q263,56 258,56"
-          fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.2" strokeOpacity="0.6"
-        />
-        {/* South Fork (lower eastern fork - Hamptons) */}
-        <path
-          d="M252,62 Q256,64 260,66 Q264,68 266,72 Q268,76 265,80 Q262,83 258,82 Q254,81 250,78 Q246,74 248,70 Q250,66 252,62"
-          fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1.2" strokeOpacity="0.6"
-        />
-        {/* NYC boroughs box (left side) */}
-        <rect x="2" y="44" width="18" height="20" rx="2" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1" strokeOpacity="0.5" />
-
-        {/* ── Service area dots and labels ── */}
-        {/* NYC */}
-        <circle cx="11" cy="54" r="3.5" fill="#22c55e" />
-        <text x="22" y="51" fontSize="6.5" fill="white" fontFamily="sans-serif" fontWeight="700">NYC</text>
-
-        {/* Long Beach */}
-        <circle cx="78" cy="60" r="3" fill="#22c55e" />
-        <text x="66" y="74" fontSize="5.5" fill="white" fontFamily="sans-serif" fontWeight="600">Long Beach</text>
-
-        {/* Nassau */}
-        <circle cx="110" cy="46" r="3" fill="#22c55e" />
-        <text x="98" y="40" fontSize="6" fill="white" fontFamily="sans-serif" fontWeight="600">Nassau</text>
-
-        {/* Suffolk */}
-        <circle cx="196" cy="45" r="3" fill="#22c55e" />
-        <text x="182" y="39" fontSize="6" fill="white" fontFamily="sans-serif" fontWeight="600">Suffolk</text>
-
-        {/* Dot connectors */}
-        <line x1="11" y1="54" x2="78" y2="60" stroke="white" strokeOpacity="0.2" strokeWidth="0.8" strokeDasharray="3 3" />
-        <line x1="78" y1="60" x2="110" y2="46" stroke="white" strokeOpacity="0.2" strokeWidth="0.8" strokeDasharray="3 3" />
-        <line x1="110" y1="46" x2="196" y2="45" stroke="white" strokeOpacity="0.2" strokeWidth="0.8" strokeDasharray="3 3" />
-      </svg>
-      <p className="text-white/50 text-[8px] text-center font-bold tracking-widest uppercase mt-1">
-        Serving LI &amp; All NYC Boroughs
-      </p>
-    </div>
-  );
-}
-
 export default function InfoHomePage() {
   return (
     <InfoLayout>
@@ -122,83 +49,56 @@ export default function InfoHomePage() {
       {/* ═══ MAIN TWO-COLUMN SECTION ═══ */}
       <div className="flex flex-col lg:flex-row">
 
-        {/* ══ LEFT: Hero (dark, ~58%) ══ */}
+        {/* ══ LEFT: Hero (dark, full truck background) ══ */}
         <div className="lg:w-[58%] bg-secondary relative overflow-hidden" style={{ minHeight: 560 }}>
 
-          {/* Truck photo — full background of dark section */}
-          <div className="absolute inset-0 z-0 pointer-events-none select-none">
-            <img
-              src="/images/teemer-truck.png"
-              alt="Teemer Moving & Storage Corp. truck"
-              className="w-full h-full object-cover object-center"
-              style={{ opacity: 0.42 }}
-            />
-            {/* Dark gradient: strong on left (text area), fades right */}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(30,41,59,0.97) 0%, rgba(30,41,59,0.82) 45%, rgba(30,41,59,0.55) 70%, rgba(30,41,59,0.20) 100%)" }} />
-            {/* Bottom vignette for groundline */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-secondary/60 to-transparent" />
+          {/* Truck photo — background sized to show full truck scene */}
+          <div
+            className="absolute inset-0 z-0 pointer-events-none select-none"
+            style={{
+              backgroundImage: "url('/images/teemer-truck.png')",
+              backgroundSize: "100% auto",
+              backgroundPosition: "center top",
+              backgroundRepeat: "no-repeat",
+              opacity: 0.82,
+            }}
+          />
+          {/* Gradient overlays — separate div so they don't inherit opacity */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            {/* Left-to-right: dark on text side, opens up on truck side */}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(30,41,59,0.93) 0%, rgba(30,41,59,0.78) 30%, rgba(30,41,59,0.28) 56%, rgba(30,41,59,0.06) 100%)" }} />
+            {/* Bottom vignette so truck doesn't hard-clip into page */}
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-secondary to-transparent" />
           </div>
 
-          <div className="flex relative z-10" style={{ minHeight: 560 }}>
-
-            {/* Left side of hero — text */}
-            <div className="w-[52%] flex flex-col justify-center px-7 py-10 md:px-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <h1 className="text-3xl md:text-4xl lg:text-[2.6rem] font-black text-white uppercase leading-tight mb-2">
-                  Make Moving<br />A Breeze
-                </h1>
-                <p className="text-primary font-bold text-sm md:text-base mb-2">
-                  Your Trusted Long Island &amp; NYC Moving Experts
-                </p>
-                <p className="text-slate-300 text-xs md:text-sm mb-5 leading-relaxed">
-                  Serving Long Beach, Nassau County, Suffolk County, Manhattan, Queens, and Brooklyn, NY.
-                  Licensed, Insured &amp; Award-Winning Service.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <Link
-                    href="/info/quote"
-                    className="bg-primary text-white px-5 py-2.5 rounded-full font-extrabold text-xs md:text-sm uppercase tracking-wide text-center hover:bg-primary/90 transition-colors shadow-lg"
-                  >
-                    Get a Free Quote
-                  </Link>
-                  <a
-                    href={`tel:${companyInfo.phone}`}
-                    className="border-2 border-white/50 text-white px-5 py-2.5 rounded-full font-extrabold text-xs md:text-sm uppercase tracking-wide text-center hover:bg-white/10 transition-colors"
-                  >
-                    Call Us: {companyInfo.phone}
-                  </a>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Right side of hero — photo collage + Long Island map */}
-            <div className="flex-1 relative">
-              {/* Top photo */}
-              <div className="absolute top-0 left-0 right-0 h-[58%] overflow-hidden">
-                <img
-                  src="/images/IMG_1960.jpg"
-                  alt="Teemer crew at work"
-                  className="w-full h-full object-cover object-center"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-secondary/40 to-transparent" />
+          {/* Text — left-aligned, truck visible on the right */}
+          <div className="relative z-10 flex flex-col justify-center px-8 py-12 md:px-12 max-w-[52%]" style={{ minHeight: 560 }}>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <h1 className="text-3xl md:text-4xl lg:text-[2.7rem] font-black text-white uppercase leading-tight mb-3">
+                Make Moving<br />A Breeze
+              </h1>
+              <p className="text-primary font-bold text-sm md:text-base mb-2">
+                Your Trusted Long Island &amp; NYC Moving Experts
+              </p>
+              <p className="text-slate-300 text-xs md:text-sm mb-6 leading-relaxed">
+                Serving Long Beach, Nassau County, Suffolk County, Manhattan, Queens, and Brooklyn, NY.
+                Licensed, Insured &amp; Award-Winning Service.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  href="/info/quote"
+                  className="bg-primary text-white px-6 py-3 rounded-full font-extrabold text-sm uppercase tracking-wide text-center hover:bg-primary/90 transition-colors shadow-lg"
+                >
+                  Get a Free Quote
+                </Link>
+                <a
+                  href={`tel:${companyInfo.phone}`}
+                  className="border-2 border-white/50 text-white px-6 py-3 rounded-full font-extrabold text-sm uppercase tracking-wide text-center hover:bg-white/10 transition-colors"
+                >
+                  Call Us: {companyInfo.phone}
+                </a>
               </div>
-              {/* Bottom row: second photo + map */}
-              <div className="absolute bottom-0 left-0 right-0 h-[41%] flex gap-0.5">
-                <div className="flex-1 overflow-hidden relative">
-                  <img
-                    src="/images/IMG_1914.jpg"
-                    alt="Teemer movers"
-                    className="w-full h-full object-cover object-center"
-                  />
-                  <div className="absolute inset-0 bg-secondary/20" />
-                </div>
-                <div className="flex-1 bg-secondary/90 border-l border-white/10">
-                  <LongIslandSilhouette />
-                </div>
-              </div>
-              {/* Left fade into text */}
-              <div className="absolute top-0 left-0 bottom-0 w-10 bg-gradient-to-r from-secondary/40 to-transparent pointer-events-none" />
-            </div>
+            </motion.div>
           </div>
         </div>
 
