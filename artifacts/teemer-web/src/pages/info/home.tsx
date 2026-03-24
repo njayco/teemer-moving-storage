@@ -4,17 +4,24 @@ import { companyInfo, services, testimonials } from "@/lib/mock-data";
 import { ArrowRight, Star, ShieldCheck, Clock, MapPin, Phone } from "lucide-react";
 import { motion } from "framer-motion";
 
+const CREW_STRIP_PHOTOS = [
+  { src: "/images/IMG_1960.jpg", alt: "Teemer crew at work" },
+  { src: "/images/IMG_4015.jpg", alt: "Teemer movers loading the truck" },
+  { src: "/images/IMG_3913.jpg", alt: "Professional Teemer move in progress" },
+  { src: "/images/IMG_4628.jpg", alt: "Teemer team ready for move day" },
+];
+
 export default function InfoHomePage() {
   return (
     <InfoLayout>
       {/* Hero Section */}
       <section className="relative pt-24 pb-32 overflow-hidden bg-slate-50">
-        <div className="absolute right-0 top-0 w-1/2 h-full opacity-10 pointer-events-none hidden lg:block">
-          {/* landing page hero scenic moving truck logistics */}
+        <div className="absolute right-0 top-0 w-1/2 h-full opacity-20 pointer-events-none hidden lg:block">
           <img 
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop" 
-            alt="Moving House" 
-            className="w-full h-full object-cover mask-image-gradient-l"
+            src="/images/IMG_1914.jpg"
+            alt="Teemer Moving crew in action" 
+            className="w-full h-full object-cover"
+            style={{ maskImage: "linear-gradient(to right, transparent, black 40%)" }}
           />
         </div>
         <div className="max-w-7xl mx-auto px-4 relative z-10">
@@ -69,7 +76,6 @@ export default function InfoHomePage() {
                 className="bg-slate-50 border border-slate-100 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
               >
                 <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors">
-                  {/* Since I can't dynamically import lucide icons cleanly in string loop without a map, I'll just use a generic icon or the ones from the prompt */}
                   <ShieldCheck className="w-7 h-7" />
                 </div>
                 <h3 className="text-2xl font-bold text-secondary mb-3">{service.title}</h3>
@@ -79,6 +85,43 @@ export default function InfoHomePage() {
                 </Link>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Crew in Action Photo Strip */}
+      <section className="py-16 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold font-display text-secondary mb-3">Our Crew in Action</h2>
+            <p className="text-slate-500 text-lg">Real photos from real Teemer moves — no stock images, just our team doing what we do best.</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {CREW_STRIP_PHOTOS.map((photo, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                className="relative aspect-square rounded-2xl overflow-hidden group"
+              >
+                <img
+                  src={photo.src}
+                  alt={photo.alt}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-secondary/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </motion.div>
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Link
+              href="/info/gallery"
+              className="inline-flex items-center text-primary font-bold text-lg hover:underline"
+            >
+              See Full Gallery <ArrowRight className="ml-2 w-5 h-5" />
+            </Link>
           </div>
         </div>
       </section>
@@ -115,10 +158,9 @@ export default function InfoHomePage() {
             </div>
           </div>
           <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border border-white/10">
-            {/* moving crew packing boxes professional logistics */}
             <img 
-              src="https://pixabay.com/get/gf55cb95fc35ed76b3b2b3c7b37fcc5d818a7104a323d22bba1790b9e6ec91ac94d600044cfe597ac41843f68b36a8be0b6901e8f9fb457c4e069d18b5e3d0ade_1280.jpg" 
-              alt="Teemer Crew" 
+              src="/images/IMG_4047.jpg"
+              alt="Teemer Moving crew at work" 
               className="w-full h-full object-cover"
             />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8">
