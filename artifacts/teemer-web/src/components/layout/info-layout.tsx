@@ -52,7 +52,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
               }}
             />
             <span className="ml-3 text-xl font-bold font-display tracking-tight text-secondary group-hover:text-primary transition-colors">
-              Teemer Moving & Storage
+              Teemer Moving & Storage Corp.
             </span>
           </Link>
 
@@ -146,7 +146,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div>
             <div className="flex items-center mb-6">
-              <span className="text-xl font-bold font-display text-white">Teemer Moving & Storage</span>
+              <span className="text-xl font-bold font-display text-white">Teemer Moving & Storage Corp.</span>
             </div>
             <p className="mb-6">{companyInfo.tagline}</p>
             <div className="space-y-3">
@@ -197,7 +197,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-16 pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
-          <p>&copy; {new Date().getFullYear()} Teemer Moving & Storage Co. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Teemer Moving & Storage Corp. All rights reserved.</p>
         </div>
       </footer>
     </div>

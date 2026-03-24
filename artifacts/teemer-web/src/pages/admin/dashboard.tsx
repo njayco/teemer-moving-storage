@@ -59,7 +59,7 @@ export default function AdminDashboard() {
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <div className="flex items-center text-secondary font-semibold text-lg">
             <span className="hidden sm:inline">Operations Control Center</span>
-            <span className="sm:hidden">Teemer Moving & Storage OS</span>
+            <span className="sm:hidden">Teemer Moving & Storage Corp. OS</span>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative hidden md:block">

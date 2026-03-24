@@ -9,7 +9,7 @@ export default function ServiceAreaPage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold font-display text-secondary mb-6">Areas We Serve</h1>
           <p className="text-lg text-slate-600 mb-16">
-            Based in Long Beach, Teemer Moving & Storage proudly provides premium moving services across Long Island and New York City boroughs.
+            Based in Long Beach, Teemer Moving & Storage Corp. proudly provides premium moving services across Long Island and New York City boroughs.
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">

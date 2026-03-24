@@ -129,7 +129,7 @@ export default function InfoHomePage() {
           <div className="absolute inset-0 z-0 pointer-events-none select-none">
             <img
               src="/images/teemer-truck.png"
-              alt="Teemer Moving & Storage truck"
+              alt="Teemer Moving & Storage Corp. truck"
               className="w-full h-full object-cover object-center"
               style={{ opacity: 0.42 }}
             />
@@ -208,7 +208,7 @@ export default function InfoHomePage() {
           {/* Why Choose Us */}
           <div className="p-5 md:p-6 border-b border-slate-100">
             <h2 className="font-black text-secondary text-sm uppercase tracking-wide leading-snug mb-4">
-              The Teemer Moving & Storage Difference:<br />Why Choose Us?
+              The Teemer Moving & Storage Corp. Difference:<br />Why Choose Us?
             </h2>
             <ul className="space-y-2.5">
               {WHY_CHOOSE.map((item, i) => (
@@ -317,7 +317,7 @@ export default function InfoHomePage() {
           <div className="bg-secondary text-white p-6 md:p-8 text-center flex-1 flex flex-col items-center justify-center">
             <h3 className="font-black text-base md:text-lg uppercase leading-snug mb-4">
               Ready for a Stress-Free Move?<br />
-              <span className="text-primary">Let Teemer Moving & Storage Take the Heavy Lifting.</span>
+              <span className="text-primary">Let Teemer Moving & Storage Corp. Take the Heavy Lifting.</span>
             </h3>
             <Link
               href="/info/quote"

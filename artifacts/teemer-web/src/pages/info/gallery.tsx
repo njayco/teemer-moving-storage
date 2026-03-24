@@ -13,7 +13,7 @@ const TEEMER_PHOTOS = [
   { src: "/images/IMG_4047.jpg", alt: "Teemer crew performing a commercial office move" },
   { src: "/images/IMG_4525.jpg", alt: "Teemer uniformed movers on a local Nassau County job" },
   { src: "/images/IMG_4598.jpg", alt: "Teemer team wrapping large furniture for safe transport" },
-  { src: "/images/IMG_4628.jpg", alt: "Teemer Moving & Storage crew ready for a big move day" },
+  { src: "/images/IMG_4628.jpg", alt: "Teemer Moving & Storage Corp. crew ready for a big move day" },
 ];
 
 export default function GalleryPage() {

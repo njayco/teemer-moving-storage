@@ -24,7 +24,7 @@ export function PlatformLayout({ children, role }: { children: React.ReactNode, 
       <div className="w-64 bg-secondary text-white hidden md:flex flex-col border-r border-slate-800">
         <div className="h-20 flex items-center px-6 border-b border-slate-800">
           <Link href="/" className="flex items-center text-xl font-bold font-display">
-            Teemer Moving & Storage <span className="text-primary ml-2 text-sm font-sans uppercase tracking-wider px-2 py-0.5 bg-primary/20 rounded-md">{role}</span>
+            Teemer Moving & Storage Corp. <span className="text-primary ml-2 text-sm font-sans uppercase tracking-wider px-2 py-0.5 bg-primary/20 rounded-md">{role}</span>
           </Link>
         </div>
         <nav className="flex-1 py-8 px-4 space-y-2">
@@ -61,7 +61,7 @@ export function PlatformLayout({ children, role }: { children: React.ReactNode, 
         <header className="h-20 bg-white border-b border-border flex items-center px-8 shadow-sm justify-between md:justify-end">
           {/* Mobile brand (shows only on mobile) */}
           <Link href="/" className="md:hidden font-bold font-display text-xl text-secondary">
-            Teemer Moving & Storage <span className="text-primary text-xs">{role}</span>
+            Teemer Moving & Storage Corp. <span className="text-primary text-xs">{role}</span>
           </Link>
           
           <div className="flex items-center space-x-4">

@@ -1,5 +1,5 @@
 export const companyInfo = {
-  name: "Teemer Moving & Storage Co.",
+  name: "Teemer Moving & Storage Corp.",
   phone: "(516) 269-3724",
   location: "Long Beach, NY 11561",
   serviceAreas: [
@@ -21,7 +21,7 @@ export const companyInfo = {
   ],
   tagline: "Make Moving a Breeze",
   description:
-    "Teemer Moving & Storage is a Long Beach, New York moving and storage company serving Long Island and key NYC boroughs. The company offers residential and commercial moving, packing and unpacking, storage services, piano moving, and packing supplies. The business emphasizes stress-free moves, efficient crews, free estimates, and strong customer service.",
+    "Teemer Moving & Storage Corp. is a Long Beach, New York moving and storage company serving Long Island and key NYC boroughs. The company offers residential and commercial moving, packing and unpacking, storage services, piano moving, and packing supplies. The business emphasizes stress-free moves, efficient crews, free estimates, and strong customer service.",
   email: "support@teemermoving.com",
 };
 
