@@ -270,16 +270,23 @@ export default function InfoHomePage() {
 
           {/* Testimonials */}
           <div className="p-5 md:p-6 bg-slate-50 border-b border-slate-100">
-            <h3 className="font-black text-secondary text-xs uppercase tracking-widest text-center mb-4">
-              Hear From Our Satisfied Customers
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-secondary text-xs uppercase tracking-widest">
+                What Customers Say
+              </h3>
+              <div className="flex items-center gap-1">
+                <Star className="fill-amber-400 text-amber-400 w-3 h-3" />
+                <span className="text-[10px] font-bold text-amber-600">5.0</span>
+                <span className="text-[9px] text-slate-400 ml-0.5">({testimonials.length} reviews)</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">
               {testimonials.map((t, i) => (
                 <div key={i} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex flex-col">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-tight mb-0.5">{t.name}</p>
-                  <p className="text-[9px] text-slate-400 mb-1">{t.location}</p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed mb-2 line-clamp-4 flex-1">"{t.text}"</p>
-                  <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-secondary leading-tight mb-0.5">{t.name}</p>
+                  <p className="text-[8px] text-slate-400 mb-1 leading-tight">{t.location}</p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed mb-2 line-clamp-3 flex-1">"{t.text}"</p>
+                  <div className="flex items-center justify-between mt-auto">
                     <div className="flex text-amber-400">
                       {[...Array(t.rating)].map((_, idx) => (
                         <Star key={idx} className="fill-current w-2.5 h-2.5" />
@@ -292,6 +299,7 @@ export default function InfoHomePage() {
                 </div>
               ))}
             </div>
+            <p className="text-center text-[9px] text-slate-400 mt-2">Scroll to see all reviews</p>
           </div>
 
           {/* Awards */}
