@@ -32,34 +32,124 @@ const SERVICE_CARDS = [
     id: "storage",
     title: "Storage Solutions",
     desc: "Climate-controlled storage for short or long-term needs.",
-    photo: "/images/IMG_2975.jpg",
+    photo: "/images/IMG_4525.jpg",
     Icon: Warehouse,
   },
 ];
 
-function ServiceAreaMap() {
+function TeemerTruckSVG() {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-white/80">
-      <svg viewBox="0 0 160 90" className="w-full max-w-[140px] opacity-70" fill="none">
-        {/* Rough outline of Long Island */}
+    <svg viewBox="0 0 520 170" className="w-full" style={{ opacity: 0.38 }} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* ── Cargo box ── */}
+      <rect x="10" y="18" width="330" height="122" rx="5" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="2" />
+      {/* Cargo door vertical lines */}
+      {[60,110,160,210,260,310].map(x => (
+        <line key={x} x1={x} y1="18" x2={x} y2="140" stroke="white" strokeOpacity="0.15" strokeWidth="1" />
+      ))}
+      {/* Rear bumper lip */}
+      <rect x="10" y="138" width="330" height="8" rx="2" fill="white" fillOpacity="0.15" />
+      {/* TEEMER text on cargo box */}
+      <text x="34" y="80" fontSize="30" fontWeight="800" fill="white" fillOpacity="0.6" letterSpacing="6" fontFamily="sans-serif">TEEMER</text>
+      <text x="34" y="102" fontSize="11" fill="white" fillOpacity="0.4" letterSpacing="2" fontFamily="sans-serif">MOVING &amp; STORAGE CO.</text>
+
+      {/* ── Cab ── */}
+      <path d="M340 52 L340 140 L496 140 L496 90 Q496 52 462 52 Z" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="2" />
+      {/* Windshield */}
+      <path d="M346 58 L346 96 L488 96 L488 80 Q472 58 450 58 Z" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1" />
+      {/* Side window */}
+      <rect x="346" y="100" width="60" height="30" rx="2" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="0.8" />
+      {/* Door handle */}
+      <rect x="360" y="118" width="18" height="4" rx="2" fill="white" fillOpacity="0.4" />
+      {/* Front bumper/grill */}
+      <rect x="482" y="112" width="14" height="28" rx="2" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1" />
+      {/* Headlight */}
+      <circle cx="492" cy="108" r="5" fill="white" fillOpacity="0.5" />
+      {/* Exhaust stack */}
+      <rect x="474" y="10" width="6" height="45" rx="3" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1" />
+
+      {/* ── Wheels ── */}
+      {/* Rear dual wheels */}
+      <circle cx="82" cy="155" r="18" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="2" />
+      <circle cx="82" cy="155" r="8" fill="white" fillOpacity="0.15" />
+      <circle cx="120" cy="155" r="18" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="2" />
+      <circle cx="120" cy="155" r="8" fill="white" fillOpacity="0.15" />
+      {/* Front wheel */}
+      <circle cx="440" cy="155" r="18" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="2" />
+      <circle cx="440" cy="155" r="8" fill="white" fillOpacity="0.15" />
+
+      {/* ── Ground shadow line ── */}
+      <line x1="10" y1="168" x2="510" y2="168" stroke="white" strokeOpacity="0.1" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function LongIslandSilhouette() {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center p-3">
+      <svg viewBox="0 0 300 110" className="w-full max-w-[280px]" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* ── Long Island main body ── */}
+        {/* North shore (top edge) runs left-right */}
+        {/* South shore (bottom edge) runs left-right, straighter */}
         <path
-          d="M10 55 Q30 45 50 40 Q70 35 95 38 Q115 40 135 45 Q148 48 152 52 Q148 58 130 60 Q100 65 70 62 Q45 60 25 62 Z"
-          stroke="white" strokeWidth="1.2" fill="white" fillOpacity="0.1"
+          d="
+            M18,52
+            Q20,44 28,40 Q36,36 48,34 Q60,32 74,30
+            Q90,28 108,28 Q126,27 144,28
+            Q162,29 178,30 Q194,31 208,32
+            Q222,33 234,35 Q244,37 250,40
+            Q256,42 258,46
+            Q262,42 266,38 Q270,34 272,32
+            Q276,30 280,32 Q284,34 282,40
+            Q280,44 276,48 Q272,52 268,54
+            Q260,60 252,62
+            Q244,64 232,64 Q216,65 200,64
+            Q184,63 168,62 Q152,61 136,62
+            Q120,63 106,65 Q92,67 80,68
+            Q64,70 50,68 Q36,66 26,60
+            Q18,56 18,52 Z
+          "
+          fill="white"
+          fillOpacity="0.15"
+          stroke="white"
+          strokeWidth="1.5"
+          strokeOpacity="0.7"
         />
-        {/* NYC area */}
-        <rect x="6" y="44" width="8" height="10" rx="1" stroke="white" strokeWidth="0.8" fill="white" fillOpacity="0.15" />
-        {/* Service area dots */}
-        <circle cx="15" cy="49" r="2.5" fill="#22c55e" />
-        <text x="18" y="52" fontSize="5" fill="white">NYC</text>
-        <circle cx="45" cy="50" r="2" fill="#22c55e" />
-        <text x="48" y="53" fontSize="4.5" fill="white">Nassau</text>
-        <circle cx="100" cy="48" r="2" fill="#22c55e" />
-        <text x="88" y="43" fontSize="4.5" fill="white">Suffolk</text>
+        {/* North Fork (upper eastern fork) */}
+        <path
+          d="M258,46 Q262,42 266,38 Q270,34 272,32 Q276,30 280,32 Q284,34 282,40 Q280,44 276,48 Q272,52 268,54 Q263,56 258,56"
+          fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.2" strokeOpacity="0.6"
+        />
+        {/* South Fork (lower eastern fork - Hamptons) */}
+        <path
+          d="M252,62 Q256,64 260,66 Q264,68 266,72 Q268,76 265,80 Q262,83 258,82 Q254,81 250,78 Q246,74 248,70 Q250,66 252,62"
+          fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1.2" strokeOpacity="0.6"
+        />
+        {/* NYC boroughs box (left side) */}
+        <rect x="2" y="44" width="18" height="20" rx="2" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1" strokeOpacity="0.5" />
+
+        {/* ── Service area dots and labels ── */}
+        {/* NYC */}
+        <circle cx="11" cy="54" r="3.5" fill="#22c55e" />
+        <text x="22" y="51" fontSize="6.5" fill="white" fontFamily="sans-serif" fontWeight="700">NYC</text>
+
         {/* Long Beach */}
-        <circle cx="55" cy="60" r="1.8" fill="#22c55e" />
-        <text x="42" y="70" fontSize="4.5" fill="white">Long Beach</text>
+        <circle cx="78" cy="60" r="3" fill="#22c55e" />
+        <text x="66" y="74" fontSize="5.5" fill="white" fontFamily="sans-serif" fontWeight="600">Long Beach</text>
+
+        {/* Nassau */}
+        <circle cx="110" cy="46" r="3" fill="#22c55e" />
+        <text x="98" y="40" fontSize="6" fill="white" fontFamily="sans-serif" fontWeight="600">Nassau</text>
+
+        {/* Suffolk */}
+        <circle cx="196" cy="45" r="3" fill="#22c55e" />
+        <text x="182" y="39" fontSize="6" fill="white" fontFamily="sans-serif" fontWeight="600">Suffolk</text>
+
+        {/* Dot connectors */}
+        <line x1="11" y1="54" x2="78" y2="60" stroke="white" strokeOpacity="0.2" strokeWidth="0.8" strokeDasharray="3 3" />
+        <line x1="78" y1="60" x2="110" y2="46" stroke="white" strokeOpacity="0.2" strokeWidth="0.8" strokeDasharray="3 3" />
+        <line x1="110" y1="46" x2="196" y2="45" stroke="white" strokeOpacity="0.2" strokeWidth="0.8" strokeDasharray="3 3" />
       </svg>
-      <p className="text-white/60 text-[9px] text-center mt-1 font-medium tracking-wide">
+      <p className="text-white/50 text-[8px] text-center font-bold tracking-widest uppercase mt-1">
         Serving LI &amp; All NYC Boroughs
       </p>
     </div>
@@ -78,12 +168,16 @@ export default function InfoHomePage() {
       <div className="flex flex-col lg:flex-row">
 
         {/* ══ LEFT: Hero (dark, ~58%) ══ */}
-        <div className="lg:w-[58%] bg-secondary relative overflow-hidden min-h-[540px]">
-          <div className="flex h-full">
+        <div className="lg:w-[58%] bg-secondary relative overflow-hidden" style={{ minHeight: 560 }}>
+          <div className="flex" style={{ minHeight: 560 }}>
 
-            {/* Left side of hero — text */}
-            <div className="w-[52%] relative z-10 flex flex-col justify-center px-7 py-10 md:px-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            {/* Left side of hero — text + truck watermark */}
+            <div className="w-[52%] flex flex-col justify-center px-7 py-10 md:px-10 relative">
+              {/* Truck SVG watermark — sits behind text content */}
+              <div className="absolute bottom-0 left-0 right-0 z-0 pointer-events-none select-none">
+                <TeemerTruckSVG />
+              </div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative z-10">
                 <h1 className="text-3xl md:text-4xl lg:text-[2.6rem] font-black text-white uppercase leading-tight mb-2">
                   Make Moving<br />A Breeze
                 </h1>
@@ -111,7 +205,7 @@ export default function InfoHomePage() {
               </motion.div>
             </div>
 
-            {/* Right side of hero — photo collage */}
+            {/* Right side of hero — photo collage + Long Island map */}
             <div className="flex-1 relative">
               {/* Top photo */}
               <div className="absolute top-0 left-0 right-0 h-[58%] overflow-hidden">
@@ -133,7 +227,7 @@ export default function InfoHomePage() {
                   <div className="absolute inset-0 bg-secondary/20" />
                 </div>
                 <div className="flex-1 bg-secondary/90 border-l border-white/10">
-                  <ServiceAreaMap />
+                  <LongIslandSilhouette />
                 </div>
               </div>
               {/* Left fade into text */}
@@ -214,12 +308,12 @@ export default function InfoHomePage() {
                 </div>
                 <span className="text-[9px] font-bold text-slate-500 uppercase mt-1 text-center">Licensed</span>
               </div>
-              {/* Long Island Choice Awards */}
+              {/* Long Island Press Award — real photo */}
               <div className="flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full border-2 border-amber-400 bg-amber-50 flex flex-col items-center justify-center px-1 shadow">
-                  <span className="text-[8px] font-black text-amber-800 text-center leading-tight">LONG<br/>ISLAND<br/>CHOICE<br/>AWARDS</span>
+                <div className="w-16 h-16 rounded-full border-2 border-amber-400 overflow-hidden shadow">
+                  <img src="/images/award-trophy.jpg" alt="Long Island Press Award" className="w-full h-full object-cover" />
                 </div>
-                <span className="text-[9px] font-bold text-slate-500 uppercase mt-1 text-center">Winner</span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase mt-1 text-center">LI Press<br/>Award</span>
               </div>
               {/* Fully Insured */}
               <div className="flex flex-col items-center">
