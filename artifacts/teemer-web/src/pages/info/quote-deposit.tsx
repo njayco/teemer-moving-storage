@@ -1,6 +1,6 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { useRoute } from "wouter";
-import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users } from "lucide-react";
+import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
@@ -15,6 +15,7 @@ export default function QuoteDepositPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handlePayDeposit = async () => {
     setLoading(true);
@@ -113,11 +114,33 @@ export default function QuoteDepositPage() {
                 </div>
               )}
 
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/30 cursor-pointer accent-[#2F7B2F]"
+                  />
+                  <span className="text-sm text-slate-600 leading-relaxed">
+                    I have read and agree to the{" "}
+                    <Link
+                      href="/info/terms"
+                      className="text-primary font-semibold underline underline-offset-2 hover:text-primary/80"
+                      target="_blank"
+                    >
+                      Privacy Policy &amp; Terms of Service
+                    </Link>
+                    , including the deposit, cancellation, and additional charges policies.
+                  </span>
+                </label>
+              </div>
+
               <div className="space-y-3">
                 <button
                   type="button"
                   onClick={handlePayDeposit}
-                  disabled={loading || !quoteId}
+                  disabled={loading || !quoteId || !termsAccepted}
                   className="w-full flex items-center gap-3 bg-primary text-white px-6 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? (
@@ -126,6 +149,11 @@ export default function QuoteDepositPage() {
                     <><CreditCard className="w-5 h-5" /> Pay Deposit Online</>
                   )}
                 </button>
+                {!termsAccepted && (
+                  <p className="text-center text-xs text-amber-600 font-medium">
+                    Please agree to the terms and conditions to proceed
+                  </p>
+                )}
                 <p className="text-center text-xs text-slate-400">
                   Secured by Stripe · Your card details are never stored on our servers
                 </p>

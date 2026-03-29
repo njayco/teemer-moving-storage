@@ -16,6 +16,7 @@ import QuotePage from "@/pages/info/quote";
 import QuoteDepositPage from "@/pages/info/quote-deposit";
 import QuoteConfirmationPage from "@/pages/info/quote-confirmation";
 import GalleryPage from "@/pages/info/gallery";
+import TermsPage from "@/pages/info/terms";
 import TrackLookupPage from "@/pages/track/lookup";
 import TrackByTokenPage from "@/pages/track/token";
 
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/info/services" component={ServicesPage} />
       <Route path="/info/service-area" component={ServiceAreaPage} />
       <Route path="/info/gallery" component={GalleryPage} />
+      <Route path="/info/terms" component={TermsPage} />
       <Route path="/info/faq" component={FaqPage} />
       <Route path="/info/contact" component={ContactPage} />
       <Route path="/info/quote" component={QuotePage} />

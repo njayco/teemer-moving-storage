@@ -199,6 +199,9 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-16 pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
           <p>&copy; {new Date().getFullYear()} Teemer Moving & Storage Corp. All rights reserved.</p>
+          <p className="mt-2">
+            <Link href="/info/terms" className="hover:text-primary transition-colors">Privacy Policy & Terms of Service</Link>
+          </p>
         </div>
       </footer>
     </div>
