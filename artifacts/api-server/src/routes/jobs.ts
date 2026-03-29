@@ -104,6 +104,56 @@ function formatJobRow(job: typeof jobsTable.$inferSelect, quote?: typeof quoteRe
   };
 }
 
+function formatCaptainJobRow(job: typeof jobsTable.$inferSelect, quote?: typeof quoteRequestsTable.$inferSelect | null) {
+  return {
+    id: String(job.id),
+    jobId: job.jobId,
+    customer: job.customer,
+    pickupLocation: job.pickupLocation,
+    destination: job.destination,
+    moveType: job.moveType,
+    dateTime: job.dateTime,
+    specialRequirements: job.specialRequirements ?? undefined,
+    jobSize: job.jobSize ?? undefined,
+    status: job.status ?? "pending",
+    assignedMover: job.assignedMover ?? undefined,
+    truckStatus: job.truckStatus ?? undefined,
+    eta: job.eta ?? undefined,
+    assignedCaptainId: job.assignedCaptainId ?? undefined,
+    arrivalWindow: job.arrivalWindow ?? undefined,
+    originAddress: job.originAddress ?? undefined,
+    destinationAddress: job.destinationAddress ?? undefined,
+    crewSize: job.crewSize ?? undefined,
+    estimatedHours: job.estimatedHours ?? undefined,
+    notes: job.notes ?? undefined,
+    createdAt: job.createdAt?.toISOString() ?? undefined,
+    updatedAt: job.updatedAt?.toISOString() ?? undefined,
+    completedAt: job.completedAt?.toISOString() ?? undefined,
+    quoteData: quote
+      ? {
+          contactName: quote.contactName,
+          phone: quote.phone,
+          email: quote.email,
+          moveDate: quote.moveDate,
+          arrivalTimeWindow: quote.arrivalTimeWindow || undefined,
+          pickupAddress: quote.pickupAddress || quote.originAddress || undefined,
+          dropoffAddress: quote.dropoffAddress || quote.destinationAddress || undefined,
+          numberOfBedrooms: quote.numberOfBedrooms,
+          numberOfLivingRooms: quote.numberOfLivingRooms,
+          isFullyFurnished: quote.isFullyFurnished,
+          hasStairs: quote.hasStairs,
+          hasHeavyItems: quote.hasHeavyItems,
+          storageNeeded: quote.storageNeeded,
+          storageUnitChoice: quote.storageUnitChoice || undefined,
+          additionalNotes: quote.additionalNotes || undefined,
+          inventory: quote.inventory || {},
+          crewSize: quote.crewSize,
+          estimatedHours: quote.estimatedHours,
+        }
+      : undefined,
+  };
+}
+
 router.get("/jobs", requireAdmin, async (req, res) => {
   try {
     const { status, search } = req.query;
@@ -724,7 +774,7 @@ router.get("/captain/jobs", requireCaptainOrAdmin, async (req, res) => {
       }
     }
 
-    res.json(jobs.map((job) => formatJobRow(job, quotesMap.get(job.quoteId!) || null)));
+    res.json(jobs.map((job) => formatCaptainJobRow(job, quotesMap.get(job.quoteId!) || null)));
   } catch (err) {
     req.log.error({ err }, "Failed to fetch captain jobs");
     res.status(500).json({ error: "Internal server error" });
@@ -825,7 +875,7 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
       }
     }
 
-    res.json(formatJobRow(updated));
+    res.json(formatCaptainJobRow(updated));
   } catch (err) {
     req.log.error({ err }, "Failed to update captain status");
     res.status(500).json({ error: "Internal server error" });
@@ -877,7 +927,7 @@ router.post("/jobs/:jobId/captain-note", requireCaptainOrAdmin, async (req, res)
       createdByUserId: req.user!.userId,
     }).catch(() => {});
 
-    res.json(formatJobRow(updated));
+    res.json(formatCaptainJobRow(updated));
   } catch (err) {
     req.log.error({ err }, "Failed to add captain note");
     res.status(500).json({ error: "Internal server error" });
