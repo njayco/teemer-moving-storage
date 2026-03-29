@@ -250,7 +250,7 @@ router.get("/admin/stats", async (req, res) => {
         ),
         revenuePipeline: sum(quoteRequestsTable.totalEstimate),
         pendingQuotes: sum(
-          sql`CASE WHEN ${quoteRequestsTable.status} = 'quote_requested' THEN 1 ELSE 0 END`
+          sql`CASE WHEN ${quoteRequestsTable.status} IN ('quote_requested', 'pending') THEN 1 ELSE 0 END`
         ),
       })
       .from(quoteRequestsTable);

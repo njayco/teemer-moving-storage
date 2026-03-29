@@ -715,5 +715,8 @@ components:
         - availableCrews
         - availableTrucks
         - revenueToday
+        - totalQuotes
+        - depositCollected
+        - revenuePipeline
         - weeklyRevenue
         - recentJobs

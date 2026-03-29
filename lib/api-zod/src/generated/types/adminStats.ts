@@ -17,11 +17,11 @@ export interface AdminStats {
   availableTrucks: number;
   revenueToday: number;
   /** Total number of quote requests submitted */
-  totalQuotes?: number;
+  totalQuotes: number;
   /** Total deposit amount collected from paid/booked quotes */
-  depositCollected?: number;
+  depositCollected: number;
   /** Total estimated revenue across all quotes */
-  revenuePipeline?: number;
+  revenuePipeline: number;
   weeklyRevenue: AdminStatsWeeklyRevenueItem[];
   recentJobs: Job[];
 }
