@@ -323,6 +323,11 @@ router.post("/quotes/:id/checkout", async (req, res) => {
       return;
     }
 
+    if (quote.status === "deposit_paid") {
+      res.status(409).json({ error: "Deposit has already been paid for this quote." });
+      return;
+    }
+
     const depositCents = Math.round((quote.depositAmount ?? 50) * 100);
     const moveDate = quote.moveDate ?? "TBD";
     const customerName = quote.contactName ?? "Customer";
