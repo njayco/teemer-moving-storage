@@ -1,12 +1,17 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { useRoute } from "wouter";
-import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
+import { useGetQuoteRequest } from "@workspace/api-client-react";
 
 export default function QuoteDepositPage() {
   const [, params] = useRoute("/info/quote/deposit/:quoteId");
   const quoteId = params?.quoteId ?? "";
+
+  const { data: quote } = useGetQuoteRequest(quoteId, {
+    query: { enabled: !!quoteId, queryKey: ["deposit-quote", quoteId] },
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +57,52 @@ export default function QuoteDepositPage() {
             </div>
 
             <div className="px-8 py-8 space-y-6">
+              {quote && (
+                <div className="bg-slate-50 rounded-xl border border-slate-100 divide-y divide-slate-100">
+                  {quote.depositAmount != null && (
+                    <div className="px-5 py-4 text-center">
+                      <p className="text-xs text-slate-400 font-medium mb-1">Deposit Amount</p>
+                      <p className="text-2xl font-bold text-primary">
+                        ${quote.depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex divide-x divide-slate-100">
+                    {quote.quoteRequest?.moveDate && (
+                      <div className="flex-1 px-4 py-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <p className="text-[10px] text-slate-400">Move Date</p>
+                          <p className="text-xs font-semibold text-slate-700">
+                            {new Date(quote.quoteRequest.moveDate + "T12:00:00").toLocaleDateString("en-US", {
+                              month: "short", day: "numeric", year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {quote.crewSize && (
+                      <div className="flex-1 px-4 py-3 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <p className="text-[10px] text-slate-400">Crew</p>
+                          <p className="text-xs font-semibold text-slate-700">
+                            {quote.crewSize} movers · ~{quote.estimatedHours} hrs
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {quote.totalEstimate != null && (
+                    <div className="px-5 py-3 text-center">
+                      <p className="text-xs text-slate-400">
+                        Total estimate: ${quote.totalEstimate.toLocaleString("en-US", { minimumFractionDigits: 2 })} · Balance due on move day
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {error && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
