@@ -500,24 +500,26 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       }).catch(() => {});
 
       if (cashAmount > 0) {
-        const [payment] = await db.insert(paymentsTable)
-          .values({
-            jobId: updated.id,
-            type: "remaining_balance",
-            method: "cash",
-            amount: cashAmount,
-            notes: "Marked as paid in cash by admin",
-          })
-          .returning();
+        await db.transaction(async (tx) => {
+          const [payment] = await tx.insert(paymentsTable)
+            .values({
+              jobId: updated.id,
+              type: "remaining_balance",
+              method: "cash",
+              amount: cashAmount,
+              notes: "Marked as paid in cash by admin",
+            })
+            .returning();
 
-        if (payment) {
-          await db.insert(revenueLedgerTable).values({
-            jobId: updated.id,
-            paymentId: payment.id,
-            category: "cash_payment",
-            amount: cashAmount,
-          });
-        }
+          if (payment) {
+            await tx.insert(revenueLedgerTable).values({
+              jobId: updated.id,
+              paymentId: payment.id,
+              category: "cash_payment",
+              amount: cashAmount,
+            });
+          }
+        });
       }
     }
 
@@ -657,7 +659,9 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
 
     const existingPayments = await db.select({ total: sum(paymentsTable.amount) })
       .from(paymentsTable).where(eq(paymentsTable.jobId, job.id));
-    const totalPaid = Number(existingPayments[0]?.total ?? 0);
+    const paymentRowsTotal = Number(existingPayments[0]?.total ?? 0);
+    const depositOnJob = job.depositPaid ?? 0;
+    const totalPaid = Math.max(paymentRowsTotal, depositOnJob);
     const finalTotal = job.finalTotal ?? job.estimatedPayout ?? 0;
     const remainingBalance = Math.max(0, finalTotal - totalPaid);
 
@@ -880,7 +884,8 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
 
     const existingPayments = await db.select({ total: sum(paymentsTable.amount) })
       .from(paymentsTable).where(eq(paymentsTable.jobId, job.id));
-    const totalPaid = Number(existingPayments[0]?.total ?? 0);
+    const paymentRowsTotal = Number(existingPayments[0]?.total ?? 0);
+    const totalPaid = Math.max(paymentRowsTotal, depositApplied);
     const remainingBalanceDue = Math.max(0, finalTotal - totalPaid);
 
     const validatedItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }> = Array.isArray(items)
