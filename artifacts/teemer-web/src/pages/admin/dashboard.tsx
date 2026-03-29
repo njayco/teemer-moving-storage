@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import {
   useGetAdminStats, useListJobs, useListQuoteRequests, useUpdateQuoteStatus,
+  type QuoteResponse,
 } from "@workspace/api-client-react";
 import {
   LayoutDashboard, Users, Truck, FileText, Settings, Search, Bell,
@@ -30,7 +31,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function QuoteDetailPanel({ quote, onClose }: { quote: NonNullable<ReturnType<typeof useListQuoteRequests>["data"]>[number]; onClose: () => void }) {
+function QuoteDetailPanel({ quote, onClose }: { quote: QuoteResponse; onClose: () => void }) {
   const qr = quote.quoteRequest!;
   const inventory = (qr.inventory ?? {}) as Record<string, number>;
   const inventoryEntries = Object.entries(inventory).filter(([, v]) => v > 0);
