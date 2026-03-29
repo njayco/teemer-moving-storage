@@ -523,28 +523,6 @@ export const GetEmailLogsResponseItem = zod.object({
 export const GetEmailLogsResponse = zod.array(GetEmailLogsResponseItem);
 
 /**
- * Returns email send history for a specific job (admin only)
- * @summary Get email logs for a job
- */
-export const GetEmailLogsByJobParams = zod.object({
-  jobId: zod.coerce.string(),
-});
-
-export const GetEmailLogsByJobResponseItem = zod.object({
-  id: zod.number(),
-  quoteId: zod.number().nullish(),
-  jobId: zod.number().nullish(),
-  emailType: zod.string(),
-  recipient: zod.string(),
-  resendId: zod.string().nullish(),
-  status: zod.enum(["sent", "failed", "skipped"]),
-  sentAt: zod.string().nullish(),
-});
-export const GetEmailLogsByJobResponse = zod.array(
-  GetEmailLogsByJobResponseItem,
-);
-
-/**
  * Get stats for the admin dashboard
  * @summary Get admin dashboard stats
  */
