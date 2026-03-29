@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { quoteRequestsTable } from "@workspace/db/schema";
+import { quoteRequestsTable, paymentsTable, revenueLedgerTable, jobsTable } from "@workspace/db/schema";
 import { eq, and, notInArray } from "drizzle-orm";
 import crypto from "crypto";
 import {
@@ -99,6 +99,26 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
           ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
           : "No specific items listed";
       const boxesSummary = `Small: ${updatedQuote.smallBoxes ?? 0}, Medium: ${updatedQuote.mediumBoxes ?? 0}`;
+
+      const [existingJob] = await db.select().from(jobsTable)
+        .where(eq(jobsTable.quoteId, parsedQuoteId)).limit(1);
+      if (existingJob) {
+        const sessionId = typeof session.id === "string" ? session.id : "";
+        await db.insert(paymentsTable).values({
+          jobId: existingJob.id,
+          type: "deposit",
+          method: "stripe",
+          amount: depositPaid,
+          reference: sessionId,
+          notes: `Stripe deposit for quote #${parsedQuoteId}`,
+        });
+        await db.insert(revenueLedgerTable).values({
+          jobId: existingJob.id,
+          category: "deposit",
+          amount: depositPaid,
+        });
+        req.log.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
+      }
 
       sendDepositConfirmationEmail({
         customerName: updatedQuote.contactName ?? "Customer",

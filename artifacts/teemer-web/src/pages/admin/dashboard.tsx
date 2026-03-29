@@ -320,8 +320,8 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
               <span className="font-bold text-secondary">${finalTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Deposit Applied</span>
-              <span className="font-medium text-primary">-${depositPaid.toFixed(2)}</span>
+              <span className="text-slate-500">Total Paid</span>
+              <span className="font-medium text-primary">-${totalPaid.toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t pt-2">
               <span className="text-slate-700 font-bold">Remaining Balance</span>

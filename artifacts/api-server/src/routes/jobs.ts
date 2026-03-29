@@ -249,6 +249,26 @@ router.post("/jobs", requireAdmin, async (req, res) => {
       notes: `Job ${jobId} created`,
     }).catch(() => {});
 
+    if ((job.depositPaid ?? 0) > 0) {
+      const existingDeposit = await db.select().from(paymentsTable)
+        .where(and(eq(paymentsTable.jobId, job.id), eq(paymentsTable.type, "deposit")))
+        .limit(1);
+      if (existingDeposit.length === 0) {
+        await db.insert(paymentsTable).values({
+          jobId: job.id,
+          type: "deposit",
+          method: "stripe",
+          amount: job.depositPaid ?? 0,
+          notes: `Deposit recorded at job creation`,
+        });
+        await db.insert(revenueLedgerTable).values({
+          jobId: job.id,
+          category: "deposit",
+          amount: job.depositPaid ?? 0,
+        });
+      }
+    }
+
     res.status(201).json(formatJobRow(job));
   } catch (err) {
     req.log.error({ err }, "Failed to create job");

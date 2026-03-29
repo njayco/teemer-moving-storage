@@ -32,5 +32,5 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-RESEND_FROM_EMAIL = "noreply@teemermoving.com"
+RESEND_FROM_EMAIL = "Teemer Moving <noreply@teemermoving.com>"
 ADMIN_NOTIFICATION_EMAIL = "alan@teemermoving.com"
