@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { quoteRequestsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, notInArray } from "drizzle-orm";
 import crypto from "crypto";
 import {
   sendDepositConfirmationEmail,
@@ -56,74 +56,71 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
       const parsedQuoteId = parseInt(quoteId, 10);
 
-      const [existingQuote] = await db
-        .select({ status: quoteRequestsTable.status })
-        .from(quoteRequestsTable)
-        .where(eq(quoteRequestsTable.id, parsedQuoteId))
-        .limit(1);
-
-      if (existingQuote?.status === "deposit_paid" || existingQuote?.status === "booked") {
-        req.log.info({ quoteId, status: existingQuote.status }, "Quote already processed, skipping duplicate webhook");
-        res.json({ received: true });
-        return;
-      }
-
       const trackingToken = crypto.randomUUID();
 
       const [updatedQuote] = await db
         .update(quoteRequestsTable)
         .set({ status: "deposit_paid", trackingToken })
-        .where(eq(quoteRequestsTable.id, parsedQuoteId))
+        .where(
+          and(
+            eq(quoteRequestsTable.id, parsedQuoteId),
+            notInArray(quoteRequestsTable.status, ["deposit_paid", "booked"])
+          )
+        )
         .returning();
+
+      if (!updatedQuote) {
+        req.log.info({ quoteId }, "Quote already processed or not found, skipping duplicate webhook");
+        res.json({ received: true });
+        return;
+      }
 
       req.log.info({ quoteId, sessionId: session.id, trackingToken }, "Quote marked deposit_paid");
 
-      if (updatedQuote) {
-        const baseUrl = getAppBaseUrl();
-        const trackingUrl = `${baseUrl}/track/${trackingToken}`;
-        const depositPaid = updatedQuote.depositAmount ?? 50;
-        const totalEstimate = updatedQuote.totalEstimate ?? 0;
-        const remainingBalance = totalEstimate - depositPaid;
+      const baseUrl = getAppBaseUrl();
+      const trackingUrl = `${baseUrl}/track/${trackingToken}`;
+      const depositPaid = updatedQuote.depositAmount ?? 50;
+      const totalEstimate = updatedQuote.totalEstimate ?? 0;
+      const remainingBalance = totalEstimate - depositPaid;
 
-        const inventoryObj = (updatedQuote.inventory as Record<string, number>) || {};
-        const inventoryItems = Object.entries(inventoryObj);
-        const inventorySummary =
-          inventoryItems.length > 0
-            ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
-            : "No specific items listed";
-        const boxesSummary = `Small: ${updatedQuote.smallBoxes ?? 0}, Medium: ${updatedQuote.mediumBoxes ?? 0}`;
+      const inventoryObj = (updatedQuote.inventory as Record<string, number>) || {};
+      const inventoryItems = Object.entries(inventoryObj);
+      const inventorySummary =
+        inventoryItems.length > 0
+          ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
+          : "No specific items listed";
+      const boxesSummary = `Small: ${updatedQuote.smallBoxes ?? 0}, Medium: ${updatedQuote.mediumBoxes ?? 0}`;
 
-        sendDepositConfirmationEmail({
-          customerName: updatedQuote.contactName ?? "Customer",
-          email: updatedQuote.email ?? "",
-          quoteId: parsedQuoteId,
-          moveDate: updatedQuote.moveDate ?? "TBD",
-          arrivalWindow: updatedQuote.arrivalTimeWindow ?? undefined,
-          pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
-          dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
-          secondStop: updatedQuote.secondStop ?? undefined,
-          inventorySummary,
-          boxesSummary,
-          crewSize: updatedQuote.crewSize ?? undefined,
-          estimatedHours: updatedQuote.estimatedHours ?? undefined,
-          totalEstimate,
-          depositPaid,
-          remainingBalance,
-          trackingUrl,
-        }).catch((err) => req.log.error({ err }, "Failed to send deposit confirmation email"));
+      sendDepositConfirmationEmail({
+        customerName: updatedQuote.contactName ?? "Customer",
+        email: updatedQuote.email ?? "",
+        quoteId: parsedQuoteId,
+        moveDate: updatedQuote.moveDate ?? "TBD",
+        arrivalWindow: updatedQuote.arrivalTimeWindow ?? undefined,
+        pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
+        dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
+        secondStop: updatedQuote.secondStop ?? undefined,
+        inventorySummary,
+        boxesSummary,
+        crewSize: updatedQuote.crewSize ?? undefined,
+        estimatedHours: updatedQuote.estimatedHours ?? undefined,
+        totalEstimate,
+        depositPaid,
+        remainingBalance,
+        trackingUrl,
+      }).catch((err) => req.log.error({ err }, "Failed to send deposit confirmation email"));
 
-        sendAdminNewJobNotification({
-          quoteId: parsedQuoteId,
-          customerName: updatedQuote.contactName ?? "Customer",
-          customerEmail: updatedQuote.email ?? "",
-          customerPhone: updatedQuote.phone ?? "",
-          moveDate: updatedQuote.moveDate ?? "TBD",
-          pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
-          dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
-          totalEstimate,
-          depositPaid,
-        }).catch((err) => req.log.error({ err }, "Failed to send admin new job notification"));
-      }
+      sendAdminNewJobNotification({
+        quoteId: parsedQuoteId,
+        customerName: updatedQuote.contactName ?? "Customer",
+        customerEmail: updatedQuote.email ?? "",
+        customerPhone: updatedQuote.phone ?? "",
+        moveDate: updatedQuote.moveDate ?? "TBD",
+        pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
+        dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
+        totalEstimate,
+        depositPaid,
+      }).catch((err) => req.log.error({ err }, "Failed to send admin new job notification"));
     }
 
     res.json({ received: true });
