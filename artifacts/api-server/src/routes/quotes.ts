@@ -11,7 +11,9 @@ const router: IRouter = Router();
 function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
   return {
     id: String(q.id),
-    status: q.status || "quote_requested",
+    // Normalize legacy "pending" status (and null) to "quote_requested" so
+    // all responses conform to the API enum contract regardless of row age.
+    status: (q.status === "pending" || !q.status) ? "quote_requested" : q.status,
     createdAt: q.createdAt?.toISOString() || new Date().toISOString(),
     // Pricing result
     crewSize: q.crewSize,

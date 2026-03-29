@@ -34,3 +34,6 @@ ALTER TABLE "quote_requests" ALTER COLUMN "move_type" SET DEFAULT 'local';
 
 -- Update status default from legacy 'pending' to 'quote_requested'.
 ALTER TABLE "quote_requests" ALTER COLUMN "status" SET DEFAULT 'quote_requested';
+
+-- Normalize legacy status values so all rows conform to the API enum contract.
+UPDATE "quote_requests" SET "status" = 'quote_requested' WHERE "status" = 'pending' OR "status" IS NULL;
