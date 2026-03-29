@@ -475,11 +475,43 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       }
     }
 
-    const [updated] = await db
-      .update(jobsTable)
-      .set(updates)
-      .where(eq(jobsTable.id, existing.id))
-      .returning();
+    let updated: typeof existing;
+    if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash" && cashAmount > 0) {
+      [updated] = await db.transaction(async (tx) => {
+        const [jobRow] = await tx
+          .update(jobsTable)
+          .set(updates)
+          .where(eq(jobsTable.id, existing.id))
+          .returning();
+
+        const [payment] = await tx.insert(paymentsTable)
+          .values({
+            jobId: jobRow.id,
+            type: "remaining_balance",
+            method: "cash",
+            amount: cashAmount,
+            notes: "Marked as paid in cash by admin",
+          })
+          .returning();
+
+        if (payment) {
+          await tx.insert(revenueLedgerTable).values({
+            jobId: jobRow.id,
+            paymentId: payment.id,
+            category: "cash_payment",
+            amount: cashAmount,
+          });
+        }
+
+        return [jobRow];
+      });
+    } else {
+      [updated] = await db
+        .update(jobsTable)
+        .set(updates)
+        .where(eq(jobsTable.id, existing.id))
+        .returning();
+    }
 
     if (status && status !== existing.status) {
       recordTimelineEvent({
@@ -520,29 +552,6 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         notes: `Payment marked as paid in cash ($${cashAmount.toFixed(2)})`,
         createdByUserId: req.user?.userId ?? undefined,
       }).catch(() => {});
-
-      if (cashAmount > 0) {
-        await db.transaction(async (tx) => {
-          const [payment] = await tx.insert(paymentsTable)
-            .values({
-              jobId: updated.id,
-              type: "remaining_balance",
-              method: "cash",
-              amount: cashAmount,
-              notes: "Marked as paid in cash by admin",
-            })
-            .returning();
-
-          if (payment) {
-            await tx.insert(revenueLedgerTable).values({
-              jobId: updated.id,
-              paymentId: payment.id,
-              category: "cash_payment",
-              amount: cashAmount,
-            });
-          }
-        });
-      }
     }
 
     res.json(formatJobRow(updated));

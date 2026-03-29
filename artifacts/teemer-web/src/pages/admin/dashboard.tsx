@@ -118,6 +118,7 @@ function PaymentBadge({ status }: { status: string }) {
   const configs: Record<string, { label: string; bg: string; text: string }> = {
     unpaid: { label: "Unpaid", bg: "bg-red-50", text: "text-red-600" },
     deposit_only: { label: "Deposit Only", bg: "bg-amber-50", text: "text-amber-600" },
+    invoiced: { label: "Invoiced", bg: "bg-blue-50", text: "text-blue-700" },
     paid_cash: { label: "Paid (Cash)", bg: "bg-green-50", text: "text-green-700" },
     paid: { label: "Paid", bg: "bg-green-50", text: "text-green-700" },
   };
