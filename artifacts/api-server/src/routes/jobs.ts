@@ -8,6 +8,7 @@ import {
   paymentsTable,
   usersTable,
   invoicesTable,
+  revenueLedgerTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte } from "drizzle-orm";
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
@@ -32,7 +33,6 @@ async function computeTotalPaidAndRemaining(
   const remainingBalance = Math.max(0, finalTotal - totalPaid);
   return { totalPaid, remainingBalance };
 }
-import { revenueLedgerTable } from "@workspace/db/schema";
 
 const CAPTAIN_STATUSES = [
   "scheduled", "en_route", "arrived", "in_progress",

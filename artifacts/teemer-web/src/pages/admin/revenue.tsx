@@ -203,7 +203,7 @@ export default function RevenuePage() {
                 className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none bg-white"
               >
                 <option value="all">All Statuses</option>
-                <option value="assigned">Assigned</option>
+                <option value="captain_assigned">Assigned</option>
                 <option value="in_progress">In Progress</option>
                 <option value="awaiting_remaining_balance">Awaiting Balance</option>
                 <option value="complete">Complete</option>
