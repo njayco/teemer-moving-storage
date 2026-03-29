@@ -579,7 +579,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Job"
+                  $ref: "#/components/schemas/CaptainJob"
         "401":
           description: Authentication required
         "403":
@@ -608,7 +608,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Job"
+                $ref: "#/components/schemas/CaptainJob"
         "400":
           description: Invalid status
         "403":
@@ -643,7 +643,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Job"
+                $ref: "#/components/schemas/CaptainJob"
         "403":
           description: Not assigned to this job
         "404":
@@ -1157,6 +1157,62 @@ components:
           type: number
 
     # ─── Captain ─────────────────────────────────────────────────────────────
+    CaptainJob:
+      type: object
+      properties:
+        id:
+          type: string
+        jobId:
+          type: string
+        customer:
+          type: object
+        pickupLocation:
+          type: string
+        destination:
+          type: string
+        moveType:
+          type: string
+        dateTime:
+          type: string
+        specialRequirements:
+          type: string
+        jobSize:
+          type: string
+        status:
+          type: string
+        assignedMover:
+          type: string
+        truckStatus:
+          type: string
+        eta:
+          type: string
+        assignedCaptainId:
+          type: string
+        arrivalWindow:
+          type: string
+        originAddress:
+          type: string
+        destinationAddress:
+          type: string
+        crewSize:
+          type: integer
+        estimatedHours:
+          type: number
+        notes:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        completedAt:
+          type: string
+        quoteData:
+          type: object
+      required:
+        - id
+        - jobId
+        - status
+
     CaptainStatusUpdateRequest:
       type: object
       properties:

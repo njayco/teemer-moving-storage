@@ -3,7 +3,7 @@ import {
   useListCaptainJobs,
   useUpdateCaptainJobStatus,
   useAddCaptainNote,
-  type Job,
+  type CaptainJob,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -45,6 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof Truck; color: 
 };
 
 const CAPTAIN_ACTIONS = [
+  { status: "scheduled", label: "Scheduled", icon: Clock, color: "bg-blue-500 hover:bg-blue-600" },
   { status: "en_route", label: "En Route", icon: Navigation, color: "bg-sky-500 hover:bg-sky-600" },
   { status: "arrived", label: "Arrived", icon: MapPin, color: "bg-teal-500 hover:bg-teal-600" },
   { status: "in_progress", label: "Start Job", icon: Truck, color: "bg-orange-500 hover:bg-orange-600" },
@@ -64,7 +65,7 @@ function getNextActions(currentStatus: string) {
     in_progress: ["at_storage", "complete", "delayed"],
     at_storage: ["returning", "complete", "delayed"],
     returning: ["complete", "delayed"],
-    delayed: ["en_route", "arrived", "in_progress"],
+    delayed: ["scheduled", "en_route", "arrived", "in_progress"],
   };
   return flowMap[currentStatus] || [];
 }
@@ -84,7 +85,7 @@ function isFuture(dateStr?: string | null): boolean {
   return d > today;
 }
 
-function JobCard({ job, onUpdate }: { job: Job; onUpdate: () => void }) {
+function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
   const { mutateAsync: updateStatus } = useUpdateCaptainJobStatus();
   const { mutateAsync: addNote } = useAddCaptainNote();
   const [updating, setUpdating] = useState<string | null>(null);

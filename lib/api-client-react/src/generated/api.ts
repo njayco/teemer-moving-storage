@@ -19,6 +19,7 @@ import type {
 import type {
   AddCaptainNoteBody,
   AdminStats,
+  CaptainJob,
   CaptainStatusUpdateRequest,
   ContactFormRequest,
   ContactFormResponse,
@@ -2290,8 +2291,8 @@ export const getListCaptainJobsUrl = () => {
 
 export const listCaptainJobs = async (
   options?: RequestInit,
-): Promise<Job[]> => {
-  return customFetch<Job[]>(getListCaptainJobsUrl(), {
+): Promise<CaptainJob[]> => {
+  return customFetch<CaptainJob[]>(getListCaptainJobsUrl(), {
     ...options,
     method: "GET",
   });
@@ -2368,8 +2369,8 @@ export const updateCaptainJobStatus = async (
   jobId: string,
   captainStatusUpdateRequest: CaptainStatusUpdateRequest,
   options?: RequestInit,
-): Promise<Job> => {
-  return customFetch<Job>(getUpdateCaptainJobStatusUrl(jobId), {
+): Promise<CaptainJob> => {
+  return customFetch<CaptainJob>(getUpdateCaptainJobStatusUrl(jobId), {
     ...options,
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -2456,8 +2457,8 @@ export const addCaptainNote = async (
   jobId: string,
   addCaptainNoteBody: AddCaptainNoteBody,
   options?: RequestInit,
-): Promise<Job> => {
-  return customFetch<Job>(getAddCaptainNoteUrl(jobId), {
+): Promise<CaptainJob> => {
+  return customFetch<CaptainJob>(getAddCaptainNoteUrl(jobId), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },

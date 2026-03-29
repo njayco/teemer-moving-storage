@@ -299,6 +299,37 @@ export interface UpdateJobStatusRequest {
   remainingBalance?: number;
 }
 
+export type CaptainJobCustomer = { [key: string]: unknown };
+
+export type CaptainJobQuoteData = { [key: string]: unknown };
+
+export interface CaptainJob {
+  id: string;
+  jobId: string;
+  customer?: CaptainJobCustomer;
+  pickupLocation?: string;
+  destination?: string;
+  moveType?: string;
+  dateTime?: string;
+  specialRequirements?: string;
+  jobSize?: string;
+  status: string;
+  assignedMover?: string;
+  truckStatus?: string;
+  eta?: string;
+  assignedCaptainId?: string;
+  arrivalWindow?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  crewSize?: number;
+  estimatedHours?: number;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+  quoteData?: CaptainJobQuoteData;
+}
+
 export type CaptainStatusUpdateRequestStatus =
   (typeof CaptainStatusUpdateRequestStatus)[keyof typeof CaptainStatusUpdateRequestStatus];
 
