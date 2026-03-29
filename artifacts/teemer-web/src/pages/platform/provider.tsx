@@ -22,7 +22,7 @@ export default function ProviderPortal() {
               <h1 className="text-3xl font-bold font-display text-secondary mb-2">Job Marketplace</h1>
               <p className="text-slate-500">Find and claim open moving requests in your area.</p>
             </div>
-            <button onClick={() => refetch()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Refresh Feed">
+            <button onClick={() => window.location.reload()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Refresh Feed">
               <RefreshCw className="w-5 h-5" />
             </button>
           </div>
