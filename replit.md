@@ -105,15 +105,26 @@ A full-featured moving company web app with two distinct experiences:
 - `GET/POST /api/quotes` — Quote requests
 - `POST /api/quotes/estimate-boxes` — AI box estimation (OpenAI via Replit AI proxy)
 - `POST /api/quotes/:id/checkout` — Stripe Checkout Session for deposit
-- `POST /api/stripe/webhook` — Stripe webhook (marks quote deposit_paid)
+- `POST /api/stripe/webhook` — Stripe webhook (marks quote deposit_paid, sends deposit confirmation + admin notification emails)
 - `GET/POST /api/jobs` — Jobs
 - `GET/PATCH /api/jobs/:jobId` — Individual job + status updates
 - `POST /api/contact` — Contact form
 - `GET /api/admin/stats` — Admin dashboard stats
+- `GET /api/admin/email-logs/:jobId` — Email send history per job (admin only)
+
+### Email System (Resend)
+- **Service**: `artifacts/api-server/src/lib/email-service.ts` — centralized send functions
+- **Templates**: `artifacts/api-server/src/lib/email-templates.ts` — branded HTML templates
+- **Functions**: sendDepositConfirmationEmail, sendAdminNewJobNotification, sendStatusUpdateEmail, sendTrackingLinkEmail, sendRemainingBalanceInvoiceEmail, sendPaymentReceivedEmail, sendJobCompletedEmail
+- **Automatic triggers**: Deposit confirmation + admin notification fire on Stripe webhook deposit_paid
+- **Logging**: All sends logged to email_logs table (sent/failed/skipped)
+- **Graceful fallback**: If RESEND_API_KEY is not set, emails are skipped with warning log
+- **Env vars**: RESEND_API_KEY, RESEND_FROM_EMAIL (default: noreply@teemer.com), ADMIN_NOTIFICATION_EMAIL (default: admin@teemer.com), APP_BASE_URL
 
 ### Integrations
 - **OpenAI**: Uses Replit AI Integrations proxy (`AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`), falls back to `OPENAI_API_KEY`
 - **Stripe**: Uses Replit Stripe connector (`getUncachableStripeClient()` in `src/lib/stripe-client.ts`), fetches credentials from Replit connection API. Webhook secret via `STRIPE_WEBHOOK_SECRET` env var.
+- **Resend**: Email delivery via RESEND_API_KEY
 
 ### Frontend Packages
 - `react-hook-form` + `@hookform/resolvers` + `zod` — Form management

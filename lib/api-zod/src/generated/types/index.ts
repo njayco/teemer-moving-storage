@@ -16,6 +16,8 @@ export * from "./createJobRequest";
 export * from "./createUserRequest";
 export * from "./createUserRequestRole";
 export * from "./currentUserResponse";
+export * from "./emailLog";
+export * from "./emailLogStatus";
 export * from "./estimateBoxesRequest";
 export * from "./estimateBoxesResponse";
 export * from "./healthStatus";

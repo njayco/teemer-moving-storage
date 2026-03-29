@@ -4,6 +4,7 @@ import quotesRouter from "./quotes";
 import jobsRouter from "./jobs";
 import contactRouter from "./contact";
 import authRouter from "./auth";
+import emailLogsRouter from "./email-logs";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(authRouter);
 router.use(quotesRouter);
 router.use(jobsRouter);
 router.use(contactRouter);
+router.use(emailLogsRouter);
 
 export default router;

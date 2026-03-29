@@ -23,6 +23,7 @@ import type {
   CreateJobRequest,
   CreateUserRequest,
   CurrentUserResponse,
+  EmailLog,
   EstimateBoxesRequest,
   EstimateBoxesResponse,
   HealthStatus,
@@ -1535,6 +1536,94 @@ export const useSubmitContactForm = <
 > => {
   return useMutation(getSubmitContactFormMutationOptions(options));
 };
+
+/**
+ * Returns email send history for a specific quote/job (admin only)
+ * @summary Get email logs for a quote
+ */
+export const getGetEmailLogsUrl = (quoteId: string) => {
+  return `/api/admin/email-logs/${quoteId}`;
+};
+
+export const getEmailLogs = async (
+  quoteId: string,
+  options?: RequestInit,
+): Promise<EmailLog[]> => {
+  return customFetch<EmailLog[]>(getGetEmailLogsUrl(quoteId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEmailLogsQueryKey = (quoteId: string) => {
+  return [`/api/admin/email-logs/${quoteId}`] as const;
+};
+
+export const getGetEmailLogsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEmailLogs>>,
+  TError = ErrorType<void>,
+>(
+  quoteId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailLogs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetEmailLogsQueryKey(quoteId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailLogs>>> = ({
+    signal,
+  }) => getEmailLogs(quoteId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!quoteId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailLogs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEmailLogsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEmailLogs>>
+>;
+export type GetEmailLogsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get email logs for a quote
+ */
+
+export function useGetEmailLogs<
+  TData = Awaited<ReturnType<typeof getEmailLogs>>,
+  TError = ErrorType<void>,
+>(
+  quoteId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailLogs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEmailLogsQueryOptions(quoteId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * Get stats for the admin dashboard

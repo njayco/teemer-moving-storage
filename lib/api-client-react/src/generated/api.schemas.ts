@@ -269,6 +269,26 @@ export interface UserListItem {
   createdAt?: string;
 }
 
+export type EmailLogStatus =
+  (typeof EmailLogStatus)[keyof typeof EmailLogStatus];
+
+export const EmailLogStatus = {
+  sent: "sent",
+  failed: "failed",
+  skipped: "skipped",
+} as const;
+
+export interface EmailLog {
+  id: number;
+  quoteId?: number;
+  jobId?: number;
+  emailType: string;
+  recipient: string;
+  resendId?: string;
+  status: EmailLogStatus;
+  sentAt?: string;
+}
+
 export type AdminStatsWeeklyRevenueItem = {
   day: string;
   amount: number;

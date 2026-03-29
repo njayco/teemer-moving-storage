@@ -481,6 +481,26 @@ export const SubmitContactFormBody = zod.object({
 });
 
 /**
+ * Returns email send history for a specific quote/job (admin only)
+ * @summary Get email logs for a quote
+ */
+export const GetEmailLogsParams = zod.object({
+  quoteId: zod.coerce.string(),
+});
+
+export const GetEmailLogsResponseItem = zod.object({
+  id: zod.number(),
+  quoteId: zod.number().optional(),
+  jobId: zod.number().optional(),
+  emailType: zod.string(),
+  recipient: zod.string(),
+  resendId: zod.string().optional(),
+  status: zod.enum(["sent", "failed", "skipped"]),
+  sentAt: zod.string().optional(),
+});
+export const GetEmailLogsResponse = zod.array(GetEmailLogsResponseItem);
+
+/**
  * Get stats for the admin dashboard
  * @summary Get admin dashboard stats
  */

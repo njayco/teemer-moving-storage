@@ -2,8 +2,22 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { quoteRequestsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import crypto from "crypto";
+import {
+  sendDepositConfirmationEmail,
+  sendAdminNewJobNotification,
+} from "../lib/email-service";
 
 const router: IRouter = Router();
+
+function getAppBaseUrl(): string {
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+  const domain =
+    process.env.REPLIT_DEPLOYMENT === "1"
+      ? process.env.REPLIT_DOMAINS?.split(",")[0]
+      : process.env.REPLIT_DEV_DOMAIN;
+  return domain ? `https://${domain}` : "https://teemer.com";
+}
 
 router.post("/stripe/webhook", async (req: Request, res: Response) => {
   try {
@@ -40,11 +54,76 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         return;
       }
 
-      await db
+      const parsedQuoteId = parseInt(quoteId, 10);
+
+      const [existingQuote] = await db
+        .select({ status: quoteRequestsTable.status })
+        .from(quoteRequestsTable)
+        .where(eq(quoteRequestsTable.id, parsedQuoteId))
+        .limit(1);
+
+      if (existingQuote?.status === "deposit_paid" || existingQuote?.status === "booked") {
+        req.log.info({ quoteId, status: existingQuote.status }, "Quote already processed, skipping duplicate webhook");
+        res.json({ received: true });
+        return;
+      }
+
+      const trackingToken = crypto.randomUUID();
+
+      const [updatedQuote] = await db
         .update(quoteRequestsTable)
         .set({ status: "deposit_paid" })
-        .where(eq(quoteRequestsTable.id, parseInt(quoteId, 10)));
-      req.log.info({ quoteId, sessionId: session.id }, "Quote marked deposit_paid");
+        .where(eq(quoteRequestsTable.id, parsedQuoteId))
+        .returning();
+
+      req.log.info({ quoteId, sessionId: session.id, trackingToken }, "Quote marked deposit_paid");
+
+      if (updatedQuote) {
+        const baseUrl = getAppBaseUrl();
+        const trackingUrl = `${baseUrl}/track/${trackingToken}`;
+        const depositPaid = updatedQuote.depositAmount ?? 50;
+        const totalEstimate = updatedQuote.totalEstimate ?? 0;
+        const remainingBalance = totalEstimate - depositPaid;
+
+        const inventoryObj = (updatedQuote.inventory as Record<string, number>) || {};
+        const inventoryItems = Object.entries(inventoryObj);
+        const inventorySummary =
+          inventoryItems.length > 0
+            ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
+            : "No specific items listed";
+        const boxesSummary = `Small: ${updatedQuote.smallBoxes ?? 0}, Medium: ${updatedQuote.mediumBoxes ?? 0}`;
+
+        sendDepositConfirmationEmail({
+          customerName: updatedQuote.contactName ?? "Customer",
+          email: updatedQuote.email ?? "",
+          quoteId: parsedQuoteId,
+          moveDate: updatedQuote.moveDate ?? "TBD",
+          arrivalWindow: updatedQuote.arrivalTimeWindow ?? undefined,
+          pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
+          dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
+          secondStop: updatedQuote.secondStop ?? undefined,
+          inventorySummary,
+          boxesSummary,
+          crewSize: updatedQuote.crewSize ?? undefined,
+          estimatedHours: updatedQuote.estimatedHours ?? undefined,
+          totalEstimate,
+          depositPaid,
+          remainingBalance,
+          trackingUrl,
+        }).catch((err) => req.log.error({ err }, "Failed to send deposit confirmation email"));
+
+        sendAdminNewJobNotification({
+          quoteId: parsedQuoteId,
+          customerName: updatedQuote.contactName ?? "Customer",
+          customerEmail: updatedQuote.email ?? "",
+          customerPhone: updatedQuote.phone ?? "",
+          moveDate: updatedQuote.moveDate ?? "TBD",
+          pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
+          dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
+          totalEstimate,
+          depositPaid,
+        }).catch((err) => req.log.error({ err }, "Failed to send admin new job notification"));
+      }
     }
 
     res.json({ received: true });

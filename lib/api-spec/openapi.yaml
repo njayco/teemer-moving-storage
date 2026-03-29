@@ -17,6 +17,8 @@ tags:
     description: Moving job operations
   - name: contact
     description: Contact form operations
+  - name: admin
+    description: Admin operations
 paths:
   /healthz:
     get:
@@ -345,6 +347,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContactFormResponse"
+  /admin/email-logs/{quoteId}:
+    get:
+      operationId: getEmailLogs
+      tags: [admin]
+      summary: Get email logs for a quote
+      description: Returns email send history for a specific quote/job (admin only)
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of email logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailLog"
+        "403":
+          description: Admin access required
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -834,6 +859,33 @@ components:
         - name
         - email
         - role
+
+    # ─── Email Logs ──────────────────────────────────────────────────────────────
+    EmailLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        quoteId:
+          type: integer
+        jobId:
+          type: integer
+        emailType:
+          type: string
+        recipient:
+          type: string
+        resendId:
+          type: string
+        status:
+          type: string
+          enum: [sent, failed, skipped]
+        sentAt:
+          type: string
+      required:
+        - id
+        - emailType
+        - recipient
+        - status
 
     # ─── Admin ─────────────────────────────────────────────────────────────────
     AdminStats:

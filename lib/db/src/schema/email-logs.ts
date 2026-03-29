@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 export const emailLogsTable = pgTable("email_logs", {
   id: serial("id").primaryKey(),
   jobId: integer("job_id"),
+  quoteId: integer("quote_id"),
   emailType: text("email_type").notNull(),
   recipient: text("recipient").notNull(),
   resendId: text("resend_id"),
