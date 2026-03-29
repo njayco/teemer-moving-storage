@@ -497,6 +497,9 @@ components:
           type: integer
         isFullyFurnished:
           type: boolean
+        notes:
+          type: string
+          description: Additional notes from the customer about their move
 
     EstimateBoxesResponse:
       type: object

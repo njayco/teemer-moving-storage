@@ -243,16 +243,19 @@ router.post("/quotes/estimate-boxes", async (req, res) => {
     return;
   }
 
-  const { inventory = {}, numberOfBedrooms = 1, numberOfLivingRooms = 1, isFullyFurnished = true } = req.body as {
+  const { inventory = {}, numberOfBedrooms = 1, numberOfLivingRooms = 1, isFullyFurnished = true, notes = "" } = req.body as {
     inventory?: Record<string, number>;
     numberOfBedrooms?: number;
     numberOfLivingRooms?: number;
     isFullyFurnished?: boolean;
+    notes?: string;
   };
 
   const inventoryLines = Object.entries(inventory)
     .map(([item, qty]) => `  - ${item}: ${qty}`)
     .join("\n") || "  (no items listed)";
+
+  const notesLine = notes ? `\n- Additional notes from customer: ${notes}` : "";
 
   const prompt = `You are a moving company estimator. Based on the following move details, estimate how many small boxes (book-sized, ~1.5 cu ft) and medium boxes (mid-size, ~3 cu ft) the customer will need for packing.
 
@@ -261,7 +264,7 @@ Move details:
 - Living rooms: ${numberOfLivingRooms}
 - Fully furnished: ${isFullyFurnished ? "Yes" : "No"}
 - Selected furniture/items:
-${inventoryLines}
+${inventoryLines}${notesLine}
 
 Rules:
 - Consider that each bedroom typically needs 5-10 small boxes and 3-5 medium boxes for closet items, books, and miscellaneous.

@@ -469,6 +469,7 @@ export default function QuotePage() {
           numberOfBedrooms: homeSize.numberOfBedrooms,
           numberOfLivingRooms: homeSize.numberOfLivingRooms,
           isFullyFurnished: homeSize.isFullyFurnished,
+          notes: step1Data?.additionalNotes || "",
         }),
       });
       if (!res.ok) throw new Error("AI estimation not available yet");

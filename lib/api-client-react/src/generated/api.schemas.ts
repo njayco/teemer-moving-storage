@@ -125,6 +125,8 @@ export interface EstimateBoxesRequest {
   numberOfBedrooms?: number;
   numberOfLivingRooms?: number;
   isFullyFurnished?: boolean;
+  /** Additional notes from the customer about their move */
+  notes?: string;
 }
 
 export interface EstimateBoxesResponse {

@@ -208,6 +208,10 @@ export const EstimateBoxesBody = zod.object({
   numberOfBedrooms: zod.number().optional(),
   numberOfLivingRooms: zod.number().optional(),
   isFullyFurnished: zod.boolean().optional(),
+  notes: zod
+    .string()
+    .optional()
+    .describe("Additional notes from the customer about their move"),
 });
 
 export const EstimateBoxesResponse = zod.object({

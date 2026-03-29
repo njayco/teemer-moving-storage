@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 router.post("/stripe/webhook", async (req: Request, res: Response) => {
   try {
-    const { getUncachableStripeClient, getStripeSecretKey } = await import("../lib/stripe-client.js");
+    const { getUncachableStripeClient } = await import("../lib/stripe-client.js");
 
     const signature = req.headers["stripe-signature"] as string;
     if (!signature) {
