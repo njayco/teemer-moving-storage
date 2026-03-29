@@ -256,7 +256,8 @@ router.get("/jobs/:jobId", requireAdmin, async (req, res) => {
       .orderBy(desc(paymentsTable.paidAt));
 
     const allEvents = [...events, ...quoteEvents]
-      .filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+      .filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i)
+      .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
 
     res.json({
       ...formatJobRow(job, quote),
