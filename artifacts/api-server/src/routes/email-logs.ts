@@ -29,20 +29,21 @@ router.get("/admin/email-logs/quote/:quoteId", requireAdmin, async (req, res) =>
 
 router.get("/admin/email-logs/:jobId", requireAdmin, async (req, res) => {
   try {
-    const jobId = parseInt(String(req.params.jobId), 10);
-    if (isNaN(jobId)) {
-      res.status(400).json({ error: "Invalid ID" });
+    const jobIdParam = String(req.params.jobId);
+
+    const [job] = await db
+      .select({ id: jobsTable.id, quoteId: jobsTable.quoteId })
+      .from(jobsTable)
+      .where(eq(jobsTable.jobId, jobIdParam))
+      .limit(1);
+
+    if (!job) {
+      res.json([]);
       return;
     }
 
-    const [job] = await db
-      .select({ quoteId: jobsTable.quoteId })
-      .from(jobsTable)
-      .where(eq(jobsTable.id, jobId))
-      .limit(1);
-
-    const conditions = [eq(emailLogsTable.jobId, jobId)];
-    if (job?.quoteId) {
+    const conditions = [eq(emailLogsTable.jobId, job.id)];
+    if (job.quoteId) {
       conditions.push(eq(emailLogsTable.quoteId, job.quoteId));
     }
 
