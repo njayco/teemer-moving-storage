@@ -246,18 +246,16 @@ paths:
       operationId: listJobs
       tags: [jobs]
       summary: List available moving jobs
-      description: Get available moving jobs for providers
+      description: Get jobs with optional status filter and text search
       parameters:
-        - name: area
-          in: query
-          schema:
-            type: string
-        - name: moveType
-          in: query
-          schema:
-            type: string
         - name: status
           in: query
+          description: Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search by customer name, job ID, address, date, or assigned mover
           schema:
             type: string
       responses:
@@ -771,6 +769,80 @@ components:
         - status
 
     # ─── Jobs ──────────────────────────────────────────────────────────────────
+    QuoteDataEmbed:
+      type: object
+      properties:
+        contactName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        moveDate:
+          type: string
+        arrivalTimeWindow:
+          type: string
+        pickupAddress:
+          type: string
+        dropoffAddress:
+          type: string
+        numberOfBedrooms:
+          type: integer
+        numberOfLivingRooms:
+          type: integer
+        isFullyFurnished:
+          type: boolean
+        hasStairs:
+          type: boolean
+        hasHeavyItems:
+          type: boolean
+        storageNeeded:
+          type: boolean
+        storageUnitChoice:
+          type: string
+        additionalNotes:
+          type: string
+        inventory:
+          $ref: "#/components/schemas/InventoryMap"
+        totalEstimate:
+          type: number
+        depositAmount:
+          type: number
+        crewSize:
+          type: integer
+        estimatedHours:
+          type: number
+        laborSubtotal:
+          type: number
+        materialsSubtotal:
+          type: number
+
+    PaymentRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        type:
+          type: string
+        method:
+          type: string
+        amount:
+          type: number
+        reference:
+          type: string
+        paidAt:
+          type: string
+          nullable: true
+        notes:
+          type: string
+      required:
+        - id
+        - jobId
+        - type
+        - amount
+
     Job:
       type: object
       properties:
@@ -798,13 +870,70 @@ components:
           type: string
         status:
           type: string
-          description: "Request Submitted, Quote Sent, Booking Confirmed, Crew Assigned, En Route, Loading, In Transit, Delivered, Completed"
         assignedMover:
           type: string
         truckStatus:
           type: string
         eta:
           type: string
+        trackingToken:
+          type: string
+        quoteId:
+          type: integer
+        customerId:
+          type: integer
+        assignedCaptainId:
+          type: integer
+        arrivalWindow:
+          type: string
+        originAddress:
+          type: string
+        destinationAddress:
+          type: string
+        crewSize:
+          type: integer
+        estimatedHours:
+          type: number
+        hourlyRate:
+          type: number
+        estimateSubtotal:
+          type: number
+        extraCharges:
+          type: number
+        discounts:
+          type: number
+        finalTotal:
+          type: number
+        depositPaid:
+          type: number
+        remainingBalance:
+          type: number
+        paymentStatus:
+          type: string
+        invoiceStatus:
+          type: string
+        notes:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        completedAt:
+          type: string
+        quoteData:
+          $ref: "#/components/schemas/QuoteDataEmbed"
+        timeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobStatusEvent"
+        emailLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailLog"
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentRecord"
       required:
         - id
         - pickupLocation
@@ -854,8 +983,22 @@ components:
           type: string
         eta:
           type: string
-      required:
-        - status
+        assignedCaptainId:
+          type: integer
+        paymentStatus:
+          type: string
+        invoiceStatus:
+          type: string
+        notes:
+          type: string
+        extraCharges:
+          type: number
+        discounts:
+          type: number
+        finalTotal:
+          type: number
+        remainingBalance:
+          type: number
 
     # ─── Contact ───────────────────────────────────────────────────────────────
     ContactFormRequest:
@@ -1019,58 +1162,45 @@ components:
     AdminStats:
       type: object
       properties:
-        totalActiveJobs:
+        totalJobs:
           type: integer
-        pendingRequests:
+        pendingJobs:
           type: integer
-        jobsInTransit:
+        inProgressJobs:
           type: integer
-        completedToday:
+        completedJobs:
           type: integer
-        availableCrews:
+        cancelledJobs:
           type: integer
-        availableTrucks:
-          type: integer
-        revenueToday:
+        totalDeposits:
+          type: number
+        totalRemainingBalance:
+          type: number
+        cashPayments:
+          type: number
+        totalRevenue:
           type: number
         totalQuotes:
           type: integer
-          description: Total number of quote requests submitted
+        pendingQuotes:
+          type: integer
         depositCollected:
           type: number
-          description: Total deposit amount collected from paid/booked quotes
         revenuePipeline:
           type: number
-          description: Total estimated revenue across all quotes
-        weeklyRevenue:
-          type: array
-          items:
-            type: object
-            properties:
-              day:
-                type: string
-              amount:
-                type: number
-            required:
-              - day
-              - amount
-        recentJobs:
-          type: array
-          items:
-            $ref: "#/components/schemas/Job"
       required:
-        - totalActiveJobs
-        - pendingRequests
-        - jobsInTransit
-        - completedToday
-        - availableCrews
-        - availableTrucks
-        - revenueToday
+        - totalJobs
+        - pendingJobs
+        - inProgressJobs
+        - completedJobs
+        - totalDeposits
+        - totalRemainingBalance
+        - cashPayments
+        - totalRevenue
         - totalQuotes
+        - pendingQuotes
         - depositCollected
         - revenuePipeline
-        - weeklyRevenue
-        - recentJobs
 
     # ─── Timeline Events ───────────────────────────────────────────────────────
     JobStatusEvent:

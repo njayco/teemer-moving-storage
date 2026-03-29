@@ -1,135 +1,153 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { jobsTable, quoteRequestsTable, jobStatusEventsTable } from "@workspace/db/schema";
-import { eq, desc, count, sum, sql } from "drizzle-orm";
+import {
+  jobsTable,
+  quoteRequestsTable,
+  jobStatusEventsTable,
+  emailLogsTable,
+  paymentsTable,
+  usersTable,
+} from "@workspace/db/schema";
+import { eq, desc, count, sum, sql, or, ilike, and } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 
 const router: IRouter = Router();
 
-const MOCK_JOBS = [
-  {
-    id: "1",
-    jobId: "Job820",
-    customer: "Sarah Miller",
-    provider: undefined,
-    pickupLocation: "123 Main St, Long Beach, NY",
-    destination: "456 Elm St, Brooklyn, NY",
-    moveType: "Residential",
-    dateTime: "Thu, Nov 2, 8:00 AM",
-    estimatedPayout: 750,
-    specialRequirements: "Stairs, Heavy Item (Piano), Delicate Glassware",
-    jobSize: "15ft Truck, 2 Movers",
-    status: "Request Submitted",
-    assignedMover: undefined,
-    truckStatus: "Available",
-    eta: undefined,
-  },
-  {
-    id: "2",
-    jobId: "Job821",
-    customer: "John Doe",
-    provider: undefined,
-    pickupLocation: "789 Oak Ave, Queens, NY",
-    destination: "321 Pine St, Manhattan, NY",
-    moveType: "Residential",
-    dateTime: "Thu, Nov 2, 10:00 AM",
-    estimatedPayout: 650,
-    specialRequirements: "Fragile Items",
-    jobSize: "10ft Truck, 2 Movers",
-    status: "Request Submitted",
-    assignedMover: undefined,
-    truckStatus: "Available",
-    eta: undefined,
-  },
-  {
-    id: "3",
-    jobId: "Job822",
-    customer: "Mike Johnson",
-    provider: undefined,
-    pickupLocation: "555 Broadway, Manhattan, NY",
-    destination: "222 Atlantic Ave, Brooklyn, NY",
-    moveType: "Commercial",
-    dateTime: "Fri, Nov 3, 9:00 AM",
-    estimatedPayout: 1200,
-    specialRequirements: "Office Equipment, Servers",
-    jobSize: "26ft Truck, 4 Movers",
-    status: "Request Submitted",
-    assignedMover: undefined,
-    truckStatus: "Available",
-    eta: undefined,
-  },
-  {
-    id: "4",
-    jobId: "Job823",
-    customer: "Lisa Chen",
-    provider: undefined,
-    pickupLocation: "100 Nassau Blvd, Garden City, NY",
-    destination: "50 Sunrise Hwy, Lynbrook, NY",
-    moveType: "Residential",
-    dateTime: "Sat, Nov 4, 8:00 AM",
-    estimatedPayout: 550,
-    specialRequirements: "None",
-    jobSize: "10ft Truck, 2 Movers",
-    status: "Request Submitted",
-    assignedMover: undefined,
-    truckStatus: "Available",
-    eta: undefined,
-  },
-  {
-    id: "5",
-    jobId: "Job824",
-    customer: "David Park",
-    provider: undefined,
-    pickupLocation: "300 Main St, Babylon, NY",
-    destination: "700 Flatbush Ave, Brooklyn, NY",
-    moveType: "Residential",
-    dateTime: "Sat, Nov 4, 11:00 AM",
-    estimatedPayout: 850,
-    specialRequirements: "Piano",
-    jobSize: "15ft Truck, 3 Movers",
-    status: "Request Submitted",
-    assignedMover: undefined,
-    truckStatus: "Available",
-    eta: undefined,
-  },
-  {
-    id: "6",
-    jobId: "Job825",
-    customer: "Emma Wilson",
-    provider: undefined,
-    pickupLocation: "88 Sunrise Hwy, Merrick, NY",
-    destination: "456 Queens Blvd, Queens, NY",
-    moveType: "Long-Distance",
-    dateTime: "Sun, Nov 5, 7:00 AM",
-    estimatedPayout: 1500,
-    specialRequirements: "Antiques, Fine Art",
-    jobSize: "26ft Truck, 3 Movers",
-    status: "Request Submitted",
-    assignedMover: undefined,
-    truckStatus: "Available",
-    eta: undefined,
-  },
-];
+const JOB_STATUSES = [
+  "pending",
+  "scheduled",
+  "captain_assigned",
+  "arrived",
+  "in_progress",
+  "at_storage",
+  "awaiting_remaining_balance",
+  "paid_in_cash",
+  "complete",
+  "cancelled",
+] as const;
 
-router.get("/jobs", async (req, res) => {
+function formatJobRow(job: typeof jobsTable.$inferSelect, quote?: typeof quoteRequestsTable.$inferSelect | null) {
+  return {
+    id: String(job.id),
+    jobId: job.jobId,
+    customer: job.customer,
+    provider: job.provider ?? undefined,
+    pickupLocation: job.pickupLocation,
+    destination: job.destination,
+    moveType: job.moveType,
+    dateTime: job.dateTime,
+    estimatedPayout: job.estimatedPayout,
+    specialRequirements: job.specialRequirements ?? undefined,
+    jobSize: job.jobSize ?? undefined,
+    status: job.status ?? "pending",
+    assignedMover: job.assignedMover ?? undefined,
+    truckStatus: job.truckStatus ?? undefined,
+    eta: job.eta ?? undefined,
+    trackingToken: job.trackingToken ?? undefined,
+    quoteId: job.quoteId ?? undefined,
+    customerId: job.customerId ?? undefined,
+    assignedCaptainId: job.assignedCaptainId ?? undefined,
+    arrivalWindow: job.arrivalWindow ?? undefined,
+    originAddress: job.originAddress ?? undefined,
+    destinationAddress: job.destinationAddress ?? undefined,
+    crewSize: job.crewSize ?? undefined,
+    estimatedHours: job.estimatedHours ?? undefined,
+    hourlyRate: job.hourlyRate ?? undefined,
+    estimateSubtotal: job.estimateSubtotal ?? undefined,
+    extraCharges: job.extraCharges ?? undefined,
+    discounts: job.discounts ?? undefined,
+    finalTotal: job.finalTotal ?? undefined,
+    depositPaid: job.depositPaid ?? undefined,
+    remainingBalance: job.remainingBalance ?? undefined,
+    paymentStatus: job.paymentStatus ?? "unpaid",
+    invoiceStatus: job.invoiceStatus ?? "none",
+    notes: job.notes ?? undefined,
+    createdAt: job.createdAt?.toISOString() ?? undefined,
+    updatedAt: job.updatedAt?.toISOString() ?? undefined,
+    completedAt: job.completedAt?.toISOString() ?? undefined,
+    quoteData: quote
+      ? {
+          contactName: quote.contactName,
+          phone: quote.phone,
+          email: quote.email,
+          moveDate: quote.moveDate,
+          arrivalTimeWindow: quote.arrivalTimeWindow || undefined,
+          pickupAddress: quote.pickupAddress || quote.originAddress || undefined,
+          dropoffAddress: quote.dropoffAddress || quote.destinationAddress || undefined,
+          numberOfBedrooms: quote.numberOfBedrooms,
+          numberOfLivingRooms: quote.numberOfLivingRooms,
+          isFullyFurnished: quote.isFullyFurnished,
+          hasStairs: quote.hasStairs,
+          hasHeavyItems: quote.hasHeavyItems,
+          storageNeeded: quote.storageNeeded,
+          storageUnitChoice: quote.storageUnitChoice || undefined,
+          additionalNotes: quote.additionalNotes || undefined,
+          inventory: quote.inventory || {},
+          totalEstimate: quote.totalEstimate,
+          depositAmount: quote.depositAmount,
+          crewSize: quote.crewSize,
+          estimatedHours: quote.estimatedHours,
+          laborSubtotal: quote.laborSubtotal,
+          materialsSubtotal: quote.materialsSubtotal,
+        }
+      : undefined,
+  };
+}
+
+router.get("/jobs", requireAdmin, async (req, res) => {
   try {
-    const { area, moveType, status } = req.query;
-    let jobs = MOCK_JOBS;
-    if (moveType && typeof moveType === "string") {
-      jobs = jobs.filter((j) => j.moveType.toLowerCase().includes(moveType.toLowerCase()));
+    const { status, search } = req.query;
+
+    const conditions = [];
+
+    if (status && typeof status === "string" && status !== "all") {
+      conditions.push(eq(jobsTable.status, status));
     }
-    if (status && typeof status === "string") {
-      jobs = jobs.filter((j) => j.status === status);
+
+    if (search && typeof search === "string" && search.trim()) {
+      const term = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(jobsTable.customer, term),
+          ilike(jobsTable.jobId, term),
+          ilike(jobsTable.pickupLocation, term),
+          ilike(jobsTable.destination, term),
+          ilike(jobsTable.dateTime, term),
+          ilike(jobsTable.assignedMover, term),
+        )!,
+      );
     }
-    res.json(jobs);
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const jobs = await db
+      .select()
+      .from(jobsTable)
+      .where(whereClause)
+      .orderBy(desc(jobsTable.createdAt))
+      .limit(200);
+
+    const quoteIds = jobs.map((j) => j.quoteId).filter((id): id is number => id != null);
+    let quotesMap = new Map<number, typeof quoteRequestsTable.$inferSelect>();
+    if (quoteIds.length > 0) {
+      const quotes = await db
+        .select()
+        .from(quoteRequestsTable)
+        .where(sql`${quoteRequestsTable.id} = ANY(${quoteIds})`);
+      for (const q of quotes) {
+        quotesMap.set(q.id, q);
+      }
+    }
+
+    res.json(jobs.map((job) => formatJobRow(job, quotesMap.get(job.quoteId!) || null)));
   } catch (err) {
     req.log.error({ err }, "Failed to fetch jobs");
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/jobs", async (req, res) => {
+router.post("/jobs", requireAdmin, async (req, res) => {
   try {
     const body = req.body;
     const jobId = `Job${Date.now().toString().slice(-3)}`;
@@ -145,59 +163,128 @@ router.post("/jobs", async (req, res) => {
         estimatedPayout: body.estimatedPayout,
         specialRequirements: body.specialRequirements,
         jobSize: body.jobSize,
-        status: "Booking Confirmed",
+        status: "pending",
+        quoteId: body.quoteId || undefined,
+        customerId: body.customerId || undefined,
+        crewSize: body.crewSize || undefined,
+        estimatedHours: body.estimatedHours || undefined,
+        hourlyRate: body.hourlyRate || undefined,
+        estimateSubtotal: body.estimateSubtotal || undefined,
+        finalTotal: body.finalTotal || undefined,
+        depositPaid: body.depositPaid || 0,
+        remainingBalance: body.remainingBalance || undefined,
+        originAddress: body.originAddress || body.pickupLocation,
+        destinationAddress: body.destinationAddress || body.destination,
+        arrivalWindow: body.arrivalWindow || undefined,
       })
       .returning();
 
-    res.status(201).json({
-      id: String(job.id),
-      jobId: job.jobId,
-      customer: job.customer,
-      pickupLocation: job.pickupLocation,
-      destination: job.destination,
-      moveType: job.moveType,
-      dateTime: job.dateTime,
-      estimatedPayout: job.estimatedPayout,
-      specialRequirements: job.specialRequirements || undefined,
-      jobSize: job.jobSize || undefined,
-      status: job.status || "Booking Confirmed",
-    });
+    recordTimelineEvent({
+      jobId: job.id,
+      eventType: "job_created",
+      statusLabel: "Job Created",
+      visibleToCustomer: true,
+      notes: `Job ${jobId} created`,
+    }).catch(() => {});
+
+    res.status(201).json(formatJobRow(job));
   } catch (err) {
     req.log.error({ err }, "Failed to create job");
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.get("/jobs/:jobId", async (req, res) => {
+router.get("/jobs/:jobId", requireAdmin, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const mockJob = MOCK_JOBS.find((j) => j.id === jobId || j.jobId === jobId);
-    if (mockJob) {
-      return res.json(mockJob);
-    }
-    const jobs = await db
+
+    const [job] = await db
       .select()
       .from(jobsTable)
-      .where(eq(jobsTable.jobId, jobId));
-    if (jobs.length === 0) {
+      .where(
+        sql`${jobsTable.jobId} = ${jobId} OR CAST(${jobsTable.id} AS TEXT) = ${jobId}`,
+      )
+      .limit(1);
+
+    if (!job) {
       return res.status(404).json({ error: "Job not found" });
     }
-    const job = jobs[0];
+
+    let quote = null;
+    if (job.quoteId) {
+      const [q] = await db
+        .select()
+        .from(quoteRequestsTable)
+        .where(eq(quoteRequestsTable.id, job.quoteId))
+        .limit(1);
+      quote = q || null;
+    }
+
+    const events = await db
+      .select()
+      .from(jobStatusEventsTable)
+      .where(eq(jobStatusEventsTable.jobId, job.id))
+      .orderBy(desc(jobStatusEventsTable.createdAt));
+
+    let quoteEvents: typeof events = [];
+    if (job.quoteId) {
+      quoteEvents = await db
+        .select()
+        .from(jobStatusEventsTable)
+        .where(eq(jobStatusEventsTable.jobId, job.quoteId))
+        .orderBy(desc(jobStatusEventsTable.createdAt));
+    }
+
+    const emailLogs = await db
+      .select()
+      .from(emailLogsTable)
+      .where(
+        job.quoteId
+          ? or(eq(emailLogsTable.jobId, job.id), eq(emailLogsTable.quoteId, job.quoteId))!
+          : eq(emailLogsTable.jobId, job.id),
+      )
+      .orderBy(desc(emailLogsTable.sentAt));
+
+    const payments = await db
+      .select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.jobId, job.id))
+      .orderBy(desc(paymentsTable.paidAt));
+
+    const allEvents = [...events, ...quoteEvents]
+      .filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+
     res.json({
-      id: String(job.id),
-      jobId: job.jobId,
-      customer: job.customer,
-      pickupLocation: job.pickupLocation,
-      destination: job.destination,
-      moveType: job.moveType,
-      dateTime: job.dateTime,
-      estimatedPayout: job.estimatedPayout,
-      specialRequirements: job.specialRequirements || undefined,
-      jobSize: job.jobSize || undefined,
-      status: job.status || "Request Submitted",
-      assignedMover: job.assignedMover || undefined,
-      truckStatus: job.truckStatus || undefined,
-      eta: job.eta || undefined,
+      ...formatJobRow(job, quote),
+      timeline: allEvents.map((e) => ({
+        id: e.id,
+        jobId: e.jobId,
+        eventType: e.eventType,
+        statusLabel: e.statusLabel,
+        visibleToCustomer: e.visibleToCustomer,
+        notes: e.notes,
+        createdByUserId: e.createdByUserId,
+        createdAt: e.createdAt?.toISOString() ?? null,
+      })),
+      emailLogs: emailLogs.map((e) => ({
+        id: e.id,
+        jobId: e.jobId,
+        quoteId: e.quoteId,
+        emailType: e.emailType,
+        recipient: e.recipient,
+        status: e.status,
+        sentAt: e.sentAt?.toISOString() ?? null,
+      })),
+      payments: payments.map((p) => ({
+        id: p.id,
+        jobId: p.jobId,
+        type: p.type,
+        method: p.method,
+        amount: p.amount,
+        reference: p.reference,
+        paidAt: p.paidAt?.toISOString() ?? null,
+        notes: p.notes,
+      })),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get job");
@@ -205,61 +292,120 @@ router.get("/jobs/:jobId", async (req, res) => {
   }
 });
 
-router.patch("/jobs/:jobId", async (req, res) => {
+router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { status, assignedMover, truckStatus, eta } = req.body;
+    const {
+      status,
+      assignedMover,
+      truckStatus,
+      eta,
+      assignedCaptainId,
+      paymentStatus,
+      invoiceStatus,
+      notes,
+      extraCharges,
+      discounts,
+      finalTotal,
+      remainingBalance,
+    } = req.body;
 
     const [existing] = await db
-      .select({ id: jobsTable.id, status: jobsTable.status })
+      .select()
       .from(jobsTable)
-      .where(eq(jobsTable.jobId, String(jobId)))
+      .where(
+        sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`,
+      )
       .limit(1);
 
-    const [updated] = await db
-      .update(jobsTable)
-      .set({ status, assignedMover, truckStatus, eta })
-      .where(eq(jobsTable.jobId, String(jobId)))
-      .returning();
-
-    if (!updated) {
+    if (!existing) {
       return res.status(404).json({ error: "Job not found" });
     }
 
-    if (existing && status && status !== existing.status) {
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (status !== undefined) updates.status = status;
+    if (assignedMover !== undefined) updates.assignedMover = assignedMover;
+    if (truckStatus !== undefined) updates.truckStatus = truckStatus;
+    if (eta !== undefined) updates.eta = eta;
+    if (assignedCaptainId !== undefined) updates.assignedCaptainId = assignedCaptainId;
+    if (paymentStatus !== undefined) updates.paymentStatus = paymentStatus;
+    if (invoiceStatus !== undefined) updates.invoiceStatus = invoiceStatus;
+    if (notes !== undefined) updates.notes = notes;
+    if (extraCharges !== undefined) updates.extraCharges = extraCharges;
+    if (discounts !== undefined) updates.discounts = discounts;
+    if (finalTotal !== undefined) updates.finalTotal = finalTotal;
+    if (remainingBalance !== undefined) updates.remainingBalance = remainingBalance;
+
+    if (status === "complete") {
+      updates.completedAt = new Date();
+    }
+
+    const [updated] = await db
+      .update(jobsTable)
+      .set(updates)
+      .where(eq(jobsTable.id, existing.id))
+      .returning();
+
+    if (status && status !== existing.status) {
       recordTimelineEvent({
         jobId: updated.id,
         eventType: "status_change",
         statusLabel: status,
         visibleToCustomer: true,
         notes: `Status changed from "${existing.status}" to "${status}"`,
+        createdByUserId: req.user?.userId ?? undefined,
       }).catch(() => {});
     }
 
-    if (assignedMover && existing) {
+    if (assignedCaptainId && assignedCaptainId !== existing.assignedCaptainId) {
+      const [captain] = await db
+        .select({ name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.id, assignedCaptainId))
+        .limit(1);
+
+      const captainName = captain?.name || assignedMover || `Captain #${assignedCaptainId}`;
+
       recordTimelineEvent({
         jobId: updated.id,
         eventType: "captain_assigned",
         statusLabel: "Captain Assigned",
         visibleToCustomer: true,
-        notes: `Move captain assigned: ${assignedMover}`,
+        notes: `Move captain assigned: ${captainName}`,
+        createdByUserId: req.user?.userId ?? undefined,
       }).catch(() => {});
     }
 
-    res.json({
-      id: String(updated.id),
-      jobId: updated.jobId,
-      customer: updated.customer,
-      pickupLocation: updated.pickupLocation,
-      destination: updated.destination,
-      moveType: updated.moveType,
-      dateTime: updated.dateTime,
-      estimatedPayout: updated.estimatedPayout,
-      status: updated.status || status,
-      assignedMover: updated.assignedMover || undefined,
-      truckStatus: updated.truckStatus || undefined,
-      eta: updated.eta || undefined,
-    });
+    if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
+      const cashAmount = existing.remainingBalance != null && existing.remainingBalance > 0
+        ? existing.remainingBalance
+        : (existing.finalTotal ?? existing.estimatedPayout ?? 0);
+
+      if (updates.remainingBalance === undefined) {
+        updates.remainingBalance = 0;
+      }
+
+      recordTimelineEvent({
+        jobId: updated.id,
+        eventType: "status_change",
+        statusLabel: "Paid in Cash",
+        visibleToCustomer: true,
+        notes: `Payment marked as paid in cash ($${cashAmount})`,
+        createdByUserId: req.user?.userId ?? undefined,
+      }).catch(() => {});
+
+      db.insert(paymentsTable)
+        .values({
+          jobId: updated.id,
+          type: "remaining_balance",
+          method: "cash",
+          amount: cashAmount,
+          notes: "Marked as paid in cash by admin",
+        })
+        .catch(() => {});
+    }
+
+    res.json(formatJobRow(updated));
   } catch (err) {
     req.log.error({ err }, "Failed to update job");
     res.status(500).json({ error: "Internal server error" });
@@ -272,9 +418,11 @@ router.get("/jobs/:jobId/events", requireAdmin, async (req, res) => {
     const customerOnly = req.query.customerOnly === "true";
 
     const [job] = await db
-      .select({ id: jobsTable.id })
+      .select({ id: jobsTable.id, quoteId: jobsTable.quoteId })
       .from(jobsTable)
-      .where(eq(jobsTable.jobId, jobIdParam))
+      .where(
+        sql`${jobsTable.jobId} = ${jobIdParam} OR CAST(${jobsTable.id} AS TEXT) = ${jobIdParam}`,
+      )
       .limit(1);
 
     if (!job) {
@@ -287,6 +435,17 @@ router.get("/jobs/:jobId/events", requireAdmin, async (req, res) => {
       .from(jobStatusEventsTable)
       .where(eq(jobStatusEventsTable.jobId, job.id))
       .orderBy(desc(jobStatusEventsTable.createdAt));
+
+    if (job.quoteId) {
+      const quoteEvents = await db
+        .select()
+        .from(jobStatusEventsTable)
+        .where(eq(jobStatusEventsTable.jobId, job.quoteId))
+        .orderBy(desc(jobStatusEventsTable.createdAt));
+      events = [...events, ...quoteEvents].filter(
+        (e, i, arr) => arr.findIndex((x) => x.id === e.id) === i,
+      );
+    }
 
     if (customerOnly) {
       events = events.filter((e) => e.visibleToCustomer);
@@ -302,7 +461,7 @@ router.get("/jobs/:jobId/events", requireAdmin, async (req, res) => {
         notes: e.notes,
         createdByUserId: e.createdByUserId,
         createdAt: e.createdAt?.toISOString() ?? null,
-      }))
+      })),
     );
   } catch (err) {
     req.log.error({ err }, "Failed to fetch job events");
@@ -317,7 +476,9 @@ router.post("/jobs/:jobId/events", requireAdmin, async (req, res) => {
     const [job] = await db
       .select({ id: jobsTable.id })
       .from(jobsTable)
-      .where(eq(jobsTable.jobId, jobIdParam))
+      .where(
+        sql`${jobsTable.jobId} = ${jobIdParam} OR CAST(${jobsTable.id} AS TEXT) = ${jobIdParam}`,
+      )
       .limit(1);
 
     if (!job) {
@@ -364,93 +525,62 @@ router.post("/jobs/:jobId/events", requireAdmin, async (req, res) => {
 
 router.get("/admin/stats", requireAdmin, async (req, res) => {
   try {
-    const jobs = await db.select().from(jobsTable).orderBy(desc(jobsTable.createdAt)).limit(10);
+    const [jobAggs] = await db
+      .select({
+        totalJobs: count(jobsTable.id),
+        pendingJobs: sum(
+          sql`CASE WHEN ${jobsTable.status} IN ('pending', 'scheduled') THEN 1 ELSE 0 END`,
+        ),
+        inProgressJobs: sum(
+          sql`CASE WHEN ${jobsTable.status} IN ('captain_assigned', 'arrived', 'in_progress', 'at_storage') THEN 1 ELSE 0 END`,
+        ),
+        completedJobs: sum(
+          sql`CASE WHEN ${jobsTable.status} = 'complete' THEN 1 ELSE 0 END`,
+        ),
+        cancelledJobs: sum(
+          sql`CASE WHEN ${jobsTable.status} = 'cancelled' THEN 1 ELSE 0 END`,
+        ),
+        totalDeposits: sum(jobsTable.depositPaid),
+        totalRemainingBalance: sum(
+          sql`CASE WHEN ${jobsTable.status} != 'complete' AND ${jobsTable.status} != 'cancelled' THEN COALESCE(${jobsTable.remainingBalance}, 0) ELSE 0 END`,
+        ),
+        cashPayments: sum(
+          sql`CASE WHEN ${jobsTable.paymentStatus} = 'paid_cash' THEN COALESCE(${jobsTable.finalTotal}, ${jobsTable.estimatedPayout}) ELSE 0 END`,
+        ),
+        totalRevenue: sum(
+          sql`CASE WHEN ${jobsTable.status} = 'complete' THEN COALESCE(${jobsTable.finalTotal}, ${jobsTable.estimatedPayout}) ELSE 0 END`,
+        ),
+      })
+      .from(jobsTable);
 
-    const [quoteCounts] = await db
+    const [quoteAggs] = await db
       .select({
         totalQuotes: count(quoteRequestsTable.id),
+        pendingQuotes: sum(
+          sql`CASE WHEN ${quoteRequestsTable.status} IN ('quote_requested', 'pending') THEN 1 ELSE 0 END`,
+        ),
         depositCollected: sum(
-          sql`CASE WHEN ${quoteRequestsTable.status} IN ('deposit_paid', 'booked') THEN ${quoteRequestsTable.depositAmount} ELSE 0 END`
+          sql`CASE WHEN ${quoteRequestsTable.status} IN ('deposit_paid', 'booked') THEN ${quoteRequestsTable.depositAmount} ELSE 0 END`,
         ),
         revenuePipeline: sum(quoteRequestsTable.totalEstimate),
-        pendingQuotes: sum(
-          sql`CASE WHEN ${quoteRequestsTable.status} IN ('quote_requested', 'pending') THEN 1 ELSE 0 END`
-        ),
       })
       .from(quoteRequestsTable);
 
-    const stats = {
-      totalActiveJobs: 48,
-      pendingRequests: Number(quoteCounts?.pendingQuotes ?? 0),
-      jobsInTransit: 31,
-      completedToday: 19,
-      availableCrews: 22,
-      availableTrucks: 25,
-      revenueToday: 18450,
-      totalQuotes: Number(quoteCounts?.totalQuotes ?? 0),
-      depositCollected: Number(quoteCounts?.depositCollected ?? 0),
-      revenuePipeline: Number(quoteCounts?.revenuePipeline ?? 0),
-      weeklyRevenue: [
-        { day: "Mon", amount: 12000 },
-        { day: "Tue", amount: 15000 },
-        { day: "Wed", amount: 11000 },
-        { day: "Thu", amount: 18000 },
-        { day: "Fri", amount: 22000 },
-        { day: "Sat", amount: 16000 },
-        { day: "Sun", amount: 18450 },
-      ],
-      recentJobs: [
-        {
-          id: "820",
-          jobId: "Job820",
-          customer: "Sarah Miller",
-          provider: "Dispatch Provider",
-          pickupLocation: "113 Alarm St",
-          destination: "104 Messon St",
-          moveType: "Residential",
-          dateTime: "2024-11-02",
-          estimatedPayout: 18450,
-          status: "En Route",
-        },
-        {
-          id: "831",
-          jobId: "Job831",
-          customer: "Alad Saimerson",
-          provider: "Dispatch Provider",
-          pickupLocation: "Joe Mars St",
-          destination: "105 Messon St",
-          moveType: "Commercial",
-          dateTime: "2024-11-02",
-          estimatedPayout: 18450,
-          status: "Booking Confirmed",
-        },
-        {
-          id: "832",
-          jobId: "Job832",
-          customer: "Alan Miller",
-          provider: "Dispatch Provider",
-          pickupLocation: "Los Doormons",
-          destination: "Los Piegos St",
-          moveType: "Residential",
-          dateTime: "2024-11-02",
-          estimatedPayout: 18450,
-          status: "In Transit",
-        },
-        ...jobs.map((j) => ({
-          id: String(j.id),
-          jobId: j.jobId,
-          customer: j.customer,
-          provider: j.provider || undefined,
-          pickupLocation: j.pickupLocation,
-          destination: j.destination,
-          moveType: j.moveType,
-          dateTime: j.dateTime,
-          estimatedPayout: j.estimatedPayout,
-          status: j.status || "Request Submitted",
-        })),
-      ],
-    };
-    res.json(stats);
+    res.json({
+      totalJobs: Number(jobAggs?.totalJobs ?? 0),
+      pendingJobs: Number(jobAggs?.pendingJobs ?? 0),
+      inProgressJobs: Number(jobAggs?.inProgressJobs ?? 0),
+      completedJobs: Number(jobAggs?.completedJobs ?? 0),
+      cancelledJobs: Number(jobAggs?.cancelledJobs ?? 0),
+      totalDeposits: Number(jobAggs?.totalDeposits ?? 0),
+      totalRemainingBalance: Number(jobAggs?.totalRemainingBalance ?? 0),
+      cashPayments: Number(jobAggs?.cashPayments ?? 0),
+      totalRevenue: Number(jobAggs?.totalRevenue ?? 0),
+      totalQuotes: Number(quoteAggs?.totalQuotes ?? 0),
+      pendingQuotes: Number(quoteAggs?.pendingQuotes ?? 0),
+      depositCollected: Number(quoteAggs?.depositCollected ?? 0),
+      revenuePipeline: Number(quoteAggs?.revenuePipeline ?? 0),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get admin stats");
     res.status(500).json({ error: "Internal server error" });

@@ -1112,7 +1112,7 @@ export const useUpdateQuoteStatus = <
 };
 
 /**
- * Get available moving jobs for providers
+ * Get jobs with optional status filter and text search
  * @summary List available moving jobs
  */
 export const getListJobsUrl = (params?: ListJobsParams) => {

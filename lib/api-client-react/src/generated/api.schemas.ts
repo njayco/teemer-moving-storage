@@ -161,6 +161,73 @@ export interface UpdateQuoteStatusRequest {
   status: UpdateQuoteStatusRequestStatus;
 }
 
+export interface QuoteDataEmbed {
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  moveDate?: string;
+  arrivalTimeWindow?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  numberOfBedrooms?: number;
+  numberOfLivingRooms?: number;
+  isFullyFurnished?: boolean;
+  hasStairs?: boolean;
+  hasHeavyItems?: boolean;
+  storageNeeded?: boolean;
+  storageUnitChoice?: string;
+  additionalNotes?: string;
+  inventory?: InventoryMap;
+  totalEstimate?: number;
+  depositAmount?: number;
+  crewSize?: number;
+  estimatedHours?: number;
+  laborSubtotal?: number;
+  materialsSubtotal?: number;
+}
+
+export interface PaymentRecord {
+  id: number;
+  jobId: number;
+  type: string;
+  method?: string;
+  amount: number;
+  reference?: string;
+  paidAt?: string | null;
+  notes?: string;
+}
+
+export interface JobStatusEvent {
+  id: number;
+  jobId: number;
+  eventType: string;
+  statusLabel?: string | null;
+  visibleToCustomer?: boolean;
+  notes?: string | null;
+  createdByUserId?: number | null;
+  createdAt?: string | null;
+}
+
+export type EmailLogStatus =
+  (typeof EmailLogStatus)[keyof typeof EmailLogStatus];
+
+export const EmailLogStatus = {
+  sent: "sent",
+  failed: "failed",
+  skipped: "skipped",
+} as const;
+
+export interface EmailLog {
+  id: number;
+  quoteId?: number | null;
+  jobId?: number | null;
+  emailType: string;
+  recipient: string;
+  resendId?: string | null;
+  status: EmailLogStatus;
+  sentAt?: string | null;
+}
+
 export interface Job {
   id: string;
   jobId?: string;
@@ -173,11 +240,36 @@ export interface Job {
   estimatedPayout: number;
   specialRequirements?: string;
   jobSize?: string;
-  /** Request Submitted, Quote Sent, Booking Confirmed, Crew Assigned, En Route, Loading, In Transit, Delivered, Completed */
   status: string;
   assignedMover?: string;
   truckStatus?: string;
   eta?: string;
+  trackingToken?: string;
+  quoteId?: number;
+  customerId?: number;
+  assignedCaptainId?: number;
+  arrivalWindow?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  crewSize?: number;
+  estimatedHours?: number;
+  hourlyRate?: number;
+  estimateSubtotal?: number;
+  extraCharges?: number;
+  discounts?: number;
+  finalTotal?: number;
+  depositPaid?: number;
+  remainingBalance?: number;
+  paymentStatus?: string;
+  invoiceStatus?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+  quoteData?: QuoteDataEmbed;
+  timeline?: JobStatusEvent[];
+  emailLogs?: EmailLog[];
+  payments?: PaymentRecord[];
 }
 
 export interface CreateJobRequest {
@@ -193,10 +285,18 @@ export interface CreateJobRequest {
 }
 
 export interface UpdateJobStatusRequest {
-  status: string;
+  status?: string;
   assignedMover?: string;
   truckStatus?: string;
   eta?: string;
+  assignedCaptainId?: number;
+  paymentStatus?: string;
+  invoiceStatus?: string;
+  notes?: string;
+  extraCharges?: number;
+  discounts?: number;
+  finalTotal?: number;
+  remainingBalance?: number;
 }
 
 export interface ContactFormRequest {
@@ -269,58 +369,20 @@ export interface UserListItem {
   createdAt?: string;
 }
 
-export type EmailLogStatus =
-  (typeof EmailLogStatus)[keyof typeof EmailLogStatus];
-
-export const EmailLogStatus = {
-  sent: "sent",
-  failed: "failed",
-  skipped: "skipped",
-} as const;
-
-export interface EmailLog {
-  id: number;
-  quoteId?: number | null;
-  jobId?: number | null;
-  emailType: string;
-  recipient: string;
-  resendId?: string | null;
-  status: EmailLogStatus;
-  sentAt?: string | null;
-}
-
-export type AdminStatsWeeklyRevenueItem = {
-  day: string;
-  amount: number;
-};
-
 export interface AdminStats {
-  totalActiveJobs: number;
-  pendingRequests: number;
-  jobsInTransit: number;
-  completedToday: number;
-  availableCrews: number;
-  availableTrucks: number;
-  revenueToday: number;
-  /** Total number of quote requests submitted */
+  totalJobs: number;
+  pendingJobs: number;
+  inProgressJobs: number;
+  completedJobs: number;
+  cancelledJobs?: number;
+  totalDeposits: number;
+  totalRemainingBalance: number;
+  cashPayments: number;
+  totalRevenue: number;
   totalQuotes: number;
-  /** Total deposit amount collected from paid/booked quotes */
+  pendingQuotes: number;
   depositCollected: number;
-  /** Total estimated revenue across all quotes */
   revenuePipeline: number;
-  weeklyRevenue: AdminStatsWeeklyRevenueItem[];
-  recentJobs: Job[];
-}
-
-export interface JobStatusEvent {
-  id: number;
-  jobId: number;
-  eventType: string;
-  statusLabel?: string | null;
-  visibleToCustomer?: boolean;
-  notes?: string | null;
-  createdByUserId?: number | null;
-  createdAt?: string | null;
 }
 
 export interface CreateJobEventRequest {
@@ -360,9 +422,14 @@ export interface TrackingLookupRequest {
 }
 
 export type ListJobsParams = {
-  area?: string;
-  moveType?: string;
+  /**
+   * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
+   */
   status?: string;
+  /**
+   * Search by customer name, job ID, address, date, or assigned mover
+   */
+  search?: string;
 };
 
 export type GetJobEventsParams = {

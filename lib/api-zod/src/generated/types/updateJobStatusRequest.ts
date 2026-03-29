@@ -7,8 +7,16 @@
  */
 
 export interface UpdateJobStatusRequest {
-  status: string;
+  status?: string;
   assignedMover?: string;
   truckStatus?: string;
   eta?: string;
+  assignedCaptainId?: number;
+  paymentStatus?: string;
+  invoiceStatus?: string;
+  notes?: string;
+  extraCharges?: number;
+  discounts?: number;
+  finalTotal?: number;
+  remainingBalance?: number;
 }

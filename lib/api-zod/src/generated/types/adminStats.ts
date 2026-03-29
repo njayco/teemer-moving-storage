@@ -5,23 +5,19 @@
  * Teemer Moving & Storage API
  * OpenAPI spec version: 0.1.0
  */
-import type { AdminStatsWeeklyRevenueItem } from "./adminStatsWeeklyRevenueItem";
-import type { Job } from "./job";
 
 export interface AdminStats {
-  totalActiveJobs: number;
-  pendingRequests: number;
-  jobsInTransit: number;
-  completedToday: number;
-  availableCrews: number;
-  availableTrucks: number;
-  revenueToday: number;
-  /** Total number of quote requests submitted */
+  totalJobs: number;
+  pendingJobs: number;
+  inProgressJobs: number;
+  completedJobs: number;
+  cancelledJobs?: number;
+  totalDeposits: number;
+  totalRemainingBalance: number;
+  cashPayments: number;
+  totalRevenue: number;
   totalQuotes: number;
-  /** Total deposit amount collected from paid/booked quotes */
+  pendingQuotes: number;
   depositCollected: number;
-  /** Total estimated revenue across all quotes */
   revenuePipeline: number;
-  weeklyRevenue: AdminStatsWeeklyRevenueItem[];
-  recentJobs: Job[];
 }

@@ -1,18 +1,50 @@
-import React from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Link } from "wouter";
 import {
-  useGetAdminStats, useListJobs, useListQuoteRequests, useUpdateQuoteStatus,
+  useGetAdminStats,
+  useListJobs,
+  useListQuoteRequests,
+  useUpdateQuoteStatus,
+  useUpdateJobStatus,
+  useGetJob,
+  useListUsers,
   type QuoteResponse,
+  type Job,
 } from "@workspace/api-client-react";
 import {
-  LayoutDashboard, Users, Truck, FileText, Settings, Search, Bell,
-  ChevronRight, Activity, DollarSign, Package, MapPin, ArrowRight,
-  Clock, CheckCircle, TrendingUp, ChevronDown, ChevronUp, Phone, Mail,
-  Calendar, Boxes, Home, X,
+  LayoutDashboard,
+  Users,
+  FileText,
+  Search,
+  Bell,
+  ChevronRight,
+  DollarSign,
+  Package,
+  ArrowRight,
+  Clock,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Phone,
+  Mail,
+  Calendar,
+  Boxes,
+  Home,
+  X,
+  AlertCircle,
+  Truck,
+  UserCheck,
+  CreditCard,
+  Eye,
+  Filter,
+  ChevronLeft,
+  MapPin,
+  Loader2,
+  Ban,
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { StatusTimeline } from "@/components/StatusTimeline";
+import { useAuth } from "@/lib/auth";
 
 type QuoteStatus = "quote_requested" | "deposit_paid" | "booked";
 
@@ -22,12 +54,83 @@ const STATUS_CONFIG: Record<QuoteStatus, { label: string; bg: string; text: stri
   booked: { label: "Booked", bg: "bg-green-100", text: "text-green-700" },
 };
 
+const JOB_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  pending: { label: "Pending", bg: "bg-amber-100", text: "text-amber-700" },
+  scheduled: { label: "Scheduled", bg: "bg-blue-100", text: "text-blue-700" },
+  captain_assigned: { label: "Captain Assigned", bg: "bg-purple-100", text: "text-purple-700" },
+  arrived: { label: "Arrived", bg: "bg-teal-100", text: "text-teal-700" },
+  in_progress: { label: "In Progress", bg: "bg-orange-100", text: "text-orange-700" },
+  at_storage: { label: "At Storage", bg: "bg-indigo-100", text: "text-indigo-700" },
+  awaiting_remaining_balance: { label: "Awaiting Balance", bg: "bg-yellow-100", text: "text-yellow-700" },
+  paid_in_cash: { label: "Paid in Cash", bg: "bg-emerald-100", text: "text-emerald-700" },
+  complete: { label: "Complete", bg: "bg-green-100", text: "text-green-700" },
+  cancelled: { label: "Cancelled", bg: "bg-red-100", text: "text-red-700" },
+};
+
+const JOB_STATUS_OPTIONS = [
+  "pending", "scheduled", "captain_assigned", "arrived", "in_progress",
+  "at_storage", "awaiting_remaining_balance", "paid_in_cash", "complete", "cancelled",
+];
+
+const FILTER_TABS = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Pending" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "captain_assigned", label: "Captain Assigned" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "complete", label: "Complete" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status as QuoteStatus] ?? { label: status, bg: "bg-slate-100", text: "text-slate-600" };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
       {cfg.label}
     </span>
+  );
+}
+
+function JobStatusBadge({ status }: { status: string }) {
+  const cfg = JOB_STATUS_CONFIG[status] ?? { label: status, bg: "bg-slate-100", text: "text-slate-600" };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
+function PaymentBadge({ status }: { status: string }) {
+  const configs: Record<string, { label: string; bg: string; text: string }> = {
+    unpaid: { label: "Unpaid", bg: "bg-red-50", text: "text-red-600" },
+    deposit_only: { label: "Deposit Only", bg: "bg-amber-50", text: "text-amber-600" },
+    paid_cash: { label: "Paid (Cash)", bg: "bg-green-50", text: "text-green-700" },
+    paid: { label: "Paid", bg: "bg-green-50", text: "text-green-700" },
+  };
+  const cfg = configs[status] ?? { label: status, bg: "bg-slate-50", text: "text-slate-600" };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.bg} ${cfg.text}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
+function StatCard({ label, value, subtext, icon: Icon, color = "text-secondary", bgColor = "bg-white" }: {
+  label: string; value: string | number; subtext?: string; icon: React.ElementType; color?: string; bgColor?: string;
+}) {
+  return (
+    <div className={`${bgColor} p-5 rounded-2xl border border-slate-200 shadow-sm`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-slate-500 text-sm font-medium mb-1">{label}</div>
+          <div className={`text-2xl font-bold ${color}`}>{value}</div>
+          {subtext && <div className="text-xs text-slate-400 mt-1">{subtext}</div>}
+        </div>
+        <div className="p-2 bg-slate-50 rounded-xl">
+          <Icon className="w-5 h-5 text-slate-400" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -141,7 +244,7 @@ function QuotesTab() {
     try {
       await updateStatus({ id, data: { status } });
       await refetch();
-      qc.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
     } finally {
       setUpdatingId(null);
     }
@@ -240,29 +343,463 @@ function QuotesTab() {
   );
 }
 
+function AssignCaptainModal({ jobId, currentCaptainId, onClose, onAssign }: {
+  jobId: string; currentCaptainId?: number; onClose: () => void;
+  onAssign: (captainId: number, captainName: string) => void;
+}) {
+  const { data: users = [] } = useListUsers();
+  const captains = users.filter((u) => u.role === "move_captain" || u.role === "admin");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg text-secondary">Assign Captain</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {captains.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-4">No captains found. Create users with the "move_captain" role first.</p>
+          )}
+          {captains.map((captain) => (
+            <button
+              key={captain.id}
+              onClick={() => onAssign(captain.id, captain.name)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                captain.id === currentCaptainId
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-slate-200 hover:border-primary/50 hover:bg-slate-50"
+              }`}
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                {captain.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="font-medium text-sm">{captain.name}</div>
+                <div className="text-xs text-slate-400">{captain.email} · {captain.role}</div>
+              </div>
+              {captain.id === currentCaptainId && (
+                <CheckCircle className="w-4 h-4 text-primary ml-auto" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void }) {
+  const { data: job, refetch } = useGetJob(jobId, { query: { queryKey: ["job-detail", jobId] } });
+  const { mutateAsync: updateJob } = useUpdateJobStatus();
+  const qc = useQueryClient();
+  const [showCaptainModal, setShowCaptainModal] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const handleStatusChange = async (status: string) => {
+    setUpdating(true);
+    try {
+      await updateJob({ jobId: job?.jobId || jobId, data: { status } });
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleAssignCaptain = async (captainId: number, captainName: string) => {
+    setUpdating(true);
+    try {
+      await updateJob({
+        jobId: job?.jobId || jobId,
+        data: { assignedCaptainId: captainId, assignedMover: captainName, status: "captain_assigned" },
+      });
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+      setShowCaptainModal(false);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleMarkPaidCash = async () => {
+    setUpdating(true);
+    try {
+      await updateJob({
+        jobId: job?.jobId || jobId,
+        data: { paymentStatus: "paid_cash", status: "paid_in_cash" },
+      });
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleMarkComplete = async () => {
+    setUpdating(true);
+    try {
+      await updateJob({ jobId: job?.jobId || jobId, data: { status: "complete" } });
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (!job) {
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const qd = job.quoteData;
+  const timeline = (job.timeline || []) as Array<{ id: number; eventType: string; statusLabel?: string | null; createdAt?: string | null; notes?: string | null; createdByUserId?: number | null }>;
+  const emailLogs = (job.emailLogs || []) as Array<{ id: number; emailType: string; recipient: string; status?: string | null; sentAt?: string | null }>;
+  const payments = (job.payments || []) as Array<{ id: number; type: string; method?: string | null; amount: number; paidAt?: string | null; notes?: string | null }>;
+
+  return (
+    <div className="fixed inset-0 z-40 flex">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-full max-w-2xl bg-white shadow-2xl overflow-y-auto border-l border-slate-200">
+        <div className="sticky top-0 bg-white z-10 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-lg text-secondary">{job.jobId}</h2>
+            <p className="text-sm text-slate-400">{job.customer}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="flex flex-wrap gap-2 items-center">
+            <JobStatusBadge status={job.status || "pending"} />
+            <PaymentBadge status={job.paymentStatus || "unpaid"} />
+            {job.invoiceStatus && job.invoiceStatus !== "none" && (
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">Invoice: {job.invoiceStatus}</span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-xs text-slate-400 font-medium mb-1">Move Date</div>
+              <div className="text-slate-700">{qd?.moveDate || job.dateTime || "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 font-medium mb-1">Arrival Window</div>
+              <div className="text-slate-700">{qd?.arrivalTimeWindow || job.arrivalWindow || "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 font-medium mb-1">From</div>
+              <div className="text-slate-700">{qd?.pickupAddress || job.pickupLocation || "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 font-medium mb-1">To</div>
+              <div className="text-slate-700">{qd?.dropoffAddress || job.destination || "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 font-medium mb-1">Contact</div>
+              <div className="text-slate-700">{qd?.phone || "—"}</div>
+              <div className="text-xs text-slate-400">{qd?.email || "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 font-medium mb-1">Captain</div>
+              <div className="text-slate-700">{job.assignedMover || "Not assigned"}</div>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Crew</span>
+              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · ~{qd?.estimatedHours || job.estimatedHours || "—"} hrs</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Total Estimate</span>
+              <span className="font-bold text-secondary">${(qd?.totalEstimate || job.finalTotal || job.estimatedPayout || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Deposit Paid</span>
+              <span className="font-medium text-primary">${(job.depositPaid || qd?.depositAmount || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-slate-500 font-medium">Remaining Balance</span>
+              <span className="font-bold text-amber-600">${(job.remainingBalance || 0).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-secondary text-sm">Admin Actions</h3>
+              {updating && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowCaptainModal(true)}
+                disabled={updating}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition-colors disabled:opacity-50"
+              >
+                <UserCheck className="w-4 h-4 text-purple-500" /> Assign Captain
+              </button>
+              <button
+                onClick={handleMarkPaidCash}
+                disabled={updating || job.paymentStatus === "paid_cash" || job.paymentStatus === "paid"}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50"
+              >
+                <DollarSign className="w-4 h-4 text-green-500" /> Mark Paid (Cash)
+              </button>
+              <button
+                onClick={handleMarkComplete}
+                disabled={updating || job.status === "complete"}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50"
+              >
+                <CheckCircle className="w-4 h-4 text-green-600" /> Mark Complete
+              </button>
+              <select
+                value={job.status || "pending"}
+                disabled={updating}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-primary/30 outline-none disabled:opacity-50"
+              >
+                {JOB_STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{JOB_STATUS_CONFIG[s]?.label || s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-secondary text-sm mb-3">Status Timeline</h3>
+            <StatusTimeline events={timeline} />
+          </div>
+
+          {emailLogs.length > 0 && (
+            <div>
+              <h3 className="font-bold text-secondary text-sm mb-3">Email Log</h3>
+              <div className="space-y-2">
+                {emailLogs.map((log) => (
+                  <div key={log.id} className="flex items-center gap-3 text-sm bg-slate-50 rounded-lg p-3">
+                    <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-700">{log.emailType.replace(/_/g, " ")}</div>
+                      <div className="text-xs text-slate-400">{log.recipient}</div>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {log.sentAt ? new Date(log.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {payments.length > 0 && (
+            <div>
+              <h3 className="font-bold text-secondary text-sm mb-3">Payment History</h3>
+              <div className="space-y-2">
+                {payments.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 text-sm bg-slate-50 rounded-lg p-3">
+                    <CreditCard className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-700">{p.type.replace(/_/g, " ")} · {p.method || "—"}</div>
+                      {p.notes && <div className="text-xs text-slate-400">{p.notes}</div>}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-green-600">${p.amount.toFixed(2)}</div>
+                      <div className="text-xs text-slate-400">
+                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {job.notes && (
+            <div>
+              <h3 className="font-bold text-secondary text-sm mb-2">Notes</h3>
+              <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">{job.notes}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showCaptainModal && (
+        <AssignCaptainModal
+          jobId={job.jobId || jobId}
+          currentCaptainId={job.assignedCaptainId}
+          onClose={() => setShowCaptainModal(false)}
+          onAssign={handleAssignCaptain}
+        />
+      )}
+    </div>
+  );
+}
+
+function JobsTab() {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  const { data: jobs = [], isLoading } = useListJobs(
+    {
+      status: statusFilter !== "all" ? statusFilter : undefined,
+      search: searchQuery || undefined,
+    },
+    { query: { queryKey: ["/api/jobs", statusFilter, searchQuery] } },
+  );
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchTerm);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-wrap gap-1">
+          {FILTER_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                statusFilter === tab.value
+                  ? "bg-primary text-white"
+                  : "bg-white text-slate-600 border border-slate-200 hover:border-primary/30"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={handleSearch} className="flex gap-2 md:ml-auto">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search name, job ID, phone..."
+              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none w-64"
+            />
+          </div>
+          <button type="submit" className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+            Search
+          </button>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchTerm(""); setSearchQuery(""); }}
+              className="px-3 py-2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </form>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="px-4 py-3">Job ID</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Captain</th>
+                <th className="px-4 py-3">Move Date</th>
+                <th className="px-4 py-3">Route</th>
+                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3 text-right">Deposit</th>
+                <th className="px-4 py-3 text-right">Balance</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Payment</th>
+                <th className="px-4 py-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading && (
+                <tr>
+                  <td colSpan={11} className="px-6 py-12 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+                  </td>
+                </tr>
+              )}
+              {!isLoading && jobs.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="px-6 py-12 text-center text-slate-400 italic">
+                    {searchQuery ? `No jobs found matching "${searchQuery}"` : "No jobs found for this filter."}
+                  </td>
+                </tr>
+              )}
+              {jobs.map((job) => (
+                <tr
+                  key={job.id}
+                  className="hover:bg-slate-50/70 transition-colors cursor-pointer"
+                  onClick={() => setSelectedJobId(job.jobId || job.id)}
+                >
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{job.jobId || job.id}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-secondary">{job.customer || "—"}</div>
+                    {job.quoteData && (
+                      <div className="text-xs text-slate-400">{job.quoteData.phone} · {job.quoteData.email}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600 text-xs">{job.assignedMover || "—"}</td>
+                  <td className="px-4 py-3 text-slate-600 text-xs">
+                    {job.quoteData?.moveDate
+                      ? new Date(job.quoteData.moveDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      : job.dateTime || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    <div className="text-slate-600 truncate max-w-[150px]">{job.quoteData?.pickupAddress || job.pickupLocation}</div>
+                    <div className="text-slate-400 truncate max-w-[150px]">→ {job.quoteData?.dropoffAddress || job.destination}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-secondary text-xs">
+                    ${(job.finalTotal || job.quoteData?.totalEstimate || job.estimatedPayout || 0).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-primary text-xs">
+                    ${(job.depositPaid || 0).toFixed(0)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-amber-600 text-xs">
+                    ${(job.remainingBalance || 0).toFixed(0)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <JobStatusBadge status={job.status || "pending"} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <PaymentBadge status={job.paymentStatus || "unpaid"} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Eye className="w-4 h-4 text-slate-400" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {selectedJobId && (
+        <JobDetailPanel jobId={selectedJobId} onClose={() => setSelectedJobId(null)} />
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { data: stats } = useGetAdminStats();
-  const { data: jobs } = useListJobs();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "quotes">("dashboard");
-
-  const safeStats = stats || {
-    totalActiveJobs: 0, pendingRequests: 0, jobsInTransit: 0, completedToday: 0,
-    availableCrews: 22, availableTrucks: 25, revenueToday: 0,
-    totalQuotes: 0, depositCollected: 0, revenuePipeline: 0,
-    weeklyRevenue: [
-      { day: "Mon", amount: 0 }, { day: "Tue", amount: 0 }, { day: "Wed", amount: 0 },
-      { day: "Thu", amount: 0 }, { day: "Fri", amount: 0 }, { day: "Sat", amount: 0 }, { day: "Sun", amount: 0 },
-    ],
-  };
+  const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs">("dashboard");
+  const { user, logout } = useAuth();
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", tab: "dashboard" as const },
     { icon: FileText, label: "Quotes", tab: "quotes" as const },
-    { icon: Activity, label: "Dispatch Map", tab: null },
-    { icon: Package, label: "All Jobs", tab: null },
-    { icon: Users, label: "Crews", tab: null },
-    { icon: Truck, label: "Fleet", tab: null },
-    { icon: Settings, label: "Settings", tab: null },
+    { icon: Package, label: "All Jobs", tab: "jobs" as const },
   ];
 
   return (
@@ -271,27 +808,36 @@ export default function AdminDashboard() {
         <div className="h-16 flex items-center px-6 border-b border-white/10 bg-black/20">
           <span className="font-display font-bold text-sm tracking-wide">TEEMER M&S <span className="text-primary text-xs ml-1">OS</span></span>
         </div>
-        <div className="p-4">
+        <div className="p-4 flex-1">
           <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 px-2">Main Menu</div>
           <nav className="space-y-1">
-            {navItems.map(item => (
+            {navItems.map((item) => (
               <button
                 key={item.label}
-                onClick={() => item.tab && setActiveTab(item.tab)}
+                onClick={() => setActiveTab(item.tab)}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   activeTab === item.tab ? "bg-primary text-white font-semibold" : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <item.icon className="w-4 h-4 mr-3" />
                 {item.label}
-                {item.label === "Quotes" && safeStats.pendingRequests > 0 && (
+                {item.label === "Quotes" && (stats?.pendingQuotes ?? 0) > 0 && (
                   <span className="ml-auto bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                    {safeStats.pendingRequests > 9 ? "9+" : safeStats.pendingRequests}
+                    {(stats?.pendingQuotes ?? 0) > 9 ? "9+" : stats?.pendingQuotes}
                   </span>
                 )}
               </button>
             ))}
           </nav>
+        </div>
+        <div className="p-4 border-t border-white/10">
+          <div className="text-xs text-slate-500 mb-2">{user?.email}</div>
+          <button
+            onClick={logout}
+            className="text-xs text-slate-400 hover:text-white transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
 
@@ -300,155 +846,110 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-6">
             <div className="text-secondary font-semibold text-lg hidden sm:block">Operations Control Center</div>
             <div className="flex gap-1 sm:hidden">
-              <button onClick={() => setActiveTab("dashboard")} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${activeTab === "dashboard" ? "bg-primary text-white" : "text-slate-600"}`}>
-                Dashboard
-              </button>
-              <button onClick={() => setActiveTab("quotes")} className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${activeTab === "quotes" ? "bg-primary text-white" : "text-slate-600"}`}>
-                Quotes
-              </button>
+              {navItems.map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => setActiveTab(item.tab)}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === item.tab ? "bg-primary text-white" : "text-slate-600"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="relative hidden md:block">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="Search ID, Name..." className="pl-9 pr-4 py-1.5 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-primary outline-none" />
+            <div className="hidden md:flex items-center gap-2 text-sm text-slate-500">
+              <span>{user?.name}</span>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{user?.role}</span>
             </div>
-            <button className="relative text-slate-500 hover:text-secondary">
-              <Bell className="w-5 h-5" />
-              {safeStats.pendingRequests > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-              )}
-            </button>
-            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">SM</div>
+            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
+              {user?.name?.charAt(0)?.toUpperCase() || "A"}
+            </div>
           </div>
         </header>
 
         <main className="flex-1 overflow-auto p-6">
           {activeTab === "dashboard" && (
             <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <StatCard label="Total Jobs" value={stats?.totalJobs ?? 0} icon={Package} subtext={`${stats?.pendingJobs ?? 0} pending`} />
+                <StatCard label="In Progress" value={stats?.inProgressJobs ?? 0} icon={Truck} color="text-blue-600" />
+                <StatCard label="Completed" value={stats?.completedJobs ?? 0} icon={CheckCircle} color="text-green-600" />
+                <StatCard label="Total Quotes" value={stats?.totalQuotes ?? 0} icon={FileText} subtext={`${stats?.pendingQuotes ?? 0} pending`} />
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <div className="text-slate-500 text-sm font-medium mb-1">Total Quotes</div>
-                  <div className="text-3xl font-bold text-secondary">{safeStats.totalQuotes ?? 0}</div>
-                  <div className="text-xs text-amber-500 mt-1 font-medium">{safeStats.pendingRequests} pending</div>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <div className="text-slate-500 text-sm font-medium mb-1">Revenue Pipeline</div>
-                  <div className="text-3xl font-bold text-secondary">
-                    ${(safeStats.revenuePipeline ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">est. total from all quotes</div>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <div className="text-slate-500 text-sm font-medium mb-1">Deposits Collected</div>
-                  <div className="text-3xl font-bold text-blue-600">
-                    ${(safeStats.depositCollected ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">from paid & booked quotes</div>
-                </div>
+                <StatCard label="Deposits Collected" value={`$${(stats?.depositCollected ?? 0).toLocaleString()}`} icon={CreditCard} color="text-primary" />
+                <StatCard label="Remaining Balances" value={`$${(stats?.totalRemainingBalance ?? 0).toLocaleString()}`} icon={AlertCircle} color="text-amber-600" />
+                <StatCard label="Cash Payments" value={`$${(stats?.cashPayments ?? 0).toLocaleString()}`} icon={DollarSign} color="text-emerald-600" />
                 <div className="bg-gradient-to-br from-primary to-green-600 p-5 rounded-2xl shadow-md text-white">
-                  <div className="text-green-100 text-sm font-medium mb-1">Revenue Today</div>
-                  <div className="text-3xl font-bold flex items-center">
-                    <DollarSign className="w-6 h-6 mr-1 opacity-70" />
-                    {safeStats.revenueToday.toLocaleString()}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-green-100 text-sm font-medium mb-1">Total Revenue</div>
+                      <div className="text-2xl font-bold">${(stats?.totalRevenue ?? 0).toLocaleString()}</div>
+                      <div className="text-xs text-green-200 mt-1">from completed jobs</div>
+                    </div>
+                    <div className="p-2 bg-white/10 rounded-xl">
+                      <DollarSign className="w-5 h-5 text-white" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-lg text-secondary">Weekly Revenue</h3>
-                    <select className="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-1 outline-none">
-                      <option>This Week</option>
-                      <option>Last Week</option>
-                    </select>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-secondary">Quick Actions</h3>
                   </div>
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={safeStats.weeklyRevenue}>
-                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} tickFormatter={(v) => `$${v / 1000}k`} dx={-10} />
-                        <Tooltip
-                          contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
-                          formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
-                        />
-                        <Line type="monotone" dataKey="amount" stroke="#16a34a" strokeWidth={3} dot={{ r: 4, fill: "#16a34a", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200 p-1 flex flex-col shadow-sm">
-                  <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="font-bold text-secondary">Dispatch Map</h3>
-                    <span className="flex h-3 w-3 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                    </span>
-                  </div>
-                  <div className="flex-1 bg-slate-100 rounded-b-xl relative overflow-hidden flex items-center justify-center min-h-[300px]">
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(#cbd5e1 2px, transparent 2px)", backgroundSize: "20px 20px" }}></div>
-                    <div className="text-center relative z-10">
-                      <MapPin className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                      <p className="text-slate-500 font-medium text-sm">Interactive Map Integration<br />(Google Maps / Mapbox)</p>
-                    </div>
-                    <div className="absolute top-1/4 left-1/4 bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg border-2 border-white shadow-black/20">1</div>
-                    <div className="absolute bottom-1/3 right-1/3 bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-lg border-2 border-white shadow-black/20">2</div>
-                  </div>
-                </div>
-
-                <div className="xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="font-bold text-lg text-secondary">Recent Jobs</h3>
-                    <button className="text-sm font-medium text-primary hover:underline flex items-center">
-                      View All <ChevronRight className="w-4 h-4 ml-1" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setActiveTab("quotes")}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+                    >
+                      <FileText className="w-5 h-5 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium text-secondary">View Quotes</div>
+                        <div className="text-xs text-slate-400">{stats?.totalQuotes ?? 0} total</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("jobs")}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+                    >
+                      <Package className="w-5 h-5 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium text-secondary">Manage Jobs</div>
+                        <div className="text-xs text-slate-400">{stats?.totalJobs ?? 0} total</div>
+                      </div>
                     </button>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                        <tr>
-                          <th className="px-6 py-4">Job ID</th>
-                          <th className="px-6 py-4">Customer</th>
-                          <th className="px-6 py-4">Route</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4 text-right">Payout</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {(jobs || []).slice(0, 5).map((job) => (
-                          <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-mono text-slate-600">{job.id.substring(0, 8)}</td>
-                            <td className="px-6 py-4 font-medium text-secondary">{job.customer || "Pending..."}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center text-slate-600">
-                                <span className="w-16 truncate" title={job.pickupLocation}>{job.pickupLocation}</span>
-                                <ArrowRight className="w-3 h-3 mx-2 text-slate-400 shrink-0" />
-                                <span className="w-16 truncate" title={job.destination}>{job.destination}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                job.status === "Completed" ? "bg-green-100 text-green-700" :
-                                job.status === "In Transit" ? "bg-blue-100 text-blue-700" :
-                                "bg-amber-100 text-amber-700"
-                              }`}>
-                                {job.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-bold text-secondary">${job.estimatedPayout}</td>
-                          </tr>
-                        ))}
-                        {(!jobs || jobs.length === 0) && (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">
-                              No recent jobs found.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="font-bold text-secondary mb-4">Revenue Pipeline</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Total Quote Pipeline</span>
+                      <span className="font-bold text-secondary">${(stats?.revenuePipeline ?? 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Deposits Collected</span>
+                      <span className="font-bold text-primary">${(stats?.depositCollected ?? 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Total Job Revenue</span>
+                      <span className="font-bold text-green-600">${(stats?.totalRevenue ?? 0).toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all"
+                        style={{
+                          width: `${stats?.revenuePipeline ? Math.min(100, ((stats?.totalRevenue ?? 0) / stats.revenuePipeline) * 100) : 0}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -456,6 +957,7 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "quotes" && <QuotesTab />}
+          {activeTab === "jobs" && <JobsTab />}
         </main>
       </div>
     </div>

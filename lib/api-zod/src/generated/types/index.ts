@@ -7,7 +7,6 @@
  */
 
 export * from "./adminStats";
-export * from "./adminStatsWeeklyRevenueItem";
 export * from "./authUser";
 export * from "./authUserRole";
 export * from "./contactFormRequest";
@@ -29,6 +28,8 @@ export * from "./jobStatusEvent";
 export * from "./listJobsParams";
 export * from "./loginRequest";
 export * from "./loginResponse";
+export * from "./paymentRecord";
+export * from "./quoteDataEmbed";
 export * from "./quoteRequest";
 export * from "./quoteRequestEcho";
 export * from "./quoteResponse";

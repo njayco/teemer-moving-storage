@@ -72,6 +72,10 @@ A full-featured moving company web app with two distinct experiences:
 **Admin:**
 - `/admin/login` — Admin/Captain login page (email + password)
 - `/admin` — Admin Operations Control Center (protected, redirects to login if unauthenticated)
+  - **Dashboard tab**: Overview stat cards (Total Jobs, In Progress, Completed, Total Quotes, Deposits Collected, Remaining Balances, Cash Payments, Total Revenue), Quick Actions, Revenue Pipeline
+  - **Quotes tab**: Full quotes table with expand/collapse details, inline status change
+  - **All Jobs tab**: Filterable (pending/scheduled/captain_assigned/in_progress/complete/cancelled), searchable (name/jobId/phone), full jobs table with slide-out detail panel
+  - **Job Detail Panel**: Full job info, StatusTimeline component, email log, payment history, admin actions (Assign Captain modal, status dropdown, Mark Paid in Cash, Mark Complete)
 
 ### Company Details
 - **Name**: Teemer Moving & Storage Co.

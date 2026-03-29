@@ -5,6 +5,10 @@
  * Teemer Moving & Storage API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailLog } from "./emailLog";
+import type { JobStatusEvent } from "./jobStatusEvent";
+import type { PaymentRecord } from "./paymentRecord";
+import type { QuoteDataEmbed } from "./quoteDataEmbed";
 
 export interface Job {
   id: string;
@@ -18,9 +22,34 @@ export interface Job {
   estimatedPayout: number;
   specialRequirements?: string;
   jobSize?: string;
-  /** Request Submitted, Quote Sent, Booking Confirmed, Crew Assigned, En Route, Loading, In Transit, Delivered, Completed */
   status: string;
   assignedMover?: string;
   truckStatus?: string;
   eta?: string;
+  trackingToken?: string;
+  quoteId?: number;
+  customerId?: number;
+  assignedCaptainId?: number;
+  arrivalWindow?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  crewSize?: number;
+  estimatedHours?: number;
+  hourlyRate?: number;
+  estimateSubtotal?: number;
+  extraCharges?: number;
+  discounts?: number;
+  finalTotal?: number;
+  depositPaid?: number;
+  remainingBalance?: number;
+  paymentStatus?: string;
+  invoiceStatus?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+  quoteData?: QuoteDataEmbed;
+  timeline?: JobStatusEvent[];
+  emailLogs?: EmailLog[];
+  payments?: PaymentRecord[];
 }

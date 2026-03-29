@@ -7,7 +7,12 @@
  */
 
 export type ListJobsParams = {
-  area?: string;
-  moveType?: string;
+  /**
+   * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
+   */
   status?: string;
+  /**
+   * Search by customer name, job ID, address, date, or assigned mover
+   */
+  search?: string;
 };
