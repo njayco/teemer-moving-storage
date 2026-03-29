@@ -435,3 +435,18 @@ export type ListJobsParams = {
 export type GetJobEventsParams = {
   customerOnly?: string;
 };
+
+export type SendJobInvoice200 = {
+  success?: boolean;
+  message?: string;
+};
+
+export type EmailJobCustomerBody = {
+  subject?: string;
+  message: string;
+};
+
+export type EmailJobCustomer200 = {
+  success?: boolean;
+  message?: string;
+};

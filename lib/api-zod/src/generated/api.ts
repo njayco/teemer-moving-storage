@@ -850,6 +850,35 @@ export const CreateJobEventBody = zod.object({
 });
 
 /**
+ * @summary Send remaining balance invoice to customer (admin only)
+ */
+export const SendJobInvoiceParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const SendJobInvoiceResponse = zod.object({
+  success: zod.boolean().optional(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Send email to job customer (admin only)
+ */
+export const EmailJobCustomerParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const EmailJobCustomerBody = zod.object({
+  subject: zod.string().optional(),
+  message: zod.string(),
+});
+
+export const EmailJobCustomerResponse = zod.object({
+  success: zod.boolean().optional(),
+  message: zod.string().optional(),
+});
+
+/**
  * @summary Get job tracking data by ID and token
  */
 export const GetTrackingByTokenParams = zod.object({

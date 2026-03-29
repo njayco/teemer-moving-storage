@@ -11,6 +11,7 @@ import {
 import { eq, desc, count, sum, sql, or, ilike, and } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
+import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
 
 const router: IRouter = Router();
 
@@ -115,6 +116,7 @@ router.get("/jobs", requireAdmin, async (req, res) => {
           ilike(jobsTable.destination, term),
           ilike(jobsTable.dateTime, term),
           ilike(jobsTable.assignedMover, term),
+          sql`EXISTS (SELECT 1 FROM ${quoteRequestsTable} WHERE ${quoteRequestsTable.id} = ${jobsTable.quoteId} AND (${ilike(quoteRequestsTable.email, term)} OR ${ilike(quoteRequestsTable.phone, term)} OR ${ilike(quoteRequestsTable.contactName, term)}))`,
         )!,
       );
     }
@@ -519,6 +521,99 @@ router.post("/jobs/:jobId/events", requireAdmin, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to create job event");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const [job] = await db.select().from(jobsTable)
+      .where(sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`)
+      .limit(1);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    let quote = null;
+    if (job.quoteId) {
+      const [q] = await db.select().from(quoteRequestsTable).where(eq(quoteRequestsTable.id, job.quoteId)).limit(1);
+      quote = q ?? null;
+    }
+    const email = quote?.email;
+    if (!email) return res.status(400).json({ error: "No customer email found for this job" });
+
+    const remainingBalance = job.remainingBalance ?? (job.finalTotal ?? job.estimatedPayout ?? 0) - (job.depositPaid ?? 0);
+
+    const result = await sendRemainingBalanceInvoiceEmail({
+      email,
+      customerName: quote?.contactName ?? job.customer ?? "Customer",
+      quoteId: job.quoteId ?? job.id,
+      totalEstimate: job.estimateSubtotal ?? job.estimatedPayout ?? 0,
+      depositPaid: job.depositPaid ?? 0,
+      extraCharges: job.extraCharges ?? 0,
+      discounts: job.discounts ?? 0,
+      finalTotal: job.finalTotal ?? job.estimatedPayout ?? 0,
+      remainingBalance,
+      moveDate: quote?.moveDate ?? job.dateTime ?? "",
+    });
+
+    await db.update(jobsTable).set({ invoiceStatus: "sent", updatedAt: new Date() }).where(eq(jobsTable.id, job.id));
+
+    recordTimelineEvent({
+      jobId: job.id,
+      eventType: "invoice_sent",
+      statusLabel: "Invoice Sent",
+      visibleToCustomer: true,
+      notes: `Remaining balance invoice ($${remainingBalance.toFixed(2)}) sent to ${email}`,
+      createdByUserId: req.user?.userId ?? undefined,
+    }).catch(() => {});
+
+    res.json({ success: result.success, message: "Invoice sent" });
+  } catch (err) {
+    req.log.error({ err }, "Failed to send invoice");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/jobs/:jobId/email-customer", requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { subject, message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message is required" });
+
+    const [job] = await db.select().from(jobsTable)
+      .where(sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`)
+      .limit(1);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    let quote = null;
+    if (job.quoteId) {
+      const [q] = await db.select().from(quoteRequestsTable).where(eq(quoteRequestsTable.id, job.quoteId)).limit(1);
+      quote = q ?? null;
+    }
+    const email = quote?.email;
+    if (!email) return res.status(400).json({ error: "No customer email found for this job" });
+
+    const result = await sendStatusUpdateEmail({
+      email,
+      customerName: quote?.contactName ?? job.customer ?? "Customer",
+      quoteId: job.quoteId ?? job.id,
+      status: "update",
+      statusLabel: subject ?? "Update from Teemer Moving",
+      message,
+    });
+
+    recordTimelineEvent({
+      jobId: job.id,
+      eventType: "email_sent",
+      statusLabel: "Customer Emailed",
+      visibleToCustomer: false,
+      notes: `Email sent to ${email}: ${subject ?? "Update"}`,
+      createdByUserId: req.user?.userId ?? undefined,
+    }).catch(() => {});
+
+    res.json({ success: result.success, message: "Email sent" });
+  } catch (err) {
+    req.log.error({ err }, "Failed to email customer");
     res.status(500).json({ error: "Internal server error" });
   }
 });

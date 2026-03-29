@@ -1,18 +1,14 @@
 import { PlatformLayout } from "@/components/layout/platform-layout";
-import { useListJobs, useUpdateJobStatus } from "@workspace/api-client-react";
 import { MapPin, Calendar, DollarSign, Package, ExternalLink, RefreshCw, CheckCircle, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/lib/auth";
 
 export default function ProviderPortal() {
-  const { data: jobs, isLoading, refetch } = useListJobs({});
-  const updateMutation = useUpdateJobStatus();
+  const { user } = useAuth();
+  const isAuthenticated = !!user && (user.role === "move_captain" || user.role === "admin");
 
-  const handleAcceptJob = (jobId: string) => {
-    if (confirm("Are you sure you want to accept this job?")) {
-      updateMutation.mutate({ jobId, data: { status: "Crew Assigned", assignedMover: "Current Provider" } }, {
-        onSuccess: () => refetch()
-      });
-    }
+  const handleAcceptJob = (_jobId: string) => {
+    alert("Please sign in as a move captain to accept jobs. Contact Teemer admin for access.");
   };
 
   return (
@@ -41,80 +37,15 @@ export default function ProviderPortal() {
           </div>
 
           <div className="space-y-6">
-            {isLoading ? (
-              [1,2,3].map(i => <div key={i} className="bg-white h-48 rounded-3xl animate-pulse" />)
-            ) : jobs && jobs.length > 0 ? (
-              jobs.map(job => (
-                <div key={job.id} className="bg-white rounded-3xl p-6 border border-border hover:shadow-lg hover:border-slate-300 transition-all group">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="bg-primary/10 text-primary p-3 rounded-xl">
-                        <Package className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{job.moveType}</span>
-                        <h3 className="font-bold text-lg text-secondary">{job.jobSize || "Standard Move"}</h3>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-green-600 flex items-center justify-end">
-                        <DollarSign className="w-5 h-5" />{job.estimatedPayout}
-                      </span>
-                      <span className="text-xs text-slate-500 uppercase font-semibold">Est. Payout</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-50 p-4 rounded-xl">
-                    <div className="space-y-3">
-                      <div className="flex">
-                        <MapPin className="w-4 h-4 text-slate-400 mr-2 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-slate-500">Pickup</p>
-                          <p className="text-sm font-medium text-secondary">{job.pickupLocation}</p>
-                        </div>
-                      </div>
-                      <div className="flex">
-                        <MapPin className="w-4 h-4 text-primary mr-2 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-slate-500">Destination</p>
-                          <p className="text-sm font-medium text-secondary">{job.destination}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex">
-                        <Calendar className="w-4 h-4 text-slate-400 mr-2 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-slate-500">Date & Time</p>
-                          <p className="text-sm font-medium text-secondary">{format(new Date(job.dateTime), "PPP")}</p>
-                        </div>
-                      </div>
-                      {job.specialRequirements && (
-                        <div className="flex">
-                          <ExternalLink className="w-4 h-4 text-amber-500 mr-2 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs text-amber-600 font-semibold">Special Req</p>
-                            <p className="text-sm text-secondary">{job.specialRequirements}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    <button className="px-6 py-2.5 text-secondary font-semibold hover:bg-slate-100 rounded-xl transition-colors">
-                      View Details
-                    </button>
-                    <button 
-                      onClick={() => handleAcceptJob(job.id)}
-                      disabled={updateMutation.isPending}
-                      className="px-8 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md shadow-primary/20 hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50"
-                    >
-                      Accept Job
-                    </button>
-                  </div>
-                </div>
-              ))
+            {!isAuthenticated ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-border border-dashed">
+                <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-secondary mb-2">Captain Login Required</h3>
+                <p className="text-slate-500 mb-4">Sign in as a move captain to view and accept available jobs.</p>
+                <a href="/admin/login" className="inline-block px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all">
+                  Sign In
+                </a>
+              </div>
             ) : (
               <div className="text-center py-20 bg-white rounded-3xl border border-border border-dashed">
                 <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />

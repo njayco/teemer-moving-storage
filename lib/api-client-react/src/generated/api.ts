@@ -24,6 +24,8 @@ import type {
   CreateJobRequest,
   CreateUserRequest,
   CurrentUserResponse,
+  EmailJobCustomer200,
+  EmailJobCustomerBody,
   EmailLog,
   EstimateBoxesRequest,
   EstimateBoxesResponse,
@@ -36,6 +38,7 @@ import type {
   LoginResponse,
   QuoteRequest,
   QuoteResponse,
+  SendJobInvoice200,
   StripeCheckoutResponse,
   TrackingLookupRequest,
   TrackingResponse,
@@ -1914,6 +1917,177 @@ export const useCreateJobEvent = <
   TContext
 > => {
   return useMutation(getCreateJobEventMutationOptions(options));
+};
+
+/**
+ * @summary Send remaining balance invoice to customer (admin only)
+ */
+export const getSendJobInvoiceUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/send-invoice`;
+};
+
+export const sendJobInvoice = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<SendJobInvoice200> => {
+  return customFetch<SendJobInvoice200>(getSendJobInvoiceUrl(jobId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSendJobInvoiceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendJobInvoice>>,
+    TError,
+    { jobId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendJobInvoice>>,
+  TError,
+  { jobId: string },
+  TContext
+> => {
+  const mutationKey = ["sendJobInvoice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendJobInvoice>>,
+    { jobId: string }
+  > = (props) => {
+    const { jobId } = props ?? {};
+
+    return sendJobInvoice(jobId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendJobInvoiceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendJobInvoice>>
+>;
+
+export type SendJobInvoiceMutationError = ErrorType<void>;
+
+/**
+ * @summary Send remaining balance invoice to customer (admin only)
+ */
+export const useSendJobInvoice = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendJobInvoice>>,
+    TError,
+    { jobId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendJobInvoice>>,
+  TError,
+  { jobId: string },
+  TContext
+> => {
+  return useMutation(getSendJobInvoiceMutationOptions(options));
+};
+
+/**
+ * @summary Send email to job customer (admin only)
+ */
+export const getEmailJobCustomerUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/email-customer`;
+};
+
+export const emailJobCustomer = async (
+  jobId: string,
+  emailJobCustomerBody: EmailJobCustomerBody,
+  options?: RequestInit,
+): Promise<EmailJobCustomer200> => {
+  return customFetch<EmailJobCustomer200>(getEmailJobCustomerUrl(jobId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(emailJobCustomerBody),
+  });
+};
+
+export const getEmailJobCustomerMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof emailJobCustomer>>,
+    TError,
+    { jobId: string; data: BodyType<EmailJobCustomerBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof emailJobCustomer>>,
+  TError,
+  { jobId: string; data: BodyType<EmailJobCustomerBody> },
+  TContext
+> => {
+  const mutationKey = ["emailJobCustomer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof emailJobCustomer>>,
+    { jobId: string; data: BodyType<EmailJobCustomerBody> }
+  > = (props) => {
+    const { jobId, data } = props ?? {};
+
+    return emailJobCustomer(jobId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EmailJobCustomerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof emailJobCustomer>>
+>;
+export type EmailJobCustomerMutationBody = BodyType<EmailJobCustomerBody>;
+export type EmailJobCustomerMutationError = ErrorType<void>;
+
+/**
+ * @summary Send email to job customer (admin only)
+ */
+export const useEmailJobCustomer = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof emailJobCustomer>>,
+    TError,
+    { jobId: string; data: BodyType<EmailJobCustomerBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof emailJobCustomer>>,
+  TError,
+  { jobId: string; data: BodyType<EmailJobCustomerBody> },
+  TContext
+> => {
+  return useMutation(getEmailJobCustomerMutationOptions(options));
 };
 
 /**

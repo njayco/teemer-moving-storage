@@ -16,7 +16,7 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
     return <Redirect to="/admin/login" />;
   }
 
-  if (user.role !== "admin" && user.role !== "move_captain") {
+  if (user.role !== "admin") {
     return <Redirect to="/admin/login" />;
   }
 

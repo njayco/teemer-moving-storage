@@ -41,6 +41,8 @@ import {
   MapPin,
   Loader2,
   Ban,
+  Send,
+  Receipt,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusTimeline } from "@/components/StatusTimeline";
@@ -77,7 +79,11 @@ const FILTER_TABS = [
   { value: "pending", label: "Pending" },
   { value: "scheduled", label: "Scheduled" },
   { value: "captain_assigned", label: "Captain Assigned" },
+  { value: "arrived", label: "Arrived" },
   { value: "in_progress", label: "In Progress" },
+  { value: "at_storage", label: "At Storage" },
+  { value: "awaiting_remaining_balance", label: "Awaiting Balance" },
+  { value: "paid_in_cash", label: "Paid Cash" },
   { value: "complete", label: "Complete" },
   { value: "cancelled", label: "Cancelled" },
 ];
@@ -106,6 +112,22 @@ function PaymentBadge({ status }: { status: string }) {
     deposit_only: { label: "Deposit Only", bg: "bg-amber-50", text: "text-amber-600" },
     paid_cash: { label: "Paid (Cash)", bg: "bg-green-50", text: "text-green-700" },
     paid: { label: "Paid", bg: "bg-green-50", text: "text-green-700" },
+  };
+  const cfg = configs[status] ?? { label: status, bg: "bg-slate-50", text: "text-slate-600" };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.bg} ${cfg.text}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
+function InvoiceBadge({ status }: { status: string }) {
+  const configs: Record<string, { label: string; bg: string; text: string }> = {
+    none: { label: "None", bg: "bg-slate-50", text: "text-slate-400" },
+    draft: { label: "Draft", bg: "bg-slate-100", text: "text-slate-600" },
+    sent: { label: "Sent", bg: "bg-blue-50", text: "text-blue-600" },
+    paid: { label: "Paid", bg: "bg-green-50", text: "text-green-700" },
+    overdue: { label: "Overdue", bg: "bg-red-50", text: "text-red-600" },
   };
   const cfg = configs[status] ?? { label: status, bg: "bg-slate-50", text: "text-slate-600" };
   return (
@@ -450,6 +472,42 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
     }
   };
 
+  const handleSendInvoice = async () => {
+    if (!confirm("Send remaining balance invoice to the customer?")) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE || "/api"}/jobs/${job?.jobId || jobId}/send-invoice`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) alert(data.error || "Failed to send invoice");
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleEmailCustomer = async () => {
+    const message = prompt("Enter message to send to the customer:");
+    if (!message) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE || "/api"}/jobs/${job?.jobId || jobId}/email-customer`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: "Update from Teemer Moving", message }),
+      });
+      const data = await res.json();
+      if (!res.ok) alert(data.error || "Failed to send email");
+      await refetch();
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (!job) {
     return (
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/20">
@@ -557,6 +615,20 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
                 className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50"
               >
                 <CheckCircle className="w-4 h-4 text-green-600" /> Mark Complete
+              </button>
+              <button
+                onClick={handleSendInvoice}
+                disabled={updating || job.invoiceStatus === "sent" || job.invoiceStatus === "paid"}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50"
+              >
+                <Receipt className="w-4 h-4 text-blue-500" /> Send Invoice
+              </button>
+              <button
+                onClick={handleEmailCustomer}
+                disabled={updating}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              >
+                <Send className="w-4 h-4 text-indigo-500" /> Email Customer
               </button>
               <select
                 value={job.status || "pending"}
@@ -718,20 +790,21 @@ function JobsTab() {
                 <th className="px-4 py-3 text-right">Balance</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Payment</th>
+                <th className="px-4 py-3">Invoice</th>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
                   </td>
                 </tr>
               )}
               {!isLoading && jobs.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center text-slate-400 italic">
+                  <td colSpan={12} className="px-6 py-12 text-center text-slate-400 italic">
                     {searchQuery ? `No jobs found matching "${searchQuery}"` : "No jobs found for this filter."}
                   </td>
                 </tr>
@@ -773,6 +846,9 @@ function JobsTab() {
                   </td>
                   <td className="px-4 py-3">
                     <PaymentBadge status={job.paymentStatus || "unpaid"} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <InvoiceBadge status={job.invoiceStatus || "none"} />
                   </td>
                   <td className="px-4 py-3">
                     <Eye className="w-4 h-4 text-slate-400" />
