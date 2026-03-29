@@ -232,7 +232,7 @@ export interface RemainingBalanceData {
 export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string {
   const payButton = data.payLink
     ? `<div style="text-align:center;margin:16px 0;">
-         <a href="${escapeHtml(data.payLink)}" style="display:inline-block;background:${PRIMARY_COLOR};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Pay Now</a>
+         <a href="${escapeHtml(data.payLink)}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Pay Now</a>
        </div>`
     : "";
 
