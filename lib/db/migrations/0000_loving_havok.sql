@@ -1,78 +1,36 @@
-CREATE TABLE "quote_requests" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"contact_name" text NOT NULL,
-	"phone" text NOT NULL,
-	"email" text NOT NULL,
-	"move_date" text NOT NULL,
-	"arrival_time_window" text,
-	"pickup_address" text,
-	"dropoff_address" text,
-	"second_stop" text,
-	"storage_needed" boolean DEFAULT false,
-	"additional_notes" text,
-	"move_type" text DEFAULT 'local' NOT NULL,
-	"residential_or_commercial" text DEFAULT 'residential',
-	"origin_address" text DEFAULT '' NOT NULL,
-	"destination_address" text DEFAULT '' NOT NULL,
-	"move_size" text,
-	"number_of_rooms" integer,
-	"packing_help_needed" text DEFAULT 'none',
-	"special_items" text,
-	"number_of_bedrooms" integer DEFAULT 1,
-	"number_of_living_rooms" integer DEFAULT 1,
-	"is_fully_furnished" boolean DEFAULT true,
-	"has_garage" boolean DEFAULT false,
-	"has_outdoor_furniture" boolean DEFAULT false,
-	"has_stairs" boolean DEFAULT false,
-	"has_heavy_items" boolean DEFAULT false,
-	"inventory" json,
-	"boxes_already_packed" integer DEFAULT 0,
-	"needs_packing_materials" boolean DEFAULT false,
-	"small_boxes" integer DEFAULT 0,
-	"medium_boxes" integer DEFAULT 0,
-	"storage_unit_choice" text,
-	"crew_size" integer,
-	"hourly_rate" real,
-	"estimated_hours" real,
-	"labor_subtotal" real,
-	"materials_subtotal" real,
-	"deposit_amount" real,
-	"total_estimate" real,
-	"estimated_price_low" real,
-	"estimated_price_high" real,
-	"status" text DEFAULT 'quote_requested',
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "jobs" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"job_id" text NOT NULL,
-	"customer" text NOT NULL,
-	"provider" text,
-	"pickup_location" text NOT NULL,
-	"destination" text NOT NULL,
-	"move_type" text NOT NULL,
-	"date_time" text NOT NULL,
-	"estimated_payout" real NOT NULL,
-	"special_requirements" text,
-	"job_size" text,
-	"status" text DEFAULT 'Request Submitted',
-	"assigned_mover" text,
-	"truck_status" text,
-	"eta" text,
-	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "jobs_job_id_unique" UNIQUE("job_id")
-);
---> statement-breakpoint
-CREATE TABLE "contacts" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"phone" text NOT NULL,
-	"email" text NOT NULL,
-	"move_date" text,
-	"move_type" text,
-	"origin" text,
-	"destination" text,
-	"message" text NOT NULL,
-	"created_at" timestamp DEFAULT now()
-);
+-- Migration: Add enriched quote fields to existing quote_requests table
+-- Adds new columns for the full quote wizard (home size, inventory, pricing results).
+-- All new columns are nullable so existing rows are unaffected.
+
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "arrival_time_window" text;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "pickup_address" text;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "dropoff_address" text;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "second_stop" text;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "number_of_bedrooms" integer DEFAULT 1;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "number_of_living_rooms" integer DEFAULT 1;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "is_fully_furnished" boolean DEFAULT true;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "has_garage" boolean DEFAULT false;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "has_outdoor_furniture" boolean DEFAULT false;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "has_stairs" boolean DEFAULT false;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "has_heavy_items" boolean DEFAULT false;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "inventory" json;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "boxes_already_packed" integer DEFAULT 0;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "needs_packing_materials" boolean DEFAULT false;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "small_boxes" integer DEFAULT 0;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "medium_boxes" integer DEFAULT 0;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "storage_unit_choice" text;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "crew_size" integer;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "hourly_rate" real;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "estimated_hours" real;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "labor_subtotal" real;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "materials_subtotal" real;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "deposit_amount" real;
+ALTER TABLE "quote_requests" ADD COLUMN IF NOT EXISTS "total_estimate" real;
+
+-- Add defaults to existing address columns so new wizard inserts can omit them.
+ALTER TABLE "quote_requests" ALTER COLUMN "origin_address" SET DEFAULT '';
+ALTER TABLE "quote_requests" ALTER COLUMN "destination_address" SET DEFAULT '';
+ALTER TABLE "quote_requests" ALTER COLUMN "move_type" SET DEFAULT 'local';
+
+-- Update status default from legacy 'pending' to 'quote_requested'.
+ALTER TABLE "quote_requests" ALTER COLUMN "status" SET DEFAULT 'quote_requested';
