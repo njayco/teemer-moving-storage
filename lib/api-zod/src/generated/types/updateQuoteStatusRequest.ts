@@ -5,8 +5,9 @@
  * Teemer Moving & Storage API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateQuoteStatusRequestStatus } from "./updateQuoteStatusRequestStatus";
 
 export interface UpdateQuoteStatusRequest {
-  /** quote_requested | deposit_paid | booked */
-  status: string;
+  /** quote_requested | deposit_paid | booked | cancelled */
+  status: UpdateQuoteStatusRequestStatus;
 }

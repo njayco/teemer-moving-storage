@@ -18,5 +18,7 @@ export * from "./listJobsParams";
 export * from "./quoteRequest";
 export * from "./quoteRequestEcho";
 export * from "./quoteResponse";
+export * from "./quoteResponseStatus";
 export * from "./updateJobStatusRequest";
 export * from "./updateQuoteStatusRequest";
+export * from "./updateQuoteStatusRequestStatus";

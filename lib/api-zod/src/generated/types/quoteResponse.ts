@@ -6,11 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { QuoteRequestEcho } from "./quoteRequestEcho";
+import type { QuoteResponseStatus } from "./quoteResponseStatus";
 
 export interface QuoteResponse {
   id: string;
-  /** quote_requested | deposit_paid | booked */
-  status: string;
+  /** quote_requested | deposit_paid | booked | cancelled */
+  status: QuoteResponseStatus;
   createdAt: string;
   crewSize?: number;
   hourlyRate?: number;

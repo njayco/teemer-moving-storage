@@ -80,7 +80,9 @@ export const SubmitQuoteRequestBody = zod.object({
  */
 export const ListQuoteRequestsResponseItem = zod.object({
   id: zod.string(),
-  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+  status: zod
+    .enum(["quote_requested", "deposit_paid", "booked", "cancelled"])
+    .describe("quote_requested | deposit_paid | booked | cancelled"),
   createdAt: zod.string(),
   crewSize: zod.number().optional(),
   hourlyRate: zod.number().optional(),
@@ -141,7 +143,9 @@ export const GetQuoteRequestParams = zod.object({
 
 export const GetQuoteRequestResponse = zod.object({
   id: zod.string(),
-  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+  status: zod
+    .enum(["quote_requested", "deposit_paid", "booked", "cancelled"])
+    .describe("quote_requested | deposit_paid | booked | cancelled"),
   createdAt: zod.string(),
   crewSize: zod.number().optional(),
   hourlyRate: zod.number().optional(),
@@ -198,12 +202,16 @@ export const UpdateQuoteStatusParams = zod.object({
 });
 
 export const UpdateQuoteStatusBody = zod.object({
-  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+  status: zod
+    .enum(["quote_requested", "deposit_paid", "booked", "cancelled"])
+    .describe("quote_requested | deposit_paid | booked | cancelled"),
 });
 
 export const UpdateQuoteStatusResponse = zod.object({
   id: zod.string(),
-  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+  status: zod
+    .enum(["quote_requested", "deposit_paid", "booked", "cancelled"])
+    .describe("quote_requested | deposit_paid | booked | cancelled"),
   createdAt: zod.string(),
   crewSize: zod.number().optional(),
   hourlyRate: zod.number().optional(),

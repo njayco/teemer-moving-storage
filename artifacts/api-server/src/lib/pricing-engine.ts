@@ -109,7 +109,9 @@ export function calculatePricing(input: PricingInput): PricingResult {
 
   // Materials: stretch wrap 1 roll per bedroom when lightly furnished,
   // 2 rolls per bedroom when fully furnished (per "1–2 per bedroom" rule).
-  const effectiveBedrooms = Math.max(1, bedrooms);
+  // Studio apartments (0 bedrooms) still need at least 1 roll for furniture
+  // in the living area — treat as 1 bedroom for materials purposes.
+  const effectiveBedrooms = bedrooms === 0 ? 1 : bedrooms;
   const stretchWrapPerBedroom = input.isFullyFurnished ? 2 : 1;
   const stretchWrapCost = input.needsPackingMaterials
     ? stretchWrapPerBedroom * effectiveBedrooms * 55
