@@ -114,7 +114,7 @@ A full-featured moving company web app with two distinct experiences:
 - `GET/PATCH /api/jobs/:jobId` — Individual job + status updates (PATCH auto-records timeline events for status changes and captain assignments)
 - `GET /api/jobs/:jobId/events` — Job timeline events (admin only)
 - `POST /api/jobs/:jobId/events` — Create timeline event (admin only)
-- `GET /api/track/:trackingToken` — Public tracking by token (no auth, customer-visible events only)
+- `GET /api/track/:id/:trackingToken` — Public tracking by ID + token (no auth, customer-visible events only)
 - `POST /api/track/lookup` — Public tracking lookup by Job ID + email (no auth)
 - `POST /api/contact` — Contact form
 - `GET /api/admin/stats` — Admin dashboard stats
