@@ -17,8 +17,8 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      req.log.warn("Stripe webhook received but STRIPE_WEBHOOK_SECRET not set");
-      res.status(200).json({ received: true });
+      req.log.error("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured");
+      res.status(500).json({ error: "Webhook secret not configured" });
       return;
     }
 

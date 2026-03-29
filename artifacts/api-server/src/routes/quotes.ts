@@ -330,7 +330,11 @@ router.post("/quotes/:id/checkout", async (req, res) => {
     const trustedDomain = process.env.REPLIT_DEPLOYMENT === "1"
       ? process.env.REPLIT_DOMAINS?.split(",")[0]
       : process.env.REPLIT_DEV_DOMAIN;
-    const baseUrl = trustedDomain ? `https://${trustedDomain}` : `https://${req.headers.host}`;
+    if (!trustedDomain) {
+      res.status(500).json({ error: "Server domain not configured. Please call us to pay the deposit." });
+      return;
+    }
+    const baseUrl = `https://${trustedDomain}`;
     const successUrl = `${baseUrl}/info/quote/confirmation?quoteId=${id}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/info/quote/deposit/${id}`;
 
