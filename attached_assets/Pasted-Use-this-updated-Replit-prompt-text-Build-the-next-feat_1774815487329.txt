@@ -1,0 +1,589 @@
+Use this updated Replit prompt:
+
+```text
+Build the next feature set for the existing Teemer Moving and Storage web application.
+
+This is not a new app. Extend the current booking and quote platform with customer email workflows, client-side job tracking, admin job management, move-captain operational updates, invoice controls, and revenue reporting.
+
+Core business context:
+Customers can already request moving jobs, receive estimates, choose items being moved, choose number of boxes, select move date/time, and pay a deposit. We now need a more complete moving operations system that supports:
+- deposit confirmation emails
+- client job status tracking
+- secure admin dashboard
+- employee move captain status updates
+- editable final invoices
+- remaining balance invoice emails
+- cash payment handling
+- revenue tracking
+
+Use the project’s existing stack and architecture.
+Requirements:
+- Keep current booking flow intact
+- Use secure server-side actions / API routes for all protected logic
+- Use the existing database or PostgreSQL if not already standardized
+- Use Resend for transactional email
+- Use role-based access for Admin and Move Captain users
+- Build a clean, mobile-friendly UI
+- Use production-style code and organized file structure
+- Add comments where helpful
+- Provide environment variable instructions
+- Make all statuses and payment logic consistent across the app
+
+==================================================
+1. RESEND EMAIL SYSTEM
+==================================================
+
+Integrate Resend for transactional emails.
+
+Environment variables:
+- RESEND_API_KEY
+- RESEND_FROM_EMAIL
+- ADMIN_NOTIFICATION_EMAIL
+- APP_BASE_URL
+
+Create a centralized email service with reusable functions:
+- sendDepositConfirmationEmail()
+- sendAdminNewJobNotification()
+- sendRemainingBalanceInvoiceEmail()
+- sendPaymentReceivedEmail()
+- sendJobCompletedEmail()
+- sendStatusUpdateEmail()
+- sendTrackingLinkEmail()
+
+Build reusable email templates/components for:
+1. Deposit confirmation email to customer
+2. New moving job notification to admin
+3. Remaining balance invoice email
+4. Payment received email
+5. Job completed / thank-you email
+6. Status update email with live tracking link
+
+When deposit is paid successfully:
+- send confirmation email to customer
+- send internal notification email to admin
+- include a unique tracking link in the customer email
+- also include the customer’s job ID in the email
+
+Deposit confirmation email should include:
+- customer full name
+- job ID
+- move date
+- arrival window or selected time
+- origin address
+- destination address
+- item summary
+- number of boxes
+- total estimate
+- deposit paid
+- estimated remaining balance
+- current job status
+- button/link for “Check Moving Job Status”
+
+Tracking link format example:
+- /track-job/[jobId]/[trackingToken]
+or another secure tokenized route
+
+==================================================
+2. CLIENT-SIDE JOB TRACKING
+==================================================
+
+Add a public customer-facing feature called:
+- “Check Moving Job Status”
+
+This should be accessible in two ways:
+
+A. From email
+Customers receive a secure tracking link in their confirmation/status emails.
+
+B. From website
+Add a visible option on the website:
+- “Check Moving Job Status”
+
+On this page, customer can:
+Option 1:
+- enter Job ID + email address
+or
+Option 2:
+- use a secure tracking link/token from email
+
+Customer status page should show:
+- Job ID
+- Customer name
+- Move date
+- arrival window
+- origin and destination
+- current status
+- status timeline
+- estimate total
+- deposit paid
+- remaining balance due
+- payment status
+- invoice status
+- whether crew has arrived
+- whether job is in progress
+- whether items are at storage
+- whether job is complete
+
+Show a clean timeline like:
+- Deposit Paid
+- Scheduled
+- Captain Assigned
+- Crew Arrived
+- In Progress
+- At Storage
+- Awaiting Remaining Balance
+- Paid
+- Complete
+
+Client-facing status values may include:
+- Pending
+- Scheduled
+- Captain Assigned
+- Arrived
+- In Progress
+- At Storage
+- Awaiting Remaining Balance
+- Paid in Cash
+- Paid
+- Complete
+- Cancelled
+
+Important:
+- customer should only see their own job information
+- protect the route with secure token validation or job ID + email verification
+- do not expose admin-only notes or internal financial notes
+- show a professional message and contact info if customer has questions
+
+==================================================
+3. ADMIN DASHBOARD
+==================================================
+
+Create a secure role-based admin dashboard.
+
+Roles:
+- Admin
+- Move Captain
+
+Admin permissions:
+- full access to all jobs
+- edit invoices
+- edit job details
+- manage payment status
+- send invoice emails
+- mark paid in cash
+- mark complete
+- see all revenue and reports
+- assign move captain to jobs
+- add notes
+
+Move Captain permissions:
+- access only assigned jobs or operational job list
+- update field statuses
+- add operational notes
+- mark arrived / in progress / at storage / complete request
+- cannot edit financial records unless explicitly allowed
+- cannot view sensitive admin revenue summaries unless explicitly allowed
+
+Dashboard overview cards for Admin:
+- Pending Jobs
+- In Progress Jobs
+- Completed Jobs
+- Deposits Collected
+- Remaining Balances Outstanding
+- Cash Payments Recorded
+- Total Revenue
+
+Jobs table filters:
+- Pending
+- Scheduled
+- Captain Assigned
+- Arrived
+- In Progress
+- At Storage
+- Awaiting Remaining Balance
+- Paid in Cash
+- Complete
+- Cancelled
+- All
+
+Search by:
+- customer name
+- email
+- phone
+- move date
+- invoice number
+- job ID
+
+Each job row should show:
+- Job ID
+- Customer name
+- assigned captain
+- move date/time
+- origin and destination
+- total estimate
+- deposit paid
+- remaining balance
+- job status
+- payment status
+- invoice status
+
+Actions for Admin:
+- View Job
+- Edit Job
+- Edit Invoice
+- Assign Captain
+- Send Remaining Balance Invoice
+- Mark Paid in Cash
+- Mark Complete
+- Email Customer
+- View Revenue Entries
+
+Actions for Move Captain:
+- View Assigned Job
+- Update Status
+- Add Operational Note
+- Mark Arrived
+- Mark In Progress
+- Mark At Storage
+- Mark Job Finished
+
+==================================================
+4. MOVE CAPTAIN WORKFLOW
+==================================================
+
+Create a Move Captain role/user type on the admin side.
+
+Move Captain dashboard should include:
+- My Assigned Jobs
+- Today’s Jobs
+- Upcoming Jobs
+- Completed Jobs
+
+For each assigned job, captain can update operational status:
+- Scheduled
+- En Route
+- Arrived
+- In Progress
+- At Storage
+- Returning
+- Job Finished
+- Delayed
+
+Also allow captain to add:
+- arrival timestamp
+- operational notes
+- issue notes
+- optional uploaded proof/photo if existing stack supports uploads
+- checklist completion items if easy to add
+
+Important workflow:
+- when captain updates status, save timestamped event
+- optionally notify customer by email for important updates such as:
+  - crew arrived
+  - job in progress
+  - items at storage
+  - job complete
+
+Status updates should appear on:
+- admin dashboard
+- move captain dashboard
+- client tracking page
+
+Admin can configure whether certain status changes trigger customer emails.
+
+==================================================
+5. JOB LIFECYCLE + STATUS TIMELINE
+==================================================
+
+Create a status event timeline model so every important event is recorded.
+
+Examples:
+- Job Created
+- Deposit Paid
+- Deposit Confirmation Email Sent
+- Captain Assigned
+- Crew En Route
+- Arrived
+- In Progress
+- At Storage
+- Remaining Balance Invoice Sent
+- Paid in Cash
+- Remaining Balance Paid Online
+- Job Completed
+- Completion Email Sent
+
+Each timeline record should include:
+- id
+- jobId
+- eventType
+- visibleToCustomer (boolean)
+- statusLabel
+- notes
+- createdByUserId
+- createdAt
+
+Customer tracking page should only display customer-safe timeline events.
+
+==================================================
+6. INVOICE AND REMAINING BALANCE WORKFLOW
+==================================================
+
+Admin can edit final invoice before sending remaining balance invoice.
+
+Editable invoice fields:
+- item list
+- labor hours
+- hourly rate
+- travel fee
+- stair fee
+- storage fee
+- packing fee
+- extra charges
+- discounts
+- final total
+- deposit already paid
+- remaining balance due
+- due date
+- invoice notes
+
+Buttons:
+- “Send Remaining Balance Invoice”
+- “Mark Paid in Cash”
+- “Mark Complete”
+
+When admin selects “Send Remaining Balance Invoice”:
+- generate or update invoice
+- email customer via Resend
+- include invoice number
+- include final total
+- include deposit already paid
+- include remaining balance due
+- include due date if applicable
+- include pay-now link if online final payment exists
+- update status to “Awaiting Remaining Balance”
+- log email sent timestamp
+
+When admin selects “Mark Paid in Cash”:
+- mark remaining balance as paid offline
+- set outstanding balance to 0
+- payment method = cash
+- add payment ledger entry
+- update status to “Paid in Cash”
+- optionally send receipt email
+
+When admin selects “Mark Complete”:
+- only allow if remaining balance is 0
+  OR payment method/status = paid in cash
+- set completedAt timestamp
+- update status = Complete
+- optionally send final thank-you/completion email
+
+==================================================
+7. PAYMENT + REVENUE REPORTING
+==================================================
+
+Create revenue tracking in dashboard.
+
+Record revenue whenever:
+- deposit is paid
+- remaining balance is paid online
+- admin marks paid in cash
+
+Revenue dashboard should include:
+- total revenue
+- deposit revenue
+- remaining balance revenue
+- cash revenue
+- outstanding receivables
+- revenue by date range
+- revenue by status
+- revenue by payment method
+
+Display:
+- summary cards
+- revenue table
+- filter by date range
+- filter by payment method
+- filter by status
+- optional charts if easy to add
+- CSV export if possible
+
+==================================================
+8. DATABASE / SCHEMA CHANGES
+==================================================
+
+Add or update models for:
+
+Users
+- id
+- name
+- email
+- role (admin, move_captain)
+
+Jobs
+- id
+- trackingToken
+- customerId
+- assignedCaptainId
+- moveDate
+- arrivalWindow
+- originAddress
+- destinationAddress
+- inventoryJson
+- boxCounts
+- crewSize
+- estimatedHours
+- hourlyRate
+- estimateSubtotal
+- extraCharges
+- discounts
+- finalTotal
+- depositPaid
+- remainingBalance
+- status
+- paymentStatus
+- invoiceStatus
+- notes
+- createdAt
+- updatedAt
+- completedAt
+
+Customers
+- id
+- fullName
+- email
+- phone
+
+Invoices
+- id
+- jobId
+- invoiceNumber
+- subtotal
+- extraCharges
+- discounts
+- finalTotal
+- depositApplied
+- remainingBalanceDue
+- dueDate
+- sentAt
+- status
+- editableSnapshotJson
+
+Payments
+- id
+- jobId
+- type (deposit, remaining_balance, cash)
+- method
+- amount
+- reference
+- paidAt
+- notes
+
+RevenueLedger
+- id
+- jobId
+- paymentId
+- category
+- amount
+- recordedAt
+
+JobStatusEvents
+- id
+- jobId
+- eventType
+- statusLabel
+- visibleToCustomer
+- notes
+- createdByUserId
+- createdAt
+
+EmailLogs
+- id
+- jobId
+- emailType
+- recipient
+- resendId
+- status
+- sentAt
+
+==================================================
+9. BUSINESS RULES
+==================================================
+
+Enforce these rules:
+- remaining balance cannot go below 0
+- invoice math must always recalculate correctly
+- only Admin can edit final financial invoice details
+- Move Captain cannot change revenue totals directly
+- job cannot be marked complete unless fully paid or marked paid in cash
+- every status update must create a timeline event
+- public job tracking must never expose internal notes
+- tracking link must use secure token validation
+- all email sends should happen only after successful DB updates
+- all admin and captain actions should log timestamps
+- all amounts displayed across customer/admin views must match
+
+==================================================
+10. UI PAGES / SCREENS TO BUILD
+==================================================
+
+Build or extend these pages/components:
+
+Public:
+- Check Moving Job Status page
+- Job tracking detail page
+- status timeline component
+
+Admin:
+- Admin login / protected route
+- dashboard overview
+- jobs table
+- job detail page
+- edit invoice modal/page
+- assign captain modal
+- revenue dashboard
+- payment history component
+- email log component
+- status timeline component
+
+Move Captain:
+- captain dashboard
+- assigned jobs list
+- job detail page
+- quick status update controls
+- operational notes form
+
+==================================================
+11. BONUS FEATURES IF POSSIBLE
+==================================================
+
+If possible, also add:
+- SMS-ready architecture placeholder for future Twilio updates
+- printable invoice view
+- downloadable PDF invoice
+- automated email on captain arrival
+- audit trail of who changed what and when
+- small map/status card for job logistics if existing stack supports it
+
+==================================================
+12. FINAL DELIVERABLES
+==================================================
+
+Please implement the feature fully in the current Teemer Moving and Storage app and provide:
+- schema changes / migrations
+- backend logic
+- role-based auth structure
+- Resend integration
+- public tracking pages
+- admin dashboard
+- move captain dashboard
+- invoice editing flow
+- revenue dashboard
+- sample email templates
+- environment variable setup instructions
+- seed/demo data
+- concise README notes explaining how the job tracking, captain workflow, and invoicing work
+
+Important UX direction:
+Make this feel like a real moving operations platform. The customer should feel reassured and informed. The admin should feel in control of payments and jobs. The move captain should have a fast operational tool for updating field progress.
+```
