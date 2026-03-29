@@ -1,6 +1,7 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { useLookupTracking } from "@workspace/api-client-react";
+import type { TrackingResponse } from "@workspace/api-client-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ const lookupSchema = z.object({
 type LookupForm = z.infer<typeof lookupSchema>;
 
 export default function TrackLookupPage() {
-  const [trackingData, setTrackingData] = useState<any>(null);
+  const [trackingData, setTrackingData] = useState<TrackingResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const mutation = useLookupTracking();
 
@@ -36,11 +37,8 @@ export default function TrackLookupPage() {
         onSuccess: (result) => {
           setTrackingData(result);
         },
-        onError: (err: any) => {
-          const msg =
-            err?.response?.data?.error ||
-            "No matching move found. Please check your Job ID and email address.";
-          setErrorMsg(msg);
+        onError: () => {
+          setErrorMsg("No matching move found. Please check your Job ID and email address.");
         },
       }
     );
@@ -127,7 +125,7 @@ export default function TrackLookupPage() {
   );
 }
 
-function TrackingResult({ data, onReset }: { data: any; onReset: () => void }) {
+function TrackingResult({ data, onReset }: { data: TrackingResponse; onReset: () => void }) {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
@@ -142,7 +140,7 @@ function TrackingResult({ data, onReset }: { data: any; onReset: () => void }) {
                   : "bg-blue-100 text-blue-700"
             }`}
           >
-            {data.status?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Pending"}
+            {data.status?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Pending"}
           </span>
         </div>
 
@@ -181,8 +179,13 @@ function TrackingResult({ data, onReset }: { data: any; onReset: () => void }) {
                 data.paymentStatus === "deposit_paid" ? "bg-blue-100 text-blue-700" :
                 "bg-slate-100 text-slate-600"
               }`}>
-                Payment: {data.paymentStatus?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Pending"}
+                Payment: {data.paymentStatus?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Pending"}
               </span>
+              {data.invoiceStatus && data.invoiceStatus !== "none" && (
+                <span className="ml-2 text-sm font-medium px-2 py-1 rounded bg-slate-100 text-slate-600">
+                  Invoice: {data.invoiceStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                </span>
+              )}
             </div>
           </div>
         )}

@@ -22,6 +22,7 @@ function formatTrackingResponse(quote: typeof quoteRequestsTable.$inferSelect, e
     depositPaid,
     remainingBalance,
     paymentStatus: depositPaid > 0 ? (remainingBalance <= 0 ? "paid" : "deposit_paid") : "unpaid",
+    invoiceStatus: "none",
     timeline: events
       .filter((e) => e.visibleToCustomer)
       .map((e) => ({
@@ -42,10 +43,11 @@ function formatJobTrackingResponse(job: typeof jobsTable.$inferSelect, events: (
     pickupAddress: job.pickupLocation,
     dropoffAddress: job.destination,
     status: job.status,
-    totalEstimate: job.finalTotal ?? job.estimatedPayout ?? 0,
+    totalEstimate: job.finalTotal ?? 0,
     depositPaid: job.depositPaid ?? 0,
     remainingBalance: job.remainingBalance ?? 0,
     paymentStatus: job.paymentStatus ?? "unpaid",
+    invoiceStatus: job.invoiceStatus ?? "none",
     timeline: events
       .filter((e) => e.visibleToCustomer)
       .map((e) => ({
@@ -59,15 +61,16 @@ function formatJobTrackingResponse(job: typeof jobsTable.$inferSelect, events: (
 
 router.get("/track/:id/:trackingToken", async (req, res) => {
   try {
+    const id = String(req.params.id);
     const token = String(req.params.trackingToken);
 
     const [job] = await db
       .select()
       .from(jobsTable)
-      .where(eq(jobsTable.trackingToken, token))
+      .where(and(eq(jobsTable.trackingToken, token)))
       .limit(1);
 
-    if (job) {
+    if (job && (String(job.id) === id || job.jobId === id || String(job.quoteId) === id)) {
       const jobEvents = await db
         .select()
         .from(jobStatusEventsTable)
@@ -91,11 +94,14 @@ router.get("/track/:id/:trackingToken", async (req, res) => {
       return;
     }
 
-    const [quote] = await db
-      .select()
-      .from(quoteRequestsTable)
-      .where(eq(quoteRequestsTable.trackingToken, token))
-      .limit(1);
+    const quoteIdNum = parseInt(id, 10);
+    const [quote] = !isNaN(quoteIdNum)
+      ? await db
+          .select()
+          .from(quoteRequestsTable)
+          .where(and(eq(quoteRequestsTable.id, quoteIdNum), eq(quoteRequestsTable.trackingToken, token)))
+          .limit(1)
+      : [null];
 
     if (!quote) {
       res.status(404).json({ error: "Tracking link not found or expired" });

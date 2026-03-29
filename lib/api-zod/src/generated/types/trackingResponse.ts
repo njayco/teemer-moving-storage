@@ -20,5 +20,6 @@ export interface TrackingResponse {
   depositPaid: number;
   remainingBalance: number;
   paymentStatus: string;
+  invoiceStatus: string;
   timeline: TrackingTimelineEvent[];
 }

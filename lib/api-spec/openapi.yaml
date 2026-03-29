@@ -1162,6 +1162,8 @@ components:
           type: number
         paymentStatus:
           type: string
+        invoiceStatus:
+          type: string
         timeline:
           type: array
           items:
@@ -1175,6 +1177,7 @@ components:
         - depositPaid
         - remainingBalance
         - paymentStatus
+        - invoiceStatus
         - timeline
 
     TrackingLookupRequest:

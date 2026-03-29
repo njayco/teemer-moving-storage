@@ -2,7 +2,7 @@ import { InfoLayout } from "@/components/layout/info-layout";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { useGetTrackingByToken } from "@workspace/api-client-react";
 import { useRoute, Link } from "wouter";
-import { Loader2, AlertCircle, Package, MapPin, Calendar, DollarSign, Phone } from "lucide-react";
+import { Loader2, AlertCircle, Package, MapPin, Calendar, Phone } from "lucide-react";
 
 export default function TrackByTokenPage() {
   const [, params] = useRoute("/track/:id/:token");
@@ -63,7 +63,7 @@ export default function TrackByTokenPage() {
                           : "bg-blue-100 text-blue-700"
                     }`}
                   >
-                    {data.status?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Pending"}
+                    {data.status?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Pending"}
                   </span>
                 </div>
 
@@ -108,8 +108,13 @@ export default function TrackByTokenPage() {
                         data.paymentStatus === "deposit_paid" ? "bg-blue-100 text-blue-700" :
                         "bg-slate-100 text-slate-600"
                       }`}>
-                        Payment: {data.paymentStatus?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Pending"}
+                        Payment: {data.paymentStatus?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Pending"}
                       </span>
+                      {data.invoiceStatus && data.invoiceStatus !== "none" && (
+                        <span className="ml-2 text-sm font-medium px-2 py-1 rounded bg-slate-100 text-slate-600">
+                          Invoice: {data.invoiceStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}

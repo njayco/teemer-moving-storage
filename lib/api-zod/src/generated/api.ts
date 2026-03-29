@@ -580,6 +580,7 @@ export const GetTrackingByTokenResponse = zod.object({
   depositPaid: zod.number(),
   remainingBalance: zod.number(),
   paymentStatus: zod.string(),
+  invoiceStatus: zod.string(),
   timeline: zod.array(
     zod.object({
       id: zod.number(),
@@ -611,6 +612,7 @@ export const LookupTrackingResponse = zod.object({
   depositPaid: zod.number(),
   remainingBalance: zod.number(),
   paymentStatus: zod.string(),
+  invoiceStatus: zod.string(),
   timeline: zod.array(
     zod.object({
       id: zod.number(),
