@@ -64,6 +64,22 @@ async function sendEmail(params: {
       html: params.html,
     });
 
+    if (result.error) {
+      logger.error(
+        { error: result.error, emailType: params.emailType, to: params.to },
+        "Resend API returned error"
+      );
+      await db.insert(emailLogsTable).values({
+        quoteId: params.quoteId ?? null,
+        jobId: params.jobId ?? null,
+        emailType: params.emailType,
+        recipient: params.to,
+        resendId: null,
+        status: "failed",
+      });
+      return { success: false };
+    }
+
     const resendId = result.data?.id ?? null;
 
     await db.insert(emailLogsTable).values({

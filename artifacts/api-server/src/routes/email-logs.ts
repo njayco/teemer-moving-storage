@@ -8,7 +8,7 @@ const router: IRouter = Router();
 
 router.get("/admin/email-logs/quote/:quoteId", requireAdmin, async (req, res) => {
   try {
-    const quoteId = parseInt(req.params.quoteId, 10);
+    const quoteId = parseInt(String(req.params.quoteId), 10);
     if (isNaN(quoteId)) {
       res.status(400).json({ error: "Invalid quote ID" });
       return;
@@ -29,7 +29,7 @@ router.get("/admin/email-logs/quote/:quoteId", requireAdmin, async (req, res) =>
 
 router.get("/admin/email-logs/:jobId", requireAdmin, async (req, res) => {
   try {
-    const jobId = parseInt(req.params.jobId, 10);
+    const jobId = parseInt(String(req.params.jobId), 10);
     if (isNaN(jobId)) {
       res.status(400).json({ error: "Invalid ID" });
       return;

@@ -75,7 +75,7 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         return;
       }
 
-      req.log.info({ quoteId, sessionId: session.id, trackingToken }, "Quote marked deposit_paid");
+      req.log.info({ quoteId, sessionId: session.id }, "Quote marked deposit_paid");
 
       const baseUrl = getAppBaseUrl();
       const trackingUrl = `${baseUrl}/track/${trackingToken}`;
