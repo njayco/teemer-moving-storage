@@ -235,9 +235,9 @@ router.post("/quotes", async (req, res) => {
   }
 });
 
-// POST /quotes/estimate-boxes  — AI box estimation via OpenAI
 router.post("/quotes/estimate-boxes", async (req, res) => {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) {
     res.status(503).json({ error: "AI box estimation is not configured yet. Please enter box counts manually." });
     return;
@@ -274,7 +274,10 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
 {"small": <number>, "medium": <number>, "note": "<one-sentence confidence note>"}`;
 
   try {
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({
+      apiKey,
+      ...(baseUrl ? { baseURL: baseUrl } : {}),
+    });
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
