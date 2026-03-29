@@ -117,7 +117,7 @@ router.get("/jobs", requireAdmin, async (req, res) => {
           ilike(jobsTable.destination, term),
           ilike(jobsTable.dateTime, term),
           ilike(jobsTable.assignedMover, term),
-          sql`EXISTS (SELECT 1 FROM ${quoteRequestsTable} WHERE ${quoteRequestsTable.id} = ${jobsTable.quoteId} AND (${ilike(quoteRequestsTable.email, term)} OR ${ilike(quoteRequestsTable.phone, term)} OR ${ilike(quoteRequestsTable.contactName, term)}))`,
+          sql`EXISTS (SELECT 1 FROM ${quoteRequestsTable} WHERE ${quoteRequestsTable.id} = ${jobsTable.quoteId} AND (${ilike(quoteRequestsTable.email, term)} OR ${ilike(quoteRequestsTable.phone, term)} OR ${ilike(quoteRequestsTable.contactName, term)} OR ${ilike(quoteRequestsTable.moveDate, term)}))`,
           sql`EXISTS (SELECT 1 FROM ${invoicesTable} WHERE ${invoicesTable.jobId} = ${jobsTable.id} AND ${ilike(invoicesTable.invoiceNumber, term)})`,
         )!,
       );
