@@ -111,7 +111,7 @@ router.patch("/quotes/:id/status", async (req, res) => {
       res.status(400).json({ error: "Invalid quote ID" });
       return;
     }
-    const VALID_STATUSES = ["quote_requested", "deposit_paid", "booked", "cancelled"] as const;
+    const VALID_STATUSES = ["quote_requested", "deposit_paid", "booked"] as const;
     const { status } = req.body;
     if (!status || !VALID_STATUSES.includes(status)) {
       res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(", ")}` });

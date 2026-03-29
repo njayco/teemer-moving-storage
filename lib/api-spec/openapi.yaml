@@ -342,8 +342,8 @@ components:
           type: string
         status:
           type: string
-          enum: [quote_requested, deposit_paid, booked, cancelled]
-          description: "quote_requested | deposit_paid | booked | cancelled"
+          enum: [quote_requested, deposit_paid, booked]
+          description: "quote_requested | deposit_paid | booked"
         createdAt:
           type: string
         # Pricing results
@@ -439,8 +439,8 @@ components:
       properties:
         status:
           type: string
-          enum: [quote_requested, deposit_paid, booked, cancelled]
-          description: "quote_requested | deposit_paid | booked | cancelled"
+          enum: [quote_requested, deposit_paid, booked]
+          description: "quote_requested | deposit_paid | booked"
       required:
         - status
 

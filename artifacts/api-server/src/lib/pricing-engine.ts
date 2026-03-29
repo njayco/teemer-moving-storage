@@ -120,24 +120,26 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const smallBoxCost = (input.smallBoxes ?? 0) * 3.5;
   const mediumBoxCost = (input.mediumBoxes ?? 0) * 6.5;
 
-  const laborSubtotal = Math.round(hourlyRate * hours);
-  const materialsSubtotal = Math.round(stretchWrapCost + tapeCost + smallBoxCost + mediumBoxCost);
+  // All rate inputs (hourly rates, box prices, tape) are defined with full cent precision.
+  // Do not round breakdown fields — preserve cents throughout.
+  const laborSubtotal = hourlyRate * hours;
+  const materialsSubtotal = stretchWrapCost + tapeCost + smallBoxCost + mediumBoxCost;
   const totalEstimate = laborSubtotal + materialsSubtotal;
-  const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5);
+  const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5 * 100) / 100;
 
   return {
     crewSize: movers,
     hourlyRate,
     estimatedHours: Math.round(hours * 2) / 2,
     laborSubtotal,
-    materialsSubtotal,
-    totalEstimate,
+    materialsSubtotal: Math.round(materialsSubtotal * 100) / 100,
+    totalEstimate: Math.round(totalEstimate * 100) / 100,
     depositAmount,
     breakdown: {
-      stretchWrapCost: Math.round(stretchWrapCost),
-      tapeCost: Math.round(tapeCost),
-      smallBoxCost: Math.round(smallBoxCost),
-      mediumBoxCost: Math.round(mediumBoxCost),
+      stretchWrapCost,
+      tapeCost,
+      smallBoxCost,
+      mediumBoxCost,
     },
   };
 }

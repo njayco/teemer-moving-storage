@@ -8,6 +8,6 @@
 import type { UpdateQuoteStatusRequestStatus } from "./updateQuoteStatusRequestStatus";
 
 export interface UpdateQuoteStatusRequest {
-  /** quote_requested | deposit_paid | booked | cancelled */
+  /** quote_requested | deposit_paid | booked */
   status: UpdateQuoteStatusRequestStatus;
 }

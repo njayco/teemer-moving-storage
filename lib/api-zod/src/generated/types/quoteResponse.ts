@@ -10,7 +10,7 @@ import type { QuoteResponseStatus } from "./quoteResponseStatus";
 
 export interface QuoteResponse {
   id: string;
-  /** quote_requested | deposit_paid | booked | cancelled */
+  /** quote_requested | deposit_paid | booked */
   status: QuoteResponseStatus;
   createdAt: string;
   crewSize?: number;

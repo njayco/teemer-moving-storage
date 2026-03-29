@@ -7,7 +7,7 @@
  */
 
 /**
- * quote_requested | deposit_paid | booked | cancelled
+ * quote_requested | deposit_paid | booked
  */
 export type QuoteResponseStatus =
   (typeof QuoteResponseStatus)[keyof typeof QuoteResponseStatus];
@@ -16,5 +16,4 @@ export const QuoteResponseStatus = {
   quote_requested: "quote_requested",
   deposit_paid: "deposit_paid",
   booked: "booked",
-  cancelled: "cancelled",
 } as const;

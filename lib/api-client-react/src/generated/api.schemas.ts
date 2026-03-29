@@ -59,7 +59,7 @@ export interface QuoteRequest {
 }
 
 /**
- * quote_requested | deposit_paid | booked | cancelled
+ * quote_requested | deposit_paid | booked
  */
 export type QuoteResponseStatus =
   (typeof QuoteResponseStatus)[keyof typeof QuoteResponseStatus];
@@ -68,7 +68,6 @@ export const QuoteResponseStatus = {
   quote_requested: "quote_requested",
   deposit_paid: "deposit_paid",
   booked: "booked",
-  cancelled: "cancelled",
 } as const;
 
 /**
@@ -106,7 +105,7 @@ export interface QuoteRequestEcho {
 
 export interface QuoteResponse {
   id: string;
-  /** quote_requested | deposit_paid | booked | cancelled */
+  /** quote_requested | deposit_paid | booked */
   status: QuoteResponseStatus;
   createdAt: string;
   crewSize?: number;
@@ -122,7 +121,7 @@ export interface QuoteResponse {
 }
 
 /**
- * quote_requested | deposit_paid | booked | cancelled
+ * quote_requested | deposit_paid | booked
  */
 export type UpdateQuoteStatusRequestStatus =
   (typeof UpdateQuoteStatusRequestStatus)[keyof typeof UpdateQuoteStatusRequestStatus];
@@ -131,11 +130,10 @@ export const UpdateQuoteStatusRequestStatus = {
   quote_requested: "quote_requested",
   deposit_paid: "deposit_paid",
   booked: "booked",
-  cancelled: "cancelled",
 } as const;
 
 export interface UpdateQuoteStatusRequest {
-  /** quote_requested | deposit_paid | booked | cancelled */
+  /** quote_requested | deposit_paid | booked */
   status: UpdateQuoteStatusRequestStatus;
 }
 
