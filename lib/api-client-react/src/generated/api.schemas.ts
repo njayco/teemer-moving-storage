@@ -215,6 +215,60 @@ export interface ContactFormResponse {
   message: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export type AuthUserRole = (typeof AuthUserRole)[keyof typeof AuthUserRole];
+
+export const AuthUserRole = {
+  admin: "admin",
+  move_captain: "move_captain",
+} as const;
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: AuthUserRole;
+}
+
+export interface LoginResponse {
+  user: AuthUser;
+}
+
+export interface CurrentUserResponse {
+  user: AuthUser;
+}
+
+export type CreateUserRequestRole =
+  (typeof CreateUserRequestRole)[keyof typeof CreateUserRequestRole];
+
+export const CreateUserRequestRole = {
+  admin: "admin",
+  move_captain: "move_captain",
+} as const;
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  role?: CreateUserRequestRole;
+}
+
+export interface UserResponse {
+  user: AuthUser;
+}
+
+export interface UserListItem {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  createdAt?: string;
+}
+
 export type AdminStatsWeeklyRevenueItem = {
   day: string;
   amount: number;

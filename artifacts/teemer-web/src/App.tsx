@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/lib/auth";
 
 import NotFound from "@/pages/not-found";
 import SplashPage from "@/pages/splash";
@@ -19,8 +20,18 @@ import GalleryPage from "@/pages/info/gallery";
 import CustomerPortal from "@/pages/platform/customer";
 import ProviderPortal from "@/pages/platform/provider";
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminLoginPage from "@/pages/admin/login";
+import AdminAuthGuard from "@/pages/admin/auth-guard";
 
 const queryClient = new QueryClient();
+
+function ProtectedAdmin() {
+  return (
+    <AdminAuthGuard>
+      <AdminDashboard />
+    </AdminAuthGuard>
+  );
+}
 
 function Router() {
   return (
@@ -45,7 +56,8 @@ function Router() {
       <Route path="/platform/provider" component={ProviderPortal} />
 
       {/* Admin */}
-      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/login" component={AdminLoginPage} />
+      <Route path="/admin" component={ProtectedAdmin} />
 
       {/* 404 */}
       <Route component={NotFound} />
@@ -57,10 +69,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import stripeRouter from "./routes/stripe";
@@ -26,7 +27,11 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? [process.env.APP_ORIGIN].filter(Boolean) as string[]
+  : true;
+app.use(cors({ credentials: true, origin: allowedOrigins }));
+app.use(cookieParser());
 
 app.use("/api/stripe/webhook", express.raw({ type: "application/json" }));
 

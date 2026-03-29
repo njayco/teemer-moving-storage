@@ -1,4 +1,4 @@
-import { pgTable, text, serial, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, real, timestamp, integer, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -19,11 +19,37 @@ export const jobsTable = pgTable("jobs", {
   truckStatus: text("truck_status"),
   eta: text("eta"),
   createdAt: timestamp("created_at").defaultNow(),
+
+  trackingToken: text("tracking_token"),
+  quoteId: integer("quote_id"),
+  customerId: integer("customer_id"),
+  assignedCaptainId: integer("assigned_captain_id"),
+  arrivalWindow: text("arrival_window"),
+  originAddress: text("origin_address"),
+  destinationAddress: text("destination_address"),
+  inventoryJson: json("inventory_json"),
+  boxCounts: text("box_counts"),
+  crewSize: integer("crew_size"),
+  estimatedHours: real("estimated_hours"),
+  hourlyRate: real("hourly_rate"),
+  estimateSubtotal: real("estimate_subtotal"),
+  extraCharges: real("extra_charges").default(0),
+  discountsAmount: real("discounts_amount").default(0),
+  finalTotal: real("final_total"),
+  depositPaid: real("deposit_paid").default(0),
+  remainingBalance: real("remaining_balance"),
+  paymentStatus: text("payment_status").default("unpaid"),
+  invoiceStatus: text("invoice_status").default("none"),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
 });
 
 export const insertJobSchema = createInsertSchema(jobsTable).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  completedAt: true,
 });
 
 export type InsertJob = z.infer<typeof insertJobSchema>;

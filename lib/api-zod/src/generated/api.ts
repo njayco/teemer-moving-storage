@@ -16,6 +16,57 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Login
+ */
+export const LoginBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const LoginResponse = zod.object({
+  user: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "move_captain"]),
+  }),
+});
+
+/**
+ * @summary Get current user
+ */
+export const GetCurrentUserResponse = zod.object({
+  user: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "move_captain"]),
+  }),
+});
+
+/**
+ * @summary Create a user (admin only)
+ */
+export const CreateUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  role: zod.enum(["admin", "move_captain"]).optional(),
+});
+
+/**
+ * @summary List all users (admin only)
+ */
+export const ListUsersResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string(),
+  createdAt: zod.string().optional(),
+});
+export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
  * Submit a moving quote request from a customer. Runs the pricing engine and returns the calculated estimate.
  * @summary Submit a quote request
  */

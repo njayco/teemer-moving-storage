@@ -66,7 +66,8 @@ A full-featured moving company web app with two distinct experiences:
 - `/platform/provider` — Provider portal (Job Marketplace, Earnings)
 
 **Admin:**
-- `/admin` — Admin Operations Control Center (stats, revenue chart, job table, dispatch map)
+- `/admin/login` — Admin/Captain login page (email + password)
+- `/admin` — Admin Operations Control Center (protected, redirects to login if unauthenticated)
 
 ### Company Details
 - **Name**: Teemer Moving & Storage Co.
@@ -75,11 +76,32 @@ A full-featured moving company web app with two distinct experiences:
 - **Service Areas**: Long Beach, Nassau County, Suffolk County, Manhattan, Queens, Brooklyn
 
 ### Database Schema
+- `users` — Admin/Captain user accounts (bcrypt-hashed passwords, roles: admin/move_captain)
+- `customers` — Customer records
 - `quote_requests` — Customer move quote requests
-- `jobs` — Moving jobs (assigned from quotes)
+- `jobs` — Moving jobs (extended with trackingToken, assignedCaptainId, arrivalWindow, finalTotal, remainingBalance, paymentStatus, invoiceStatus)
+- `job_status_events` — Job lifecycle timeline events
+- `invoices` — Invoices for jobs
+- `payments` — Payment records
+- `revenue_ledger` — Revenue tracking entries
+- `email_logs` — Email notification logs
 - `contacts` — Contact form submissions
 
+### Authentication
+- **Method**: JWT tokens via httpOnly cookies (cookie name: `teemer_auth`, 7-day expiry)
+- **Secret**: JWT_SECRET env var (defaults to dev secret)
+- **Roles**: `admin`, `move_captain`
+- **Default admin**: admin@teemer.com / TeemerAdmin2024! (or ADMIN_PASSWORD env var)
+- **Seed script**: `pnpm --filter @workspace/scripts run seed-admin`
+- **Middleware**: `requireAuth`, `requireAdmin`, `requireCaptainOrAdmin`
+- **Frontend**: AuthProvider context wraps app, AdminAuthGuard protects /admin route
+
 ### API Endpoints
+- `POST /api/auth/login` — Login (email + password → JWT cookie)
+- `POST /api/auth/logout` — Logout (clears cookie)
+- `GET /api/auth/me` — Get current authenticated user
+- `POST /api/auth/users` — Create user (admin only)
+- `GET /api/auth/users` — List users (admin only)
 - `GET/POST /api/quotes` — Quote requests
 - `POST /api/quotes/estimate-boxes` — AI box estimation (OpenAI via Replit AI proxy)
 - `POST /api/quotes/:id/checkout` — Stripe Checkout Session for deposit
