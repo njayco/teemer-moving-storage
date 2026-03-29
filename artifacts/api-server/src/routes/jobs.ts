@@ -7,6 +7,7 @@ import {
   emailLogsTable,
   paymentsTable,
   usersTable,
+  invoicesTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, sql, or, ilike, and } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
@@ -117,6 +118,7 @@ router.get("/jobs", requireAdmin, async (req, res) => {
           ilike(jobsTable.dateTime, term),
           ilike(jobsTable.assignedMover, term),
           sql`EXISTS (SELECT 1 FROM ${quoteRequestsTable} WHERE ${quoteRequestsTable.id} = ${jobsTable.quoteId} AND (${ilike(quoteRequestsTable.email, term)} OR ${ilike(quoteRequestsTable.phone, term)} OR ${ilike(quoteRequestsTable.contactName, term)}))`,
+          sql`EXISTS (SELECT 1 FROM ${invoicesTable} WHERE ${invoicesTable.jobId} = ${jobsTable.id} AND ${ilike(invoicesTable.invoiceNumber, term)})`,
         )!,
       );
     }
@@ -342,6 +344,16 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       updates.completedAt = new Date();
     }
 
+    let cashAmount = 0;
+    if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
+      cashAmount = existing.remainingBalance != null && existing.remainingBalance > 0
+        ? existing.remainingBalance
+        : (existing.finalTotal ?? existing.estimatedPayout ?? 0);
+      if (updates.remainingBalance === undefined) {
+        updates.remainingBalance = 0;
+      }
+    }
+
     const [updated] = await db
       .update(jobsTable)
       .set(updates)
@@ -379,14 +391,6 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
     }
 
     if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
-      const cashAmount = existing.remainingBalance != null && existing.remainingBalance > 0
-        ? existing.remainingBalance
-        : (existing.finalTotal ?? existing.estimatedPayout ?? 0);
-
-      if (updates.remainingBalance === undefined) {
-        updates.remainingBalance = 0;
-      }
-
       recordTimelineEvent({
         jobId: updated.id,
         eventType: "status_change",

@@ -756,7 +756,7 @@ function JobsTab() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search name, job ID, phone..."
+              placeholder="Search name, job ID, email, phone, invoice..."
               className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none w-64"
             />
           </div>
