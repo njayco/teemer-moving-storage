@@ -2,6 +2,15 @@ const BRAND_COLOR = "#22C55E";
 const SECONDARY_COLOR = "#0B132B";
 const FONT_FAMILY = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function baseLayout(title: string, bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -50,8 +59,8 @@ function ctaButton(text: string, url: string): string {
 
 function detailRow(label: string, value: string): string {
   return `<tr>
-    <td style="padding:6px 0;color:#64748b;font-size:13px;width:160px;vertical-align:top;">${label}</td>
-    <td style="padding:6px 0;color:#1e293b;font-size:13px;font-weight:500;">${value}</td>
+    <td style="padding:6px 0;color:#64748b;font-size:13px;width:160px;vertical-align:top;">${escapeHtml(label)}</td>
+    <td style="padding:6px 0;color:#1e293b;font-size:13px;font-weight:500;">${escapeHtml(value)}</td>
   </tr>`;
 }
 
@@ -104,13 +113,13 @@ export function depositConfirmationHtml(data: DepositConfirmationData): string {
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Deposit Confirmed!</h2>
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
-      Hi ${data.customerName}, thank you for your deposit payment. Your move is being scheduled!
+      Hi ${escapeHtml(data.customerName)}, thank you for your deposit payment. Your move is being scheduled!
     </p>
     ${sectionHeading("Move Details")}
     ${detailTable(rows)}
     ${sectionHeading("Items & Boxes")}
-    <p style="color:#475569;font-size:13px;line-height:1.6;margin:8px 0;">${data.inventorySummary}</p>
-    <p style="color:#475569;font-size:13px;line-height:1.6;margin:4px 0;">${data.boxesSummary}</p>
+    <p style="color:#475569;font-size:13px;line-height:1.6;margin:8px 0;">${escapeHtml(data.inventorySummary)}</p>
+    <p style="color:#475569;font-size:13px;line-height:1.6;margin:4px 0;">${escapeHtml(data.boxesSummary)}</p>
     ${sectionHeading("Payment Summary")}
     ${detailTable([
       ["Total Estimate", formatCurrency(data.totalEstimate)],
@@ -176,11 +185,11 @@ export function statusUpdateHtml(data: StatusUpdateData): string {
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Move Status Update</h2>
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
-      Hi ${data.customerName}, here's an update on your move (Quote #${data.quoteId}).
+      Hi ${escapeHtml(data.customerName)}, here's an update on your move (Quote #${data.quoteId}).
     </p>
     <div style="background:#f0fdf4;border-left:4px solid ${BRAND_COLOR};padding:12px 16px;border-radius:4px;margin:16px 0;">
-      <p style="margin:0;color:${SECONDARY_COLOR};font-weight:600;font-size:14px;">${data.statusLabel}</p>
-      <p style="margin:4px 0 0;color:#475569;font-size:13px;">${data.message}</p>
+      <p style="margin:0;color:${SECONDARY_COLOR};font-weight:600;font-size:14px;">${escapeHtml(data.statusLabel)}</p>
+      <p style="margin:4px 0 0;color:#475569;font-size:13px;">${escapeHtml(data.message)}</p>
     </div>
     ${data.trackingUrl ? ctaButton("Track Your Move", data.trackingUrl) : ""}
   `;
@@ -197,7 +206,7 @@ export function trackingLinkHtml(data: TrackingLinkData): string {
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Your Tracking Link</h2>
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
-      Hi ${data.customerName}, use the button below to check the status of your move (Quote #${data.quoteId}) at any time.
+      Hi ${escapeHtml(data.customerName)}, use the button below to check the status of your move (Quote #${data.quoteId}) at any time.
     </p>
     ${ctaButton("Check Moving Job Status", data.trackingUrl)}
     <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">Bookmark this link for easy access.</p>
@@ -221,7 +230,7 @@ export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string 
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Remaining Balance Invoice</h2>
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
-      Hi ${data.customerName}, here is the invoice for the remaining balance on your move (Quote #${data.quoteId}).
+      Hi ${escapeHtml(data.customerName)}, here is the invoice for the remaining balance on your move (Quote #${data.quoteId}).
     </p>
     ${sectionHeading("Invoice Details")}
     ${detailTable([
@@ -253,7 +262,7 @@ export function paymentReceivedHtml(data: PaymentReceivedData): string {
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Payment Received</h2>
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
-      Hi ${data.customerName}, we've received your payment for Quote #${data.quoteId}. Thank you!
+      Hi ${escapeHtml(data.customerName)}, we've received your payment for Quote #${data.quoteId}. Thank you!
     </p>
     ${detailTable([
       ["Amount Paid", formatCurrency(data.paymentAmount)],
@@ -280,7 +289,7 @@ export function jobCompletedHtml(data: JobCompletedData): string {
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Move Completed!</h2>
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
-      Hi ${data.customerName}, your move (Quote #${data.quoteId}) on ${data.moveDate} has been completed.
+      Hi ${escapeHtml(data.customerName)}, your move (Quote #${data.quoteId}) on ${escapeHtml(data.moveDate)} has been completed.
       Thank you for choosing Teemer Moving & Storage!
     </p>
     ${detailTable([
