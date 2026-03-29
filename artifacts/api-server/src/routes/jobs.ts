@@ -816,7 +816,7 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
       updatedAt: new Date(),
     };
 
-    if (notes !== undefined) {
+    if (notes !== undefined && typeof notes === "string" && notes.trim()) {
       const existingNotes = job.notes || "";
       const timestamp = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
       const newEntry = `[${timestamp}] ${notes.trim()}`;
