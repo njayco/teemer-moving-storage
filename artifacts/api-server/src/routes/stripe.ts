@@ -28,17 +28,17 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const quoteId = session.metadata?.quoteId;
-      if (quoteId) {
-        try {
-          await db
-            .update(quoteRequestsTable)
-            .set({ status: "deposit_paid" })
-            .where(eq(quoteRequestsTable.id, parseInt(quoteId, 10)));
-          req.log.info({ quoteId, sessionId: session.id }, "Quote marked deposit_paid");
-        } catch (err) {
-          req.log.error({ err, quoteId }, "Failed to update quote status after payment");
-        }
+      if (!quoteId || isNaN(parseInt(quoteId, 10))) {
+        req.log.error({ metadata: session.metadata }, "Invalid or missing quoteId in checkout session metadata");
+        res.status(400).json({ error: "Invalid quoteId in session metadata" });
+        return;
       }
+
+      await db
+        .update(quoteRequestsTable)
+        .set({ status: "deposit_paid" })
+        .where(eq(quoteRequestsTable.id, parseInt(quoteId, 10)));
+      req.log.info({ quoteId, sessionId: session.id }, "Quote marked deposit_paid");
     }
 
     res.json({ received: true });
