@@ -490,17 +490,37 @@ export const GetEmailLogsByQuoteParams = zod.object({
 
 export const GetEmailLogsByQuoteResponseItem = zod.object({
   id: zod.number(),
-  quoteId: zod.number().optional(),
-  jobId: zod.number().optional(),
+  quoteId: zod.number().nullish(),
+  jobId: zod.number().nullish(),
   emailType: zod.string(),
   recipient: zod.string(),
-  resendId: zod.string().optional(),
+  resendId: zod.string().nullish(),
   status: zod.enum(["sent", "failed", "skipped"]),
-  sentAt: zod.string().optional(),
+  sentAt: zod.string().nullish(),
 });
 export const GetEmailLogsByQuoteResponse = zod.array(
   GetEmailLogsByQuoteResponseItem,
 );
+
+/**
+ * Returns email send history for a specific job (admin only)
+ * @summary Get email logs by job ID
+ */
+export const GetEmailLogsParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const GetEmailLogsResponseItem = zod.object({
+  id: zod.number(),
+  quoteId: zod.number().nullish(),
+  jobId: zod.number().nullish(),
+  emailType: zod.string(),
+  recipient: zod.string(),
+  resendId: zod.string().nullish(),
+  status: zod.enum(["sent", "failed", "skipped"]),
+  sentAt: zod.string().nullish(),
+});
+export const GetEmailLogsResponse = zod.array(GetEmailLogsResponseItem);
 
 /**
  * Returns email send history for a specific job (admin only)
@@ -512,13 +532,13 @@ export const GetEmailLogsByJobParams = zod.object({
 
 export const GetEmailLogsByJobResponseItem = zod.object({
   id: zod.number(),
-  quoteId: zod.number().optional(),
-  jobId: zod.number().optional(),
+  quoteId: zod.number().nullish(),
+  jobId: zod.number().nullish(),
   emailType: zod.string(),
   recipient: zod.string(),
-  resendId: zod.string().optional(),
+  resendId: zod.string().nullish(),
   status: zod.enum(["sent", "failed", "skipped"]),
-  sentAt: zod.string().optional(),
+  sentAt: zod.string().nullish(),
 });
 export const GetEmailLogsByJobResponse = zod.array(
   GetEmailLogsByJobResponseItem,

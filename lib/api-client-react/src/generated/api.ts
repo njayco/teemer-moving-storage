@@ -1629,6 +1629,94 @@ export function useGetEmailLogsByQuote<
 
 /**
  * Returns email send history for a specific job (admin only)
+ * @summary Get email logs by job ID
+ */
+export const getGetEmailLogsUrl = (jobId: string) => {
+  return `/api/admin/email-logs/${jobId}`;
+};
+
+export const getEmailLogs = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<EmailLog[]> => {
+  return customFetch<EmailLog[]>(getGetEmailLogsUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEmailLogsQueryKey = (jobId: string) => {
+  return [`/api/admin/email-logs/${jobId}`] as const;
+};
+
+export const getGetEmailLogsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEmailLogs>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailLogs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetEmailLogsQueryKey(jobId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailLogs>>> = ({
+    signal,
+  }) => getEmailLogs(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailLogs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEmailLogsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEmailLogs>>
+>;
+export type GetEmailLogsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get email logs by job ID
+ */
+
+export function useGetEmailLogs<
+  TData = Awaited<ReturnType<typeof getEmailLogs>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailLogs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEmailLogsQueryOptions(jobId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns email send history for a specific job (admin only)
  * @summary Get email logs for a job
  */
 export const getGetEmailLogsByJobUrl = (jobId: string) => {

@@ -9,11 +9,11 @@ import type { EmailLogStatus } from "./emailLogStatus";
 
 export interface EmailLog {
   id: number;
-  quoteId?: number;
-  jobId?: number;
+  quoteId?: number | null;
+  jobId?: number | null;
   emailType: string;
   recipient: string;
-  resendId?: string;
+  resendId?: string | null;
   status: EmailLogStatus;
-  sentAt?: string;
+  sentAt?: string | null;
 }

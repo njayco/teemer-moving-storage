@@ -370,6 +370,29 @@ paths:
                   $ref: "#/components/schemas/EmailLog"
         "403":
           description: Admin access required
+  /admin/email-logs/{jobId}:
+    get:
+      operationId: getEmailLogs
+      tags: [admin]
+      summary: Get email logs by job ID
+      description: Returns email send history for a specific job (admin only)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of email logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailLog"
+        "403":
+          description: Admin access required
   /admin/email-logs/job/{jobId}:
     get:
       operationId: getEmailLogsByJob
@@ -891,19 +914,23 @@ components:
           type: integer
         quoteId:
           type: integer
+          nullable: true
         jobId:
           type: integer
+          nullable: true
         emailType:
           type: string
         recipient:
           type: string
         resendId:
           type: string
+          nullable: true
         status:
           type: string
           enum: [sent, failed, skipped]
         sentAt:
           type: string
+          nullable: true
       required:
         - id
         - emailType

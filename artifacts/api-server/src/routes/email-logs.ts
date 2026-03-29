@@ -48,6 +48,27 @@ router.get("/admin/email-logs/job/:jobId", requireAdmin, async (req, res) => {
   }
 });
 
+router.get("/admin/email-logs/:jobId", requireAdmin, async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.jobId, 10);
+    if (isNaN(jobId)) {
+      res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+
+    const logs = await db
+      .select()
+      .from(emailLogsTable)
+      .where(eq(emailLogsTable.jobId, jobId))
+      .orderBy(desc(emailLogsTable.sentAt));
+
+    res.json(formatLogs(logs));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch email logs");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 function formatLogs(logs: (typeof emailLogsTable.$inferSelect)[]) {
   return logs.map((log) => ({
     id: log.id,
