@@ -12,6 +12,7 @@ import ServiceAreaPage from "@/pages/info/service-area";
 import FaqPage from "@/pages/info/faq";
 import ContactPage from "@/pages/info/contact";
 import QuotePage from "@/pages/info/quote";
+import QuoteDepositPage from "@/pages/info/quote-deposit";
 import GalleryPage from "@/pages/info/gallery";
 
 import CustomerPortal from "@/pages/platform/customer";
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/info/faq" component={FaqPage} />
       <Route path="/info/contact" component={ContactPage} />
       <Route path="/info/quote" component={QuotePage} />
+      <Route path="/info/quote/deposit/:quoteId" component={QuoteDepositPage} />
 
       {/* Platform */}
       <Route path="/platform" component={CustomerPortal} />

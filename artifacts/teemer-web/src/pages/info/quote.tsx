@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useSubmitQuoteRequest } from "@workspace/api-client-react";
 import type { QuoteResponse } from "@workspace/api-client-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   CheckCircle2, Loader2, ArrowRight, ArrowLeft, Minus, Plus,
   Sparkles, Users, Clock, DollarSign, Calendar, Package,
@@ -12,7 +13,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ─── Inventory Data ────────────────────────────────────────────────────────────
 
 const INVENTORY_CATEGORIES = [
   {
@@ -73,7 +73,6 @@ const INVENTORY_CATEGORIES = [
   },
 ];
 
-// ─── Zod Schema for Step 1 (Move Details) ─────────────────────────────────────
 
 const step1Schema = z.object({
   contactName: z.string().min(2, "Name must be at least 2 characters"),
@@ -89,7 +88,6 @@ const step1Schema = z.object({
 });
 type Step1Values = z.infer<typeof step1Schema>;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface HomeSize {
   numberOfBedrooms: number;
@@ -101,7 +99,6 @@ interface HomeSize {
   hasHeavyItems: boolean;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ARRIVAL_WINDOWS = [
   "7:00 AM – 9:00 AM",
@@ -127,7 +124,6 @@ function labelCls() {
   return "block text-sm font-semibold text-slate-700 mb-2";
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StepHeader({ step, title }: { step: number; title: string }) {
   return (
@@ -192,7 +188,6 @@ function CounterButton({ value, onChange, min = 0, max = 10 }: {
   );
 }
 
-// ─── Inventory item row ───────────────────────────────────────────────────────
 
 function InventoryRow({
   item, quantity, onChange,
@@ -207,7 +202,6 @@ function InventoryRow({
   );
 }
 
-// ─── Progress Indicator ───────────────────────────────────────────────────────
 
 const STEP_LABELS = ["Move Details", "Home Size", "Inventory", "Box Estimate"];
 
@@ -248,7 +242,6 @@ function ProgressBar({ currentStep }: { currentStep: number }) {
   );
 }
 
-// ─── Quote Results Screen ─────────────────────────────────────────────────────
 
 function QuoteResultsScreen({ result, moveDate, onReserve }: {
   result: QuoteResponse; moveDate: string; onReserve: () => void;
@@ -403,9 +396,9 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function QuotePage() {
+  const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
 
@@ -448,7 +441,6 @@ export default function QuotePage() {
 
   const mutation = useSubmitQuoteRequest();
 
-  // ─── Navigation ───────────────────────────────────────────────────────────
 
   const goToStep = (s: number) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -463,7 +455,6 @@ export default function QuotePage() {
     if (valid) goToStep(2);
   };
 
-  // ─── AI Box Estimate ──────────────────────────────────────────────────────
 
   const handleAiEstimate = async () => {
     setAiLoading(true);
@@ -492,7 +483,6 @@ export default function QuotePage() {
     }
   };
 
-  // ─── Final Submit ─────────────────────────────────────────────────────────
 
   const handleFinalSubmit = () => {
     const step1Data = getStep1Values();
@@ -543,11 +533,11 @@ export default function QuotePage() {
   };
 
   const handleReserve = () => {
-    // Stripe deposit step — wire up once Stripe task is complete
-    alert("Deposit payment coming soon! We'll call you to confirm your booking.");
+    if (quoteResult?.id) {
+      navigate(`/info/quote/deposit/${quoteResult.id}`);
+    }
   };
 
-  // ─── Inventory Helpers ────────────────────────────────────────────────────
 
   const setItemQty = (item: string, qty: number) => {
     setInventory((prev) => {
@@ -568,7 +558,6 @@ export default function QuotePage() {
 
   const totalItems = Object.values(inventory).reduce((sum, n) => sum + n, 0);
 
-  // ─── Crew Preview (Step 2) ────────────────────────────────────────────────
 
   const previewCrewSize = () => {
     let movers = 2;
@@ -588,7 +577,6 @@ export default function QuotePage() {
     return 300;
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <InfoLayout>
@@ -619,7 +607,6 @@ export default function QuotePage() {
 
                 <AnimatePresence mode="wait">
 
-                  {/* ─── STEP 1: Move Details ───────────────────────────────────── */}
                   {step === 1 && (
                     <motion.div
                       key="step1"
@@ -749,7 +736,6 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {/* ─── STEP 2: Home Size ──────────────────────────────────────── */}
                   {step === 2 && (
                     <motion.div
                       key="step2"
@@ -855,7 +841,6 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {/* ─── STEP 3: Inventory ──────────────────────────────────────── */}
                   {step === 3 && (
                     <motion.div
                       key="step3"
@@ -950,7 +935,6 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {/* ─── STEP 4: Box Estimate ───────────────────────────────────── */}
                   {step === 4 && (
                     <motion.div
                       key="step4"
