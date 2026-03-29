@@ -1,21 +1,15 @@
 import { PlatformLayout } from "@/components/layout/platform-layout";
-import { MapPin, Calendar, DollarSign, Package, ExternalLink, RefreshCw, CheckCircle, Clock } from "lucide-react";
-import { format } from "date-fns";
+import { Package, RefreshCw, CheckCircle, Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 export default function ProviderPortal() {
   const { user } = useAuth();
   const isAuthenticated = !!user && (user.role === "move_captain" || user.role === "admin");
 
-  const handleAcceptJob = (_jobId: string) => {
-    alert("Please sign in as a move captain to accept jobs. Contact Teemer admin for access.");
-  };
-
   return (
     <PlatformLayout role="provider">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
         
-        {/* Main Feed */}
         <div className="flex-1">
           <div className="flex justify-between items-end mb-8">
             <div>
@@ -27,7 +21,6 @@ export default function ProviderPortal() {
             </button>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap gap-3 mb-8">
             {["All Areas", "Long Island", "NYC", "Local Only", "Long Distance"].map(f => (
               <span key={f} className="px-4 py-2 bg-white border border-border rounded-full text-sm font-medium text-slate-600 cursor-pointer hover:border-primary hover:text-primary transition-colors">
@@ -56,7 +49,6 @@ export default function ProviderPortal() {
           </div>
         </div>
 
-        {/* Sidebar Widgets */}
         <div className="w-full lg:w-80 space-y-6">
           <div className="bg-secondary text-white p-6 rounded-3xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />

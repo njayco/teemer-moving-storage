@@ -560,6 +560,10 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       moveDate: quote?.moveDate ?? job.dateTime ?? "",
     });
 
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: "Failed to send invoice email" });
+    }
+
     await db.update(jobsTable).set({ invoiceStatus: "sent", updatedAt: new Date() }).where(eq(jobsTable.id, job.id));
 
     recordTimelineEvent({
@@ -571,7 +575,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       createdByUserId: req.user?.userId ?? undefined,
     }).catch(() => {});
 
-    res.json({ success: result.success, message: "Invoice sent" });
+    res.json({ success: true, message: "Invoice sent" });
   } catch (err) {
     req.log.error({ err }, "Failed to send invoice");
     res.status(500).json({ error: "Internal server error" });
@@ -606,6 +610,10 @@ router.post("/jobs/:jobId/email-customer", requireAdmin, async (req, res) => {
       message,
     });
 
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: "Failed to send email" });
+    }
+
     recordTimelineEvent({
       jobId: job.id,
       eventType: "email_sent",
@@ -615,7 +623,7 @@ router.post("/jobs/:jobId/email-customer", requireAdmin, async (req, res) => {
       createdByUserId: req.user?.userId ?? undefined,
     }).catch(() => {});
 
-    res.json({ success: result.success, message: "Email sent" });
+    res.json({ success: true, message: "Email sent" });
   } catch (err) {
     req.log.error({ err }, "Failed to email customer");
     res.status(500).json({ error: "Internal server error" });
