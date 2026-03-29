@@ -615,7 +615,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       .limit(1);
     if (!job) return res.status(404).json({ error: "Job not found" });
 
-    let quote = null;
+    let quote: typeof quoteRequestsTable.$inferSelect | null = null;
     if (job.quoteId) {
       const [q] = await db.select().from(quoteRequestsTable).where(eq(quoteRequestsTable.id, job.quoteId)).limit(1);
       quote = q ?? null;
@@ -623,7 +623,43 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
     const email = quote?.email;
     if (!email) return res.status(400).json({ error: "No customer email found for this job" });
 
-    const remainingBalance = job.remainingBalance ?? (job.finalTotal ?? job.estimatedPayout ?? 0) - (job.depositPaid ?? 0);
+    const existingPayments = await db.select({ total: sum(paymentsTable.amount) })
+      .from(paymentsTable).where(eq(paymentsTable.jobId, job.id));
+    const totalPaid = Number(existingPayments[0]?.total ?? 0);
+    const finalTotal = job.finalTotal ?? job.estimatedPayout ?? 0;
+    const remainingBalance = Math.max(0, finalTotal - totalPaid);
+
+    const [existingInvoice] = await db.select().from(invoicesTable)
+      .where(eq(invoicesTable.jobId, job.id)).limit(1);
+
+    const now = new Date();
+    const dueDateStr = existingInvoice?.dueDate ?? new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+
+    let invoiceNumber = existingInvoice?.invoiceNumber ?? "";
+    if (!existingInvoice) {
+      invoiceNumber = `INV-${job.jobId || job.id}-${Date.now().toString(36).toUpperCase()}`;
+      await db.insert(invoicesTable).values({
+        jobId: job.id,
+        invoiceNumber,
+        subtotal: job.estimateSubtotal ?? finalTotal,
+        extraCharges: job.extraCharges ?? 0,
+        discounts: job.discounts ?? 0,
+        finalTotal,
+        depositApplied: job.depositPaid ?? 0,
+        remainingBalanceDue: remainingBalance,
+        dueDate: dueDateStr,
+        status: "sent",
+        sentAt: now,
+      });
+    } else {
+      invoiceNumber = existingInvoice.invoiceNumber;
+      await db.update(invoicesTable).set({
+        remainingBalanceDue: remainingBalance,
+        status: "sent",
+        sentAt: now,
+        updatedAt: now,
+      }).where(eq(invoicesTable.id, existingInvoice.id));
+    }
 
     const result = await sendRemainingBalanceInvoiceEmail({
       email,
@@ -633,7 +669,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       depositPaid: job.depositPaid ?? 0,
       extraCharges: job.extraCharges ?? 0,
       discounts: job.discounts ?? 0,
-      finalTotal: job.finalTotal ?? job.estimatedPayout ?? 0,
+      finalTotal,
       remainingBalance,
       moveDate: quote?.moveDate ?? job.dateTime ?? "",
     });
@@ -642,18 +678,23 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       return res.status(502).json({ success: false, error: "Failed to send invoice email" });
     }
 
-    await db.update(jobsTable).set({ invoiceStatus: "sent", updatedAt: new Date() }).where(eq(jobsTable.id, job.id));
+    await db.update(jobsTable).set({
+      invoiceStatus: "sent",
+      status: remainingBalance > 0 ? "awaiting_remaining_balance" : job.status,
+      remainingBalance,
+      updatedAt: now,
+    }).where(eq(jobsTable.id, job.id));
 
     recordTimelineEvent({
       jobId: job.id,
       eventType: "invoice_sent",
       statusLabel: "Invoice Sent",
       visibleToCustomer: true,
-      notes: `Remaining balance invoice ($${remainingBalance.toFixed(2)}) sent to ${email}`,
+      notes: `Invoice ${invoiceNumber} ($${remainingBalance.toFixed(2)} due by ${dueDateStr}) sent to ${email}`,
       createdByUserId: req.user?.userId ?? undefined,
     }).catch(() => {});
 
-    res.json({ success: true, message: "Invoice sent" });
+    res.json({ success: true, message: "Invoice sent", invoiceNumber });
   } catch (err) {
     req.log.error({ err }, "Failed to send invoice");
     res.status(500).json({ error: "Internal server error" });
@@ -911,11 +952,6 @@ router.get("/admin/revenue", requireAdmin, async (req, res) => {
       conditions.push(eq(paymentsTable.method, String(method)));
     }
 
-    let jobConditions: any[] = [];
-    if (jobStatus) {
-      jobConditions.push(eq(jobsTable.status, String(jobStatus)));
-    }
-
     const payments = await db
       .select({
         paymentId: paymentsTable.id,
@@ -945,6 +981,11 @@ router.get("/admin/revenue", requireAdmin, async (req, res) => {
     const depositRevenue = filteredPayments.filter(p => p.type === "deposit").reduce((s, p) => s + (p.amount ?? 0), 0);
     const balanceRevenue = filteredPayments.filter(p => p.type === "remaining_balance").reduce((s, p) => s + (p.amount ?? 0), 0);
 
+    const [receivablesResult] = await db.select({
+      total: sum(sql`CASE WHEN ${jobsTable.status} != 'complete' AND ${jobsTable.status} != 'cancelled' THEN COALESCE(${jobsTable.remainingBalance}, 0) ELSE 0 END`),
+    }).from(jobsTable);
+    const outstandingReceivables = Number(receivablesResult?.total ?? 0);
+
     const monthlyMap: Record<string, number> = {};
     for (const p of filteredPayments) {
       if (p.paidAt) {
@@ -963,6 +1004,7 @@ router.get("/admin/revenue", requireAdmin, async (req, res) => {
         cardRevenue,
         depositRevenue,
         balanceRevenue,
+        outstandingReceivables,
         transactionCount: filteredPayments.length,
       },
       monthlyData,

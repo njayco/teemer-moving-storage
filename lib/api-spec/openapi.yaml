@@ -618,6 +618,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: status
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: CSV file download
@@ -1765,6 +1769,8 @@ components:
         depositRevenue:
           type: number
         balanceRevenue:
+          type: number
+        outstandingReceivables:
           type: number
         transactionCount:
           type: integer

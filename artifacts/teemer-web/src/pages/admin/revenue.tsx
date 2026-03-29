@@ -25,6 +25,7 @@ interface RevenueSummary {
   cardRevenue: number;
   depositRevenue: number;
   balanceRevenue: number;
+  outstandingReceivables: number;
   transactionCount: number;
 }
 
@@ -89,14 +90,16 @@ export default function RevenuePage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [methodFilter, setMethodFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
     if (methodFilter !== "all") params.set("method", methodFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
     return params.toString();
-  }, [dateFrom, dateTo, methodFilter]);
+  }, [dateFrom, dateTo, methodFilter, statusFilter]);
 
   const { data, isLoading } = useQuery<RevenueData>({
     queryKey: ["/api/admin/revenue", queryParams],
@@ -112,6 +115,7 @@ export default function RevenuePage() {
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
     if (methodFilter !== "all") params.set("method", methodFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
     window.open(`${API}/admin/revenue/export?${params.toString()}`, "_blank");
   };
 
@@ -193,9 +197,21 @@ export default function RevenuePage() {
                 <option value="credit_card">Credit Card</option>
                 <option value="stripe">Stripe</option>
               </select>
-              {(dateFrom || dateTo || methodFilter !== "all") && (
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none bg-white"
+              >
+                <option value="all">All Statuses</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="awaiting_remaining_balance">Awaiting Balance</option>
+                <option value="complete">Complete</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              {(dateFrom || dateTo || methodFilter !== "all" || statusFilter !== "all") && (
                 <button
-                  onClick={() => { setDateFrom(""); setDateTo(""); setMethodFilter("all"); }}
+                  onClick={() => { setDateFrom(""); setDateTo(""); setMethodFilter("all"); setStatusFilter("all"); }}
                   className="text-xs text-primary hover:underline"
                 >
                   Clear Filters
@@ -210,12 +226,13 @@ export default function RevenuePage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 <StatCard label="Total Revenue" value={`$${(summary?.totalRevenue ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} icon={TrendingUp} color="text-green-600" />
                 <StatCard label="Cash" value={`$${(summary?.cashRevenue ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} icon={DollarSign} color="text-emerald-600" />
                 <StatCard label="Card / Stripe" value={`$${(summary?.cardRevenue ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} icon={CreditCard} color="text-blue-600" />
                 <StatCard label="Deposits" value={`$${(summary?.depositRevenue ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} icon={Receipt} color="text-purple-600" />
                 <StatCard label="Balance Payments" value={`$${(summary?.balanceRevenue ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} icon={DollarSign} color="text-amber-600" />
+                <StatCard label="Outstanding" value={`$${(summary?.outstandingReceivables ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} icon={Receipt} color="text-red-600" />
                 <StatCard label="Transactions" value={summary?.transactionCount ?? 0} icon={BarChart3} color="text-secondary" />
               </div>
 

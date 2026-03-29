@@ -10,4 +10,5 @@ export type ExportRevenueCsvParams = {
   from?: string;
   to?: string;
   method?: string;
+  status?: string;
 };

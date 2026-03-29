@@ -957,6 +957,7 @@ export const GetRevenueReportResponse = zod.object({
       cardRevenue: zod.number().optional(),
       depositRevenue: zod.number().optional(),
       balanceRevenue: zod.number().optional(),
+      outstandingReceivables: zod.number().optional(),
       transactionCount: zod.number().optional(),
     })
     .optional(),
@@ -992,6 +993,7 @@ export const ExportRevenueCsvQueryParams = zod.object({
   from: zod.coerce.string().optional(),
   to: zod.coerce.string().optional(),
   method: zod.coerce.string().optional(),
+  status: zod.coerce.string().optional(),
 });
 
 /**

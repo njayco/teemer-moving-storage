@@ -12,5 +12,6 @@ export interface RevenueSummary {
   cardRevenue?: number;
   depositRevenue?: number;
   balanceRevenue?: number;
+  outstandingReceivables?: number;
   transactionCount?: number;
 }

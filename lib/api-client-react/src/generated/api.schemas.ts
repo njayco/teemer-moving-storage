@@ -527,6 +527,7 @@ export interface RevenueSummary {
   cardRevenue?: number;
   depositRevenue?: number;
   balanceRevenue?: number;
+  outstandingReceivables?: number;
   transactionCount?: number;
 }
 
@@ -594,6 +595,7 @@ export type ExportRevenueCsvParams = {
   from?: string;
   to?: string;
   method?: string;
+  status?: string;
 };
 
 export type AddCaptainNoteBody = {

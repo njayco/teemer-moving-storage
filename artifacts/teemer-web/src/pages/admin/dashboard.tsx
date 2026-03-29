@@ -149,7 +149,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
 function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
   jobId: string;
-  job: any;
+  job: Job | undefined;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -201,8 +201,8 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
 
   const subtotal = (laborHours * hourlyRate) + travelFee + stairFee + storageFee + packingFee;
   const finalTotal = subtotal + extraCharges - discounts;
-  const depositPaid = job?.depositPaid ?? 0;
-  const remainingBalance = Math.max(0, finalTotal - depositPaid);
+  const totalPaid = (job?.payments ?? []).reduce((sum, p) => sum + (p.amount ?? 0), 0);
+  const remainingBalance = Math.max(0, finalTotal - totalPaid);
 
   const handleSave = async () => {
     setSaving(true);
@@ -682,8 +682,8 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
       await refetch();
       qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       qc.invalidateQueries({ queryKey: ["/api/jobs"] });
-    } catch (err: any) {
-      alert(err?.message || "Failed to mark complete");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to mark complete");
     } finally {
       setUpdating(false);
     }

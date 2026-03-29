@@ -28,3 +28,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+RESEND_FROM_EMAIL = "noreply@teemermoving.com"
+ADMIN_NOTIFICATION_EMAIL = "alan@teemermoving.com"
