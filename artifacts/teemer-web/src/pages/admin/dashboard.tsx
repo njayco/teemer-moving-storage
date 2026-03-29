@@ -950,7 +950,8 @@ export default function AdminDashboard() {
           {activeTab === "dashboard" && (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <StatCard label="Total Jobs" value={stats?.totalJobs ?? 0} icon={Package} subtext={`${stats?.pendingJobs ?? 0} pending`} />
+                <StatCard label="Total Jobs" value={stats?.totalJobs ?? 0} icon={Package} />
+                <StatCard label="Pending Jobs" value={stats?.pendingJobs ?? 0} icon={Clock} color="text-amber-600" />
                 <StatCard label="In Progress" value={stats?.inProgressJobs ?? 0} icon={Truck} color="text-blue-600" />
                 <StatCard label="Completed" value={stats?.completedJobs ?? 0} icon={CheckCircle} color="text-green-600" />
                 <StatCard label="Total Quotes" value={stats?.totalQuotes ?? 0} icon={FileText} subtext={`${stats?.pendingQuotes ?? 0} pending`} />
