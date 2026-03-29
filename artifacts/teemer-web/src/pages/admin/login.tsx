@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
     setSubmitting(false);
 
     if (result.success) {
-      navigate("/admin");
+      navigate(result.role === "move_captain" ? "/admin/captain" : "/admin");
     } else {
       setError(result.error || "Login failed");
     }

@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./addCaptainNoteBody";
 export * from "./adminStats";
 export * from "./authUser";
 export * from "./authUserRole";
+export * from "./captainStatusUpdateRequest";
+export * from "./captainStatusUpdateRequestStatus";
 export * from "./contactFormRequest";
 export * from "./contactFormResponse";
 export * from "./createJobEventRequest";

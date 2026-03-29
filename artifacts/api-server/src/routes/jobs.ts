@@ -10,9 +10,16 @@ import {
   invoicesTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, sql, or, ilike, and } from "drizzle-orm";
-import { requireAdmin } from "../lib/auth";
+import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
+
+const CAPTAIN_STATUSES = [
+  "scheduled", "en_route", "arrived", "in_progress",
+  "at_storage", "returning", "complete", "delayed",
+] as const;
+
+const MILESTONE_EMAIL_STATUSES = new Set(["arrived", "in_progress", "at_storage", "complete"]);
 
 const router: IRouter = Router();
 
@@ -691,6 +698,188 @@ router.get("/admin/stats", requireAdmin, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get admin stats");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/captain/jobs", requireCaptainOrAdmin, async (req, res) => {
+  try {
+    const captainId = req.user!.userId;
+
+    const jobs = await db
+      .select()
+      .from(jobsTable)
+      .where(eq(jobsTable.assignedCaptainId, captainId))
+      .orderBy(desc(jobsTable.createdAt));
+
+    const quoteIds = jobs.map((j) => j.quoteId).filter((id): id is number => id != null);
+    let quotesMap = new Map<number, typeof quoteRequestsTable.$inferSelect>();
+    if (quoteIds.length > 0) {
+      const quotes = await db
+        .select()
+        .from(quoteRequestsTable)
+        .where(sql`${quoteRequestsTable.id} = ANY(${quoteIds})`);
+      for (const q of quotes) {
+        quotesMap.set(q.id, q);
+      }
+    }
+
+    res.json(jobs.map((job) => formatJobRow(job, quotesMap.get(job.quoteId!) || null)));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch captain jobs");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { status, notes } = req.body;
+
+    if (!status || !CAPTAIN_STATUSES.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Allowed: ${CAPTAIN_STATUSES.join(", ")}`,
+      });
+    }
+
+    const [job] = await db
+      .select()
+      .from(jobsTable)
+      .where(
+        sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`,
+      )
+      .limit(1);
+
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    if (req.user!.role === "move_captain" && job.assignedCaptainId !== req.user!.userId) {
+      return res.status(403).json({ error: "You are not assigned to this job" });
+    }
+
+    const updates: Record<string, unknown> = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (notes !== undefined) {
+      const existingNotes = job.notes || "";
+      const timestamp = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+      const newEntry = `[${timestamp}] ${notes}`;
+      updates.notes = existingNotes ? `${existingNotes}\n${newEntry}` : newEntry;
+    }
+
+    if (status === "complete") {
+      updates.completedAt = new Date();
+    }
+
+    const [updated] = await db
+      .update(jobsTable)
+      .set(updates)
+      .where(eq(jobsTable.id, job.id))
+      .returning();
+
+    const statusLabels: Record<string, string> = {
+      scheduled: "Scheduled",
+      en_route: "En Route",
+      arrived: "Arrived",
+      in_progress: "In Progress",
+      at_storage: "At Storage",
+      returning: "Returning",
+      complete: "Job Finished",
+      delayed: "Delayed",
+    };
+
+    recordTimelineEvent({
+      jobId: updated.id,
+      eventType: "status_change",
+      statusLabel: statusLabels[status] || status,
+      visibleToCustomer: true,
+      notes: notes
+        ? `Captain updated status to "${statusLabels[status] || status}": ${notes}`
+        : `Captain updated status to "${statusLabels[status] || status}"`,
+      createdByUserId: req.user!.userId,
+    }).catch(() => {});
+
+    if (MILESTONE_EMAIL_STATUSES.has(status)) {
+      let quote = null;
+      if (job.quoteId) {
+        const [q] = await db
+          .select()
+          .from(quoteRequestsTable)
+          .where(eq(quoteRequestsTable.id, job.quoteId))
+          .limit(1);
+        quote = q ?? null;
+      }
+      const email = quote?.email;
+      if (email) {
+        sendStatusUpdateEmail({
+          email,
+          customerName: quote?.contactName ?? job.customer ?? "Customer",
+          quoteId: job.quoteId ?? job.id,
+          status,
+          statusLabel: statusLabels[status] || status,
+          message: `Your move status has been updated to: ${statusLabels[status] || status}`,
+        }).catch(() => {});
+      }
+    }
+
+    res.json(formatJobRow(updated));
+  } catch (err) {
+    req.log.error({ err }, "Failed to update captain status");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/jobs/:jobId/captain-note", requireCaptainOrAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { notes } = req.body;
+
+    if (!notes || !notes.trim()) {
+      return res.status(400).json({ error: "Notes are required" });
+    }
+
+    const [job] = await db
+      .select()
+      .from(jobsTable)
+      .where(
+        sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`,
+      )
+      .limit(1);
+
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    if (req.user!.role === "move_captain" && job.assignedCaptainId !== req.user!.userId) {
+      return res.status(403).json({ error: "You are not assigned to this job" });
+    }
+
+    const existingNotes = job.notes || "";
+    const timestamp = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+    const newEntry = `[${timestamp}] ${notes.trim()}`;
+    const updatedNotes = existingNotes ? `${existingNotes}\n${newEntry}` : newEntry;
+
+    const [updated] = await db
+      .update(jobsTable)
+      .set({ notes: updatedNotes, updatedAt: new Date() })
+      .where(eq(jobsTable.id, job.id))
+      .returning();
+
+    recordTimelineEvent({
+      jobId: job.id,
+      eventType: "captain_note",
+      statusLabel: "Captain Note",
+      visibleToCustomer: false,
+      notes: notes.trim(),
+      createdByUserId: req.user!.userId,
+    }).catch(() => {});
+
+    res.json(formatJobRow(updated));
+  } catch (err) {
+    req.log.error({ err }, "Failed to add captain note");
     res.status(500).json({ error: "Internal server error" });
   }
 });

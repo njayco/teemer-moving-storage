@@ -299,6 +299,26 @@ export interface UpdateJobStatusRequest {
   remainingBalance?: number;
 }
 
+export type CaptainStatusUpdateRequestStatus =
+  (typeof CaptainStatusUpdateRequestStatus)[keyof typeof CaptainStatusUpdateRequestStatus];
+
+export const CaptainStatusUpdateRequestStatus = {
+  scheduled: "scheduled",
+  en_route: "en_route",
+  arrived: "arrived",
+  in_progress: "in_progress",
+  at_storage: "at_storage",
+  returning: "returning",
+  complete: "complete",
+  delayed: "delayed",
+} as const;
+
+export interface CaptainStatusUpdateRequest {
+  status: CaptainStatusUpdateRequestStatus;
+  /** Optional operational note to append */
+  notes?: string;
+}
+
 export interface ContactFormRequest {
   name: string;
   phone: string;
@@ -449,4 +469,8 @@ export type EmailJobCustomerBody = {
 export type EmailJobCustomer200 = {
   success?: boolean;
   message?: string;
+};
+
+export type AddCaptainNoteBody = {
+  notes: string;
 };

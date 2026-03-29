@@ -19,6 +19,8 @@ tags:
     description: Contact form operations
   - name: admin
     description: Admin operations
+  - name: captain
+    description: Move captain operations
 paths:
   /healthz:
     get:
@@ -563,6 +565,89 @@ paths:
                 $ref: "#/components/schemas/TrackingResponse"
         "404":
           description: No matching move found
+  /captain/jobs:
+    get:
+      operationId: listCaptainJobs
+      tags: [captain]
+      summary: List jobs assigned to current captain
+      description: Returns all jobs assigned to the authenticated captain or admin
+      responses:
+        "200":
+          description: List of assigned jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+        "401":
+          description: Authentication required
+        "403":
+          description: Captain or admin access required
+  /jobs/{jobId}/captain-status:
+    patch:
+      operationId: updateCaptainJobStatus
+      tags: [captain]
+      summary: Captain updates job operational status
+      description: Captain updates job status with optional notes. Key milestones trigger customer email notifications.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptainStatusUpdateRequest"
+      responses:
+        "200":
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          description: Invalid status
+        "403":
+          description: Not assigned to this job
+        "404":
+          description: Job not found
+  /jobs/{jobId}/captain-note:
+    post:
+      operationId: addCaptainNote
+      tags: [captain]
+      summary: Captain adds operational note to job
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Note added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "403":
+          description: Not assigned to this job
+        "404":
+          description: Job not found
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -1070,6 +1155,19 @@ components:
           type: number
         remainingBalance:
           type: number
+
+    # ─── Captain ─────────────────────────────────────────────────────────────
+    CaptainStatusUpdateRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [scheduled, en_route, arrived, in_progress, at_storage, returning, complete, delayed]
+        notes:
+          type: string
+          description: Optional operational note to append
+      required:
+        - status
 
     # ─── Contact ───────────────────────────────────────────────────────────────
     ContactFormRequest:

@@ -17,7 +17,9 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddCaptainNoteBody,
   AdminStats,
+  CaptainStatusUpdateRequest,
   ContactFormRequest,
   ContactFormResponse,
   CreateJobEventRequest,
@@ -2276,6 +2278,258 @@ export const useLookupTracking = <
   TContext
 > => {
   return useMutation(getLookupTrackingMutationOptions(options));
+};
+
+/**
+ * Returns all jobs assigned to the authenticated captain or admin
+ * @summary List jobs assigned to current captain
+ */
+export const getListCaptainJobsUrl = () => {
+  return `/api/captain/jobs`;
+};
+
+export const listCaptainJobs = async (
+  options?: RequestInit,
+): Promise<Job[]> => {
+  return customFetch<Job[]>(getListCaptainJobsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCaptainJobsQueryKey = () => {
+  return [`/api/captain/jobs`] as const;
+};
+
+export const getListCaptainJobsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCaptainJobs>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCaptainJobs>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCaptainJobsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCaptainJobs>>> = ({
+    signal,
+  }) => listCaptainJobs({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCaptainJobs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCaptainJobsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCaptainJobs>>
+>;
+export type ListCaptainJobsQueryError = ErrorType<void>;
+
+/**
+ * @summary List jobs assigned to current captain
+ */
+
+export function useListCaptainJobs<
+  TData = Awaited<ReturnType<typeof listCaptainJobs>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCaptainJobs>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCaptainJobsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Captain updates job status with optional notes. Key milestones trigger customer email notifications.
+ * @summary Captain updates job operational status
+ */
+export const getUpdateCaptainJobStatusUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/captain-status`;
+};
+
+export const updateCaptainJobStatus = async (
+  jobId: string,
+  captainStatusUpdateRequest: CaptainStatusUpdateRequest,
+  options?: RequestInit,
+): Promise<Job> => {
+  return customFetch<Job>(getUpdateCaptainJobStatusUrl(jobId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(captainStatusUpdateRequest),
+  });
+};
+
+export const getUpdateCaptainJobStatusMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCaptainJobStatus>>,
+    TError,
+    { jobId: string; data: BodyType<CaptainStatusUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCaptainJobStatus>>,
+  TError,
+  { jobId: string; data: BodyType<CaptainStatusUpdateRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateCaptainJobStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCaptainJobStatus>>,
+    { jobId: string; data: BodyType<CaptainStatusUpdateRequest> }
+  > = (props) => {
+    const { jobId, data } = props ?? {};
+
+    return updateCaptainJobStatus(jobId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCaptainJobStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCaptainJobStatus>>
+>;
+export type UpdateCaptainJobStatusMutationBody =
+  BodyType<CaptainStatusUpdateRequest>;
+export type UpdateCaptainJobStatusMutationError = ErrorType<void>;
+
+/**
+ * @summary Captain updates job operational status
+ */
+export const useUpdateCaptainJobStatus = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCaptainJobStatus>>,
+    TError,
+    { jobId: string; data: BodyType<CaptainStatusUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCaptainJobStatus>>,
+  TError,
+  { jobId: string; data: BodyType<CaptainStatusUpdateRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateCaptainJobStatusMutationOptions(options));
+};
+
+/**
+ * @summary Captain adds operational note to job
+ */
+export const getAddCaptainNoteUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/captain-note`;
+};
+
+export const addCaptainNote = async (
+  jobId: string,
+  addCaptainNoteBody: AddCaptainNoteBody,
+  options?: RequestInit,
+): Promise<Job> => {
+  return customFetch<Job>(getAddCaptainNoteUrl(jobId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addCaptainNoteBody),
+  });
+};
+
+export const getAddCaptainNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCaptainNote>>,
+    TError,
+    { jobId: string; data: BodyType<AddCaptainNoteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addCaptainNote>>,
+  TError,
+  { jobId: string; data: BodyType<AddCaptainNoteBody> },
+  TContext
+> => {
+  const mutationKey = ["addCaptainNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addCaptainNote>>,
+    { jobId: string; data: BodyType<AddCaptainNoteBody> }
+  > = (props) => {
+    const { jobId, data } = props ?? {};
+
+    return addCaptainNote(jobId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddCaptainNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addCaptainNote>>
+>;
+export type AddCaptainNoteMutationBody = BodyType<AddCaptainNoteBody>;
+export type AddCaptainNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Captain adds operational note to job
+ */
+export const useAddCaptainNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addCaptainNote>>,
+    TError,
+    { jobId: string; data: BodyType<AddCaptainNoteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addCaptainNote>>,
+  TError,
+  { jobId: string; data: BodyType<AddCaptainNoteBody> },
+  TContext
+> => {
+  return useMutation(getAddCaptainNoteMutationOptions(options));
 };
 
 /**

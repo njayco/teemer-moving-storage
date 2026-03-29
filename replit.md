@@ -70,12 +70,21 @@ A full-featured moving company web app with two distinct experiences:
 - `/platform/provider` — Provider portal (Job Marketplace, Earnings)
 
 **Admin:**
-- `/admin/login` — Admin/Captain login page (email + password)
-- `/admin` — Admin Operations Control Center (protected, redirects to login if unauthenticated)
-  - **Dashboard tab**: Overview stat cards (Total Jobs, In Progress, Completed, Total Quotes, Deposits Collected, Remaining Balances, Cash Payments, Total Revenue), Quick Actions, Revenue Pipeline
+- `/admin/login` — Admin/Captain login page (email + password). Redirects admin to `/admin`, captain to `/admin/captain`.
+- `/admin` — Admin Operations Control Center (protected, admin role only)
+  - **Dashboard tab**: Overview stat cards (Total Jobs, Pending Jobs, In Progress, Completed, Total Quotes, Deposits Collected, Remaining Balances, Cash Payments, Total Revenue), Quick Actions, Revenue Pipeline
   - **Quotes tab**: Full quotes table with expand/collapse details, inline status change
-  - **All Jobs tab**: Filterable (pending/scheduled/captain_assigned/in_progress/complete/cancelled), searchable (name/jobId/phone), full jobs table with slide-out detail panel
-  - **Job Detail Panel**: Full job info, StatusTimeline component, email log, payment history, admin actions (Assign Captain modal, status dropdown, Mark Paid in Cash, Mark Complete)
+  - **All Jobs tab**: Filterable (all 10 statuses), searchable (name/jobId/phone/email/invoice), full jobs table with Invoice column, slide-out detail panel
+  - **Job Detail Panel**: Full job info, StatusTimeline, email log, payment history, admin actions (Assign Captain, status dropdown, Mark Paid Cash, Mark Complete, Send Invoice, Email Customer)
+- `/admin/captain` — Captain Dashboard (protected, captain or admin role)
+  - **Mobile-optimized** layout (max-w-lg, large touch targets)
+  - **Stat cards**: Active, Upcoming, Completed job counts
+  - **Tabs**: Today (active jobs), Upcoming, Completed
+  - **Job cards**: Expandable with pickup/dropoff, date/time, crew, job details
+  - **Status buttons**: En Route → Arrived → Start Job → At Storage/Returning → Finish Job (+ Delayed)
+  - **Notes**: Add timestamped operational notes
+  - Key milestone status changes (Arrived, In Progress, At Storage, Complete) trigger customer email notifications
+  - Captains can only see/update their own assigned jobs
 
 ### Company Details
 - **Name**: Teemer Moving & Storage Co.
@@ -102,7 +111,7 @@ A full-featured moving company web app with two distinct experiences:
 - **Default admin**: admin@teemer.com / TeemerAdmin2024! (or ADMIN_PASSWORD env var)
 - **Seed script**: `pnpm --filter @workspace/scripts run seed-admin`
 - **Middleware**: `requireAuth`, `requireAdmin`, `requireCaptainOrAdmin`
-- **Frontend**: AuthProvider context wraps app, AdminAuthGuard protects /admin route
+- **Frontend**: AuthProvider context wraps app, AdminAuthGuard protects /admin (admin only), CaptainAuthGuard protects /admin/captain (captain or admin)
 
 ### API Endpoints
 - `POST /api/auth/login` — Login (email + password → JWT cookie)
@@ -121,6 +130,11 @@ A full-featured moving company web app with two distinct experiences:
 - `GET /api/track/:id/:trackingToken` — Public tracking by ID + token (no auth, customer-visible events only)
 - `POST /api/track/lookup` — Public tracking lookup by Job ID + email (no auth)
 - `POST /api/contact` — Contact form
+- `POST /api/jobs/:jobId/send-invoice` — Send remaining balance invoice email (admin only)
+- `POST /api/jobs/:jobId/email-customer` — Send custom email to customer (admin only)
+- `GET /api/captain/jobs` — List jobs assigned to current captain (captain or admin)
+- `PATCH /api/jobs/:jobId/captain-status` — Captain updates operational status (captain or admin, validates allowed statuses, triggers customer emails on key milestones)
+- `POST /api/jobs/:jobId/captain-note` — Captain adds timestamped operational note (captain or admin)
 - `GET /api/admin/stats` — Admin dashboard stats
 - `GET /api/admin/email-logs/:jobId` — Email send history per job (admin only)
 

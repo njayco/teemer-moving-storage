@@ -23,8 +23,10 @@ import TrackByTokenPage from "@/pages/track/token";
 import CustomerPortal from "@/pages/platform/customer";
 import ProviderPortal from "@/pages/platform/provider";
 import AdminDashboard from "@/pages/admin/dashboard";
+import CaptainDashboard from "@/pages/admin/captain-dashboard";
 import AdminLoginPage from "@/pages/admin/login";
 import AdminAuthGuard from "@/pages/admin/auth-guard";
+import CaptainAuthGuard from "@/pages/admin/captain-auth-guard";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +35,14 @@ function ProtectedAdmin() {
     <AdminAuthGuard>
       <AdminDashboard />
     </AdminAuthGuard>
+  );
+}
+
+function ProtectedCaptain() {
+  return (
+    <CaptainAuthGuard>
+      <CaptainDashboard />
+    </CaptainAuthGuard>
   );
 }
 
@@ -65,6 +75,7 @@ function Router() {
 
       {/* Admin */}
       <Route path="/admin/login" component={AdminLoginPage} />
+      <Route path="/admin/captain" component={ProtectedCaptain} />
       <Route path="/admin" component={ProtectedAdmin} />
 
       {/* 404 */}

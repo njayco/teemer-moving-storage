@@ -943,6 +943,386 @@ export const LookupTrackingResponse = zod.object({
 });
 
 /**
+ * Returns all jobs assigned to the authenticated captain or admin
+ * @summary List jobs assigned to current captain
+ */
+export const ListCaptainJobsResponseItem = zod.object({
+  id: zod.string(),
+  jobId: zod.string().optional(),
+  customer: zod.string().optional(),
+  provider: zod.string().optional(),
+  pickupLocation: zod.string(),
+  destination: zod.string(),
+  moveType: zod.string(),
+  dateTime: zod.string(),
+  estimatedPayout: zod.number(),
+  specialRequirements: zod.string().optional(),
+  jobSize: zod.string().optional(),
+  status: zod.string(),
+  assignedMover: zod.string().optional(),
+  truckStatus: zod.string().optional(),
+  eta: zod.string().optional(),
+  trackingToken: zod.string().optional(),
+  quoteId: zod.number().optional(),
+  customerId: zod.number().optional(),
+  assignedCaptainId: zod.number().optional(),
+  arrivalWindow: zod.string().optional(),
+  originAddress: zod.string().optional(),
+  destinationAddress: zod.string().optional(),
+  crewSize: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimateSubtotal: zod.number().optional(),
+  extraCharges: zod.number().optional(),
+  discounts: zod.number().optional(),
+  finalTotal: zod.number().optional(),
+  depositPaid: zod.number().optional(),
+  remainingBalance: zod.number().optional(),
+  paymentStatus: zod.string().optional(),
+  invoiceStatus: zod.string().optional(),
+  notes: zod.string().optional(),
+  createdAt: zod.string().optional(),
+  updatedAt: zod.string().optional(),
+  completedAt: zod.string().optional(),
+  quoteData: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      totalEstimate: zod.number().optional(),
+      depositAmount: zod.number().optional(),
+      crewSize: zod.number().optional(),
+      estimatedHours: zod.number().optional(),
+      laborSubtotal: zod.number().optional(),
+      materialsSubtotal: zod.number().optional(),
+    })
+    .optional(),
+  timeline: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        jobId: zod.number(),
+        eventType: zod.string(),
+        statusLabel: zod.string().nullish(),
+        visibleToCustomer: zod.boolean().optional(),
+        notes: zod.string().nullish(),
+        createdByUserId: zod.number().nullish(),
+        createdAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  emailLogs: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        quoteId: zod.number().nullish(),
+        jobId: zod.number().nullish(),
+        emailType: zod.string(),
+        recipient: zod.string(),
+        resendId: zod.string().nullish(),
+        status: zod.enum(["sent", "failed", "skipped"]),
+        sentAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  payments: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        jobId: zod.number(),
+        type: zod.string(),
+        method: zod.string().optional(),
+        amount: zod.number(),
+        reference: zod.string().optional(),
+        paidAt: zod.string().nullish(),
+        notes: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+export const ListCaptainJobsResponse = zod.array(ListCaptainJobsResponseItem);
+
+/**
+ * Captain updates job status with optional notes. Key milestones trigger customer email notifications.
+ * @summary Captain updates job operational status
+ */
+export const UpdateCaptainJobStatusParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const UpdateCaptainJobStatusBody = zod.object({
+  status: zod.enum([
+    "scheduled",
+    "en_route",
+    "arrived",
+    "in_progress",
+    "at_storage",
+    "returning",
+    "complete",
+    "delayed",
+  ]),
+  notes: zod
+    .string()
+    .optional()
+    .describe("Optional operational note to append"),
+});
+
+export const UpdateCaptainJobStatusResponse = zod.object({
+  id: zod.string(),
+  jobId: zod.string().optional(),
+  customer: zod.string().optional(),
+  provider: zod.string().optional(),
+  pickupLocation: zod.string(),
+  destination: zod.string(),
+  moveType: zod.string(),
+  dateTime: zod.string(),
+  estimatedPayout: zod.number(),
+  specialRequirements: zod.string().optional(),
+  jobSize: zod.string().optional(),
+  status: zod.string(),
+  assignedMover: zod.string().optional(),
+  truckStatus: zod.string().optional(),
+  eta: zod.string().optional(),
+  trackingToken: zod.string().optional(),
+  quoteId: zod.number().optional(),
+  customerId: zod.number().optional(),
+  assignedCaptainId: zod.number().optional(),
+  arrivalWindow: zod.string().optional(),
+  originAddress: zod.string().optional(),
+  destinationAddress: zod.string().optional(),
+  crewSize: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimateSubtotal: zod.number().optional(),
+  extraCharges: zod.number().optional(),
+  discounts: zod.number().optional(),
+  finalTotal: zod.number().optional(),
+  depositPaid: zod.number().optional(),
+  remainingBalance: zod.number().optional(),
+  paymentStatus: zod.string().optional(),
+  invoiceStatus: zod.string().optional(),
+  notes: zod.string().optional(),
+  createdAt: zod.string().optional(),
+  updatedAt: zod.string().optional(),
+  completedAt: zod.string().optional(),
+  quoteData: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      totalEstimate: zod.number().optional(),
+      depositAmount: zod.number().optional(),
+      crewSize: zod.number().optional(),
+      estimatedHours: zod.number().optional(),
+      laborSubtotal: zod.number().optional(),
+      materialsSubtotal: zod.number().optional(),
+    })
+    .optional(),
+  timeline: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        jobId: zod.number(),
+        eventType: zod.string(),
+        statusLabel: zod.string().nullish(),
+        visibleToCustomer: zod.boolean().optional(),
+        notes: zod.string().nullish(),
+        createdByUserId: zod.number().nullish(),
+        createdAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  emailLogs: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        quoteId: zod.number().nullish(),
+        jobId: zod.number().nullish(),
+        emailType: zod.string(),
+        recipient: zod.string(),
+        resendId: zod.string().nullish(),
+        status: zod.enum(["sent", "failed", "skipped"]),
+        sentAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  payments: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        jobId: zod.number(),
+        type: zod.string(),
+        method: zod.string().optional(),
+        amount: zod.number(),
+        reference: zod.string().optional(),
+        paidAt: zod.string().nullish(),
+        notes: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Captain adds operational note to job
+ */
+export const AddCaptainNoteParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const AddCaptainNoteBody = zod.object({
+  notes: zod.string(),
+});
+
+export const AddCaptainNoteResponse = zod.object({
+  id: zod.string(),
+  jobId: zod.string().optional(),
+  customer: zod.string().optional(),
+  provider: zod.string().optional(),
+  pickupLocation: zod.string(),
+  destination: zod.string(),
+  moveType: zod.string(),
+  dateTime: zod.string(),
+  estimatedPayout: zod.number(),
+  specialRequirements: zod.string().optional(),
+  jobSize: zod.string().optional(),
+  status: zod.string(),
+  assignedMover: zod.string().optional(),
+  truckStatus: zod.string().optional(),
+  eta: zod.string().optional(),
+  trackingToken: zod.string().optional(),
+  quoteId: zod.number().optional(),
+  customerId: zod.number().optional(),
+  assignedCaptainId: zod.number().optional(),
+  arrivalWindow: zod.string().optional(),
+  originAddress: zod.string().optional(),
+  destinationAddress: zod.string().optional(),
+  crewSize: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimateSubtotal: zod.number().optional(),
+  extraCharges: zod.number().optional(),
+  discounts: zod.number().optional(),
+  finalTotal: zod.number().optional(),
+  depositPaid: zod.number().optional(),
+  remainingBalance: zod.number().optional(),
+  paymentStatus: zod.string().optional(),
+  invoiceStatus: zod.string().optional(),
+  notes: zod.string().optional(),
+  createdAt: zod.string().optional(),
+  updatedAt: zod.string().optional(),
+  completedAt: zod.string().optional(),
+  quoteData: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      totalEstimate: zod.number().optional(),
+      depositAmount: zod.number().optional(),
+      crewSize: zod.number().optional(),
+      estimatedHours: zod.number().optional(),
+      laborSubtotal: zod.number().optional(),
+      materialsSubtotal: zod.number().optional(),
+    })
+    .optional(),
+  timeline: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        jobId: zod.number(),
+        eventType: zod.string(),
+        statusLabel: zod.string().nullish(),
+        visibleToCustomer: zod.boolean().optional(),
+        notes: zod.string().nullish(),
+        createdByUserId: zod.number().nullish(),
+        createdAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  emailLogs: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        quoteId: zod.number().nullish(),
+        jobId: zod.number().nullish(),
+        emailType: zod.string(),
+        recipient: zod.string(),
+        resendId: zod.string().nullish(),
+        status: zod.enum(["sent", "failed", "skipped"]),
+        sentAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  payments: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        jobId: zod.number(),
+        type: zod.string(),
+        method: zod.string().optional(),
+        amount: zod.number(),
+        reference: zod.string().optional(),
+        paidAt: zod.string().nullish(),
+        notes: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
  * Get stats for the admin dashboard
  * @summary Get admin dashboard stats
  */
