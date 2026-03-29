@@ -29,7 +29,7 @@ app.use(
 app.use(cors());
 
 // Stripe webhook needs raw body before express.json() parses it
-app.use("/api/stripe/webhook", express.raw({ type: "application/json" }), stripeRouter);
+app.use("/api", express.raw({ type: "application/json" }), stripeRouter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

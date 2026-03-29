@@ -57,6 +57,8 @@ A full-featured moving company web app with two distinct experiences:
 - `/info/faq` — FAQ accordion
 - `/info/contact` — Contact form
 - `/info/quote` — Multi-step quote request form
+- `/info/quote/deposit/:quoteId` — Deposit payment page (Stripe checkout redirect)
+- `/info/quote/confirmation` — Payment confirmation page
 
 **Platform:**
 - `/platform` — Platform entry
@@ -79,10 +81,17 @@ A full-featured moving company web app with two distinct experiences:
 
 ### API Endpoints
 - `GET/POST /api/quotes` — Quote requests
+- `POST /api/quotes/estimate-boxes` — AI box estimation (OpenAI via Replit AI proxy)
+- `POST /api/quotes/:id/checkout` — Stripe Checkout Session for deposit
+- `POST /api/stripe/webhook` — Stripe webhook (marks quote deposit_paid)
 - `GET/POST /api/jobs` — Jobs
 - `GET/PATCH /api/jobs/:jobId` — Individual job + status updates
 - `POST /api/contact` — Contact form
 - `GET /api/admin/stats` — Admin dashboard stats
+
+### Integrations
+- **OpenAI**: Uses Replit AI Integrations proxy (`AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`), falls back to `OPENAI_API_KEY`
+- **Stripe**: Uses Replit Stripe connector (`getUncachableStripeClient()` in `src/lib/stripe-client.ts`), fetches credentials from Replit connection API. Webhook secret via `STRIPE_WEBHOOK_SECRET` env var.
 
 ### Frontend Packages
 - `react-hook-form` + `@hookform/resolvers` + `zod` — Form management

@@ -299,14 +299,7 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
   }
 });
 
-// POST /quotes/:id/checkout  — Create Stripe Checkout Session for deposit
 router.post("/quotes/:id/checkout", async (req, res) => {
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) {
-    res.status(503).json({ error: "Online payment is not configured yet. Please call us to pay the deposit." });
-    return;
-  }
-
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid quote ID" });
@@ -314,6 +307,9 @@ router.post("/quotes/:id/checkout", async (req, res) => {
   }
 
   try {
+    const { getUncachableStripeClient } = await import("../lib/stripe-client.js");
+    const stripe = await getUncachableStripeClient();
+
     const [quote] = await db
       .select()
       .from(quoteRequestsTable)
@@ -328,12 +324,12 @@ router.post("/quotes/:id/checkout", async (req, res) => {
     const moveDate = quote.moveDate ?? "TBD";
     const customerName = quote.contactName ?? "Customer";
 
-    const { default: Stripe } = await import("stripe");
-    const stripe = new Stripe(stripeKey);
-
-    const host = req.headers.origin || `https://${req.headers.host}`;
-    const successUrl = `${host}/info/quote/confirmation?quoteId=${id}&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${host}/info/quote/deposit/${id}`;
+    const trustedDomain = process.env.REPLIT_DEPLOYMENT === "1"
+      ? process.env.REPLIT_DOMAINS?.split(",")[0]
+      : process.env.REPLIT_DEV_DOMAIN;
+    const baseUrl = trustedDomain ? `https://${trustedDomain}` : `https://${req.headers.host}`;
+    const successUrl = `${baseUrl}/info/quote/confirmation?quoteId=${id}&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/info/quote/deposit/${id}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
