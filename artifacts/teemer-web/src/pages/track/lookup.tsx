@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search, Loader2, AlertCircle, Package, MapPin, Calendar, DollarSign } from "lucide-react";
+import { Search, Loader2, AlertCircle, Package, MapPin, Calendar, DollarSign, Phone } from "lucide-react";
 
 const lookupSchema = z.object({
   jobId: z.string().min(1, "Job ID or Quote # is required"),
@@ -151,6 +151,12 @@ function TrackingResult({ data, onReset }: { data: any; onReset: () => void }) {
           <InfoItem icon={Calendar} label="Move Date" value={data.moveDate || "TBD"} />
           <InfoItem icon={MapPin} label="From" value={data.pickupAddress} />
           <InfoItem icon={MapPin} label="To" value={data.dropoffAddress} />
+          {data.arrivalWindow && (
+            <InfoItem icon={Calendar} label="Arrival Window" value={data.arrivalWindow} />
+          )}
+          {data.jobId && (
+            <InfoItem icon={Package} label="Job ID" value={data.jobId} />
+          )}
         </div>
 
         {(data.totalEstimate > 0 || data.depositPaid > 0) && (
@@ -169,6 +175,15 @@ function TrackingResult({ data, onReset }: { data: any; onReset: () => void }) {
                 <p className="text-lg font-bold text-slate-700">${data.remainingBalance?.toFixed(2)}</p>
               </div>
             </div>
+            <div className="mt-4 text-center">
+              <span className={`text-sm font-medium px-2 py-1 rounded ${
+                data.paymentStatus === "paid" ? "bg-green-100 text-green-700" :
+                data.paymentStatus === "deposit_paid" ? "bg-blue-100 text-blue-700" :
+                "bg-slate-100 text-slate-600"
+              }`}>
+                Payment: {data.paymentStatus?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Pending"}
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -176,6 +191,18 @@ function TrackingResult({ data, onReset }: { data: any; onReset: () => void }) {
       <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
         <h2 className="text-xl font-bold text-secondary mb-6">Status Timeline</h2>
         <StatusTimeline events={data.timeline || []} />
+      </div>
+
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 text-center">
+        <h3 className="font-bold text-secondary mb-2">Questions about your move?</h3>
+        <p className="text-slate-600 text-sm mb-3">Our team is here to help.</p>
+        <a
+          href="tel:5162693724"
+          className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:-translate-y-0.5 transition-all"
+        >
+          <Phone className="w-4 h-4" />
+          Call (516) 269-3724
+        </a>
       </div>
 
       <button

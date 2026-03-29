@@ -269,6 +269,7 @@ router.patch("/jobs/:jobId", async (req, res) => {
 router.get("/jobs/:jobId/events", requireAdmin, async (req, res) => {
   try {
     const jobIdParam = String(req.params.jobId);
+    const customerOnly = req.query.customerOnly === "true";
 
     const [job] = await db
       .select({ id: jobsTable.id })
@@ -281,11 +282,15 @@ router.get("/jobs/:jobId/events", requireAdmin, async (req, res) => {
       return;
     }
 
-    const events = await db
+    let events = await db
       .select()
       .from(jobStatusEventsTable)
       .where(eq(jobStatusEventsTable.jobId, job.id))
       .orderBy(desc(jobStatusEventsTable.createdAt));
+
+    if (customerOnly) {
+      events = events.filter((e) => e.visibleToCustomer);
+    }
 
     res.json(
       events.map((e) => ({
@@ -333,7 +338,7 @@ router.post("/jobs/:jobId/events", requireAdmin, async (req, res) => {
       statusLabel: statusLabel ?? undefined,
       visibleToCustomer: visibleToCustomer ?? true,
       notes: notes ?? undefined,
-      createdByUserId: (req as any).userId ?? undefined,
+      createdByUserId: req.user?.userId ?? undefined,
     });
 
     if (!event) {

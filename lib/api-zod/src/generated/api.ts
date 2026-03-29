@@ -529,6 +529,10 @@ export const GetJobEventsParams = zod.object({
   jobId: zod.coerce.string(),
 });
 
+export const GetJobEventsQueryParams = zod.object({
+  customerOnly: zod.coerce.string().optional(),
+});
+
 export const GetJobEventsResponseItem = zod.object({
   id: zod.number(),
   jobId: zod.number(),
@@ -556,9 +560,10 @@ export const CreateJobEventBody = zod.object({
 });
 
 /**
- * @summary Get job tracking data by token
+ * @summary Get job tracking data by ID and token
  */
 export const GetTrackingByTokenParams = zod.object({
+  id: zod.coerce.string(),
   trackingToken: zod.coerce.string(),
 });
 

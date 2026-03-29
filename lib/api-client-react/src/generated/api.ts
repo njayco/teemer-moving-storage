@@ -27,6 +27,7 @@ import type {
   EmailLog,
   EstimateBoxesRequest,
   EstimateBoxesResponse,
+  GetJobEventsParams,
   HealthStatus,
   Job,
   JobStatusEvent,
@@ -1722,22 +1723,41 @@ export function useGetEmailLogs<
 /**
  * @summary Get job timeline events (admin only)
  */
-export const getGetJobEventsUrl = (jobId: string) => {
-  return `/api/jobs/${jobId}/events`;
+export const getGetJobEventsUrl = (
+  jobId: string,
+  params?: GetJobEventsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/jobs/${jobId}/events?${stringifiedParams}`
+    : `/api/jobs/${jobId}/events`;
 };
 
 export const getJobEvents = async (
   jobId: string,
+  params?: GetJobEventsParams,
   options?: RequestInit,
 ): Promise<JobStatusEvent[]> => {
-  return customFetch<JobStatusEvent[]>(getGetJobEventsUrl(jobId), {
+  return customFetch<JobStatusEvent[]>(getGetJobEventsUrl(jobId, params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetJobEventsQueryKey = (jobId: string) => {
-  return [`/api/jobs/${jobId}/events`] as const;
+export const getGetJobEventsQueryKey = (
+  jobId: string,
+  params?: GetJobEventsParams,
+) => {
+  return [`/api/jobs/${jobId}/events`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetJobEventsQueryOptions = <
@@ -1745,6 +1765,7 @@ export const getGetJobEventsQueryOptions = <
   TError = ErrorType<void>,
 >(
   jobId: string,
+  params?: GetJobEventsParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof getJobEvents>>,
@@ -1756,11 +1777,12 @@ export const getGetJobEventsQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetJobEventsQueryKey(jobId);
+  const queryKey =
+    queryOptions?.queryKey ?? getGetJobEventsQueryKey(jobId, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobEvents>>> = ({
     signal,
-  }) => getJobEvents(jobId, { signal, ...requestOptions });
+  }) => getJobEvents(jobId, params, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1788,6 +1810,7 @@ export function useGetJobEvents<
   TError = ErrorType<void>,
 >(
   jobId: string,
+  params?: GetJobEventsParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof getJobEvents>>,
@@ -1797,7 +1820,7 @@ export function useGetJobEvents<
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetJobEventsQueryOptions(jobId, options);
+  const queryOptions = getGetJobEventsQueryOptions(jobId, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1894,18 +1917,19 @@ export const useCreateJobEvent = <
 };
 
 /**
- * @summary Get job tracking data by token
+ * @summary Get job tracking data by ID and token
  */
-export const getGetTrackingByTokenUrl = (trackingToken: string) => {
-  return `/api/track/${trackingToken}`;
+export const getGetTrackingByTokenUrl = (id: string, trackingToken: string) => {
+  return `/api/track/${id}/${trackingToken}`;
 };
 
 export const getTrackingByToken = async (
+  id: string,
   trackingToken: string,
   options?: RequestInit,
 ): Promise<TrackingResponse> => {
   return customFetch<TrackingResponse>(
-    getGetTrackingByTokenUrl(trackingToken),
+    getGetTrackingByTokenUrl(id, trackingToken),
     {
       ...options,
       method: "GET",
@@ -1913,14 +1937,18 @@ export const getTrackingByToken = async (
   );
 };
 
-export const getGetTrackingByTokenQueryKey = (trackingToken: string) => {
-  return [`/api/track/${trackingToken}`] as const;
+export const getGetTrackingByTokenQueryKey = (
+  id: string,
+  trackingToken: string,
+) => {
+  return [`/api/track/${id}/${trackingToken}`] as const;
 };
 
 export const getGetTrackingByTokenQueryOptions = <
   TData = Awaited<ReturnType<typeof getTrackingByToken>>,
   TError = ErrorType<void>,
 >(
+  id: string,
   trackingToken: string,
   options?: {
     query?: UseQueryOptions<
@@ -1934,17 +1962,17 @@ export const getGetTrackingByTokenQueryOptions = <
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getGetTrackingByTokenQueryKey(trackingToken);
+    queryOptions?.queryKey ?? getGetTrackingByTokenQueryKey(id, trackingToken);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getTrackingByToken>>
   > = ({ signal }) =>
-    getTrackingByToken(trackingToken, { signal, ...requestOptions });
+    getTrackingByToken(id, trackingToken, { signal, ...requestOptions });
 
   return {
     queryKey,
     queryFn,
-    enabled: !!trackingToken,
+    enabled: !!(id && trackingToken),
     ...queryOptions,
   } as UseQueryOptions<
     Awaited<ReturnType<typeof getTrackingByToken>>,
@@ -1959,13 +1987,14 @@ export type GetTrackingByTokenQueryResult = NonNullable<
 export type GetTrackingByTokenQueryError = ErrorType<void>;
 
 /**
- * @summary Get job tracking data by token
+ * @summary Get job tracking data by ID and token
  */
 
 export function useGetTrackingByToken<
   TData = Awaited<ReturnType<typeof getTrackingByToken>>,
   TError = ErrorType<void>,
 >(
+  id: string,
   trackingToken: string,
   options?: {
     query?: UseQueryOptions<
@@ -1977,6 +2006,7 @@ export function useGetTrackingByToken<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTrackingByTokenQueryOptions(
+    id,
     trackingToken,
     options,
   );

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { quoteRequestsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { calculatePricing } from "../lib/pricing-engine.js";
+import { recordTimelineEvent } from "../lib/timeline";
 import OpenAI from "openai";
 
 const router: IRouter = Router();
@@ -227,6 +228,14 @@ router.post("/quotes", async (req, res) => {
         status: "quote_requested",
       })
       .returning();
+
+    recordTimelineEvent({
+      jobId: quote.id,
+      eventType: "quote_created",
+      statusLabel: "Quote Requested",
+      visibleToCustomer: true,
+      notes: `Quote #${quote.id} created for ${quote.contactName}`,
+    }).catch(() => {});
 
     res.status(201).json(mapQuoteRow(quote));
   } catch (err) {

@@ -87,7 +87,7 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
       }).catch(() => {});
 
       const baseUrl = getAppBaseUrl();
-      const trackingUrl = `${baseUrl}/track/${trackingToken}`;
+      const trackingUrl = `${baseUrl}/track/${parsedQuoteId}/${trackingToken}`;
       const depositPaid = updatedQuote.depositAmount ?? 50;
       const totalEstimate = updatedQuote.totalEstimate ?? 0;
       const remainingBalance = totalEstimate - depositPaid;

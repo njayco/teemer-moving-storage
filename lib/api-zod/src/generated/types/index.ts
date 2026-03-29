@@ -21,6 +21,7 @@ export * from "./emailLog";
 export * from "./emailLogStatus";
 export * from "./estimateBoxesRequest";
 export * from "./estimateBoxesResponse";
+export * from "./getJobEventsParams";
 export * from "./healthStatus";
 export * from "./inventoryMap";
 export * from "./job";

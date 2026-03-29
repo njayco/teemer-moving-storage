@@ -2,14 +2,15 @@ import { InfoLayout } from "@/components/layout/info-layout";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { useGetTrackingByToken } from "@workspace/api-client-react";
 import { useRoute, Link } from "wouter";
-import { Loader2, AlertCircle, Package, MapPin, Calendar, DollarSign } from "lucide-react";
+import { Loader2, AlertCircle, Package, MapPin, Calendar, DollarSign, Phone } from "lucide-react";
 
 export default function TrackByTokenPage() {
-  const [, params] = useRoute("/track/:token");
+  const [, params] = useRoute("/track/:id/:token");
+  const id = params?.id ?? "";
   const token = params?.token ?? "";
 
-  const { data, isLoading, isError } = useGetTrackingByToken(token, {
-    query: { enabled: !!token },
+  const { data, isLoading, isError } = useGetTrackingByToken(id, token, {
+    query: { enabled: !!id && !!token },
   });
 
   return (
@@ -71,6 +72,12 @@ export default function TrackByTokenPage() {
                   <InfoItem icon={Calendar} label="Move Date" value={data.moveDate || "TBD"} />
                   <InfoItem icon={MapPin} label="From" value={data.pickupAddress} />
                   <InfoItem icon={MapPin} label="To" value={data.dropoffAddress} />
+                  {data.arrivalWindow && (
+                    <InfoItem icon={Calendar} label="Arrival Window" value={data.arrivalWindow} />
+                  )}
+                  {data.jobId && (
+                    <InfoItem icon={Package} label="Job ID" value={data.jobId} />
+                  )}
                 </div>
 
                 {(data.totalEstimate > 0 || data.depositPaid > 0) && (
@@ -95,6 +102,15 @@ export default function TrackByTokenPage() {
                         </p>
                       </div>
                     </div>
+                    <div className="mt-4 text-center">
+                      <span className={`text-sm font-medium px-2 py-1 rounded ${
+                        data.paymentStatus === "paid" ? "bg-green-100 text-green-700" :
+                        data.paymentStatus === "deposit_paid" ? "bg-blue-100 text-blue-700" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        Payment: {data.paymentStatus?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Pending"}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -102,6 +118,18 @@ export default function TrackByTokenPage() {
               <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
                 <h2 className="text-xl font-bold text-secondary mb-6">Status Timeline</h2>
                 <StatusTimeline events={data.timeline || []} />
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 text-center">
+                <h3 className="font-bold text-secondary mb-2">Questions about your move?</h3>
+                <p className="text-slate-600 text-sm mb-3">Our team is here to help.</p>
+                <a
+                  href="tel:5162693724"
+                  className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:-translate-y-0.5 transition-all"
+                >
+                  <Phone className="w-4 h-4" />
+                  Call (516) 269-3724
+                </a>
               </div>
             </div>
           )}

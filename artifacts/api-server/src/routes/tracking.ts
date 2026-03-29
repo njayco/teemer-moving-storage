@@ -57,7 +57,7 @@ function formatJobTrackingResponse(job: typeof jobsTable.$inferSelect, events: (
   };
 }
 
-router.get("/track/:trackingToken", async (req, res) => {
+router.get("/track/:id/:trackingToken", async (req, res) => {
   try {
     const token = String(req.params.trackingToken);
 

@@ -54,7 +54,7 @@ function Router() {
 
       {/* Tracking */}
       <Route path="/track" component={TrackLookupPage} />
-      <Route path="/track/:token" component={TrackByTokenPage} />
+      <Route path="/track/:id/:token" component={TrackByTokenPage} />
 
       {/* Platform */}
       <Route path="/platform" component={CustomerPortal} />

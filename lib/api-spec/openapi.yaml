@@ -404,6 +404,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: customerOnly
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: List of timeline events
@@ -444,12 +449,17 @@ paths:
           description: Admin access required
         "404":
           description: Job not found
-  /track/{trackingToken}:
+  /track/{id}/{trackingToken}:
     get:
       operationId: getTrackingByToken
       tags: [tracking]
-      summary: Get job tracking data by token
+      summary: Get job tracking data by ID and token
       parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
         - name: trackingToken
           in: path
           required: true

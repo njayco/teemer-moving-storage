@@ -62,7 +62,7 @@ A full-featured moving company web app with two distinct experiences:
 
 **Tracking:**
 - `/track` — Track your move lookup page (Job ID + email form)
-- `/track/:token` — Track by direct tracking token link (from email)
+- `/track/:id/:token` — Track by direct tracking token link (from email)
 
 **Platform:**
 - `/platform` — Platform entry

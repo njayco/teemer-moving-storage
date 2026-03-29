@@ -363,3 +363,7 @@ export type ListJobsParams = {
   moveType?: string;
   status?: string;
 };
+
+export type GetJobEventsParams = {
+  customerOnly?: string;
+};
