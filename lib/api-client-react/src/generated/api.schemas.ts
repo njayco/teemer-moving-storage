@@ -312,6 +312,52 @@ export interface AdminStats {
   recentJobs: Job[];
 }
 
+export interface JobStatusEvent {
+  id: number;
+  jobId: number;
+  eventType: string;
+  statusLabel?: string | null;
+  visibleToCustomer?: boolean;
+  notes?: string | null;
+  createdByUserId?: number | null;
+  createdAt?: string | null;
+}
+
+export interface CreateJobEventRequest {
+  eventType: string;
+  statusLabel?: string;
+  visibleToCustomer?: boolean;
+  notes?: string;
+}
+
+export interface TrackingTimelineEvent {
+  id: number;
+  eventType: string;
+  statusLabel?: string | null;
+  createdAt?: string | null;
+}
+
+export interface TrackingResponse {
+  quoteId?: number;
+  jobId?: string;
+  customerName: string;
+  moveDate: string;
+  arrivalWindow?: string | null;
+  pickupAddress: string;
+  dropoffAddress: string;
+  status?: string | null;
+  totalEstimate: number;
+  depositPaid: number;
+  remainingBalance: number;
+  paymentStatus: string;
+  timeline: TrackingTimelineEvent[];
+}
+
+export interface TrackingLookupRequest {
+  jobId: string;
+  email: string;
+}
+
 export type ListJobsParams = {
   area?: string;
   moveType?: string;

@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { jobsTable, quoteRequestsTable } from "@workspace/db/schema";
+import { jobsTable, quoteRequestsTable, jobStatusEventsTable } from "@workspace/db/schema";
 import { eq, desc, count, sum, sql } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
+import { recordTimelineEvent } from "../lib/timeline";
 
 const router: IRouter = Router();
 
@@ -209,14 +210,40 @@ router.patch("/jobs/:jobId", async (req, res) => {
     const { jobId } = req.params;
     const { status, assignedMover, truckStatus, eta } = req.body;
 
+    const [existing] = await db
+      .select({ id: jobsTable.id, status: jobsTable.status })
+      .from(jobsTable)
+      .where(eq(jobsTable.jobId, String(jobId)))
+      .limit(1);
+
     const [updated] = await db
       .update(jobsTable)
       .set({ status, assignedMover, truckStatus, eta })
-      .where(eq(jobsTable.jobId, jobId))
+      .where(eq(jobsTable.jobId, String(jobId)))
       .returning();
 
     if (!updated) {
       return res.status(404).json({ error: "Job not found" });
+    }
+
+    if (existing && status && status !== existing.status) {
+      recordTimelineEvent({
+        jobId: updated.id,
+        eventType: "status_change",
+        statusLabel: status,
+        visibleToCustomer: true,
+        notes: `Status changed from "${existing.status}" to "${status}"`,
+      }).catch(() => {});
+    }
+
+    if (assignedMover && existing) {
+      recordTimelineEvent({
+        jobId: updated.id,
+        eventType: "captain_assigned",
+        statusLabel: "Captain Assigned",
+        visibleToCustomer: true,
+        notes: `Move captain assigned: ${assignedMover}`,
+      }).catch(() => {});
     }
 
     res.json({
@@ -235,6 +262,97 @@ router.patch("/jobs/:jobId", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update job");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/jobs/:jobId/events", requireAdmin, async (req, res) => {
+  try {
+    const jobIdParam = String(req.params.jobId);
+
+    const [job] = await db
+      .select({ id: jobsTable.id })
+      .from(jobsTable)
+      .where(eq(jobsTable.jobId, jobIdParam))
+      .limit(1);
+
+    if (!job) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+
+    const events = await db
+      .select()
+      .from(jobStatusEventsTable)
+      .where(eq(jobStatusEventsTable.jobId, job.id))
+      .orderBy(desc(jobStatusEventsTable.createdAt));
+
+    res.json(
+      events.map((e) => ({
+        id: e.id,
+        jobId: e.jobId,
+        eventType: e.eventType,
+        statusLabel: e.statusLabel,
+        visibleToCustomer: e.visibleToCustomer,
+        notes: e.notes,
+        createdByUserId: e.createdByUserId,
+        createdAt: e.createdAt?.toISOString() ?? null,
+      }))
+    );
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch job events");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/jobs/:jobId/events", requireAdmin, async (req, res) => {
+  try {
+    const jobIdParam = String(req.params.jobId);
+
+    const [job] = await db
+      .select({ id: jobsTable.id })
+      .from(jobsTable)
+      .where(eq(jobsTable.jobId, jobIdParam))
+      .limit(1);
+
+    if (!job) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+
+    const { eventType, statusLabel, visibleToCustomer, notes } = req.body;
+
+    if (!eventType) {
+      res.status(400).json({ error: "eventType is required" });
+      return;
+    }
+
+    const event = await recordTimelineEvent({
+      jobId: job.id,
+      eventType,
+      statusLabel: statusLabel ?? undefined,
+      visibleToCustomer: visibleToCustomer ?? true,
+      notes: notes ?? undefined,
+      createdByUserId: (req as any).userId ?? undefined,
+    });
+
+    if (!event) {
+      res.status(500).json({ error: "Failed to create event" });
+      return;
+    }
+
+    res.status(201).json({
+      id: event.id,
+      jobId: event.jobId,
+      eventType: event.eventType,
+      statusLabel: event.statusLabel,
+      visibleToCustomer: event.visibleToCustomer,
+      notes: event.notes,
+      createdByUserId: event.createdByUserId,
+      createdAt: event.createdAt?.toISOString() ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create job event");
     res.status(500).json({ error: "Internal server error" });
   }
 });

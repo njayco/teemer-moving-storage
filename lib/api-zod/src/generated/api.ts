@@ -523,6 +523,100 @@ export const GetEmailLogsResponseItem = zod.object({
 export const GetEmailLogsResponse = zod.array(GetEmailLogsResponseItem);
 
 /**
+ * @summary Get job timeline events (admin only)
+ */
+export const GetJobEventsParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const GetJobEventsResponseItem = zod.object({
+  id: zod.number(),
+  jobId: zod.number(),
+  eventType: zod.string(),
+  statusLabel: zod.string().nullish(),
+  visibleToCustomer: zod.boolean().optional(),
+  notes: zod.string().nullish(),
+  createdByUserId: zod.number().nullish(),
+  createdAt: zod.string().nullish(),
+});
+export const GetJobEventsResponse = zod.array(GetJobEventsResponseItem);
+
+/**
+ * @summary Create a job timeline event (admin only)
+ */
+export const CreateJobEventParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const CreateJobEventBody = zod.object({
+  eventType: zod.string(),
+  statusLabel: zod.string().optional(),
+  visibleToCustomer: zod.boolean().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get job tracking data by token
+ */
+export const GetTrackingByTokenParams = zod.object({
+  trackingToken: zod.coerce.string(),
+});
+
+export const GetTrackingByTokenResponse = zod.object({
+  quoteId: zod.number().optional(),
+  jobId: zod.string().optional(),
+  customerName: zod.string(),
+  moveDate: zod.string(),
+  arrivalWindow: zod.string().nullish(),
+  pickupAddress: zod.string(),
+  dropoffAddress: zod.string(),
+  status: zod.string().nullish(),
+  totalEstimate: zod.number(),
+  depositPaid: zod.number(),
+  remainingBalance: zod.number(),
+  paymentStatus: zod.string(),
+  timeline: zod.array(
+    zod.object({
+      id: zod.number(),
+      eventType: zod.string(),
+      statusLabel: zod.string().nullish(),
+      createdAt: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Look up job tracking by job ID and email
+ */
+export const LookupTrackingBody = zod.object({
+  jobId: zod.string(),
+  email: zod.string(),
+});
+
+export const LookupTrackingResponse = zod.object({
+  quoteId: zod.number().optional(),
+  jobId: zod.string().optional(),
+  customerName: zod.string(),
+  moveDate: zod.string(),
+  arrivalWindow: zod.string().nullish(),
+  pickupAddress: zod.string(),
+  dropoffAddress: zod.string(),
+  status: zod.string().nullish(),
+  totalEstimate: zod.number(),
+  depositPaid: zod.number(),
+  remainingBalance: zod.number(),
+  paymentStatus: zod.string(),
+  timeline: zod.array(
+    zod.object({
+      id: zod.number(),
+      eventType: zod.string(),
+      statusLabel: zod.string().nullish(),
+      createdAt: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
  * Get stats for the admin dashboard
  * @summary Get admin dashboard stats
  */

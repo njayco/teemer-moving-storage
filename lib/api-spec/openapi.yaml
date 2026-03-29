@@ -393,6 +393,97 @@ paths:
                   $ref: "#/components/schemas/EmailLog"
         "403":
           description: Admin access required
+  /jobs/{jobId}/events:
+    get:
+      operationId: getJobEvents
+      tags: [jobs]
+      summary: Get job timeline events (admin only)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of timeline events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobStatusEvent"
+        "403":
+          description: Admin access required
+        "404":
+          description: Job not found
+    post:
+      operationId: createJobEvent
+      tags: [jobs]
+      summary: Create a job timeline event (admin only)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobEventRequest"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobStatusEvent"
+        "403":
+          description: Admin access required
+        "404":
+          description: Job not found
+  /track/{trackingToken}:
+    get:
+      operationId: getTrackingByToken
+      tags: [tracking]
+      summary: Get job tracking data by token
+      parameters:
+        - name: trackingToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tracking data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackingResponse"
+        "404":
+          description: Tracking link not found
+  /track/lookup:
+    post:
+      operationId: lookupTracking
+      tags: [tracking]
+      summary: Look up job tracking by job ID and email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackingLookupRequest"
+      responses:
+        "200":
+          description: Tracking data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackingResponse"
+        "404":
+          description: No matching move found
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -970,3 +1061,119 @@ components:
         - revenuePipeline
         - weeklyRevenue
         - recentJobs
+
+    # ─── Timeline Events ───────────────────────────────────────────────────────
+    JobStatusEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        eventType:
+          type: string
+        statusLabel:
+          type: string
+          nullable: true
+        visibleToCustomer:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        createdByUserId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - jobId
+        - eventType
+
+    CreateJobEventRequest:
+      type: object
+      properties:
+        eventType:
+          type: string
+        statusLabel:
+          type: string
+        visibleToCustomer:
+          type: boolean
+        notes:
+          type: string
+      required:
+        - eventType
+
+    # ─── Tracking ──────────────────────────────────────────────────────────────
+    TrackingTimelineEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventType:
+          type: string
+        statusLabel:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - eventType
+
+    TrackingResponse:
+      type: object
+      properties:
+        quoteId:
+          type: integer
+        jobId:
+          type: string
+        customerName:
+          type: string
+        moveDate:
+          type: string
+        arrivalWindow:
+          type: string
+          nullable: true
+        pickupAddress:
+          type: string
+        dropoffAddress:
+          type: string
+        status:
+          type: string
+          nullable: true
+        totalEstimate:
+          type: number
+        depositPaid:
+          type: number
+        remainingBalance:
+          type: number
+        paymentStatus:
+          type: string
+        timeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackingTimelineEvent"
+      required:
+        - customerName
+        - moveDate
+        - pickupAddress
+        - dropoffAddress
+        - totalEstimate
+        - depositPaid
+        - remainingBalance
+        - paymentStatus
+        - timeline
+
+    TrackingLookupRequest:
+      type: object
+      properties:
+        jobId:
+          type: string
+        email:
+          type: string
+      required:
+        - jobId
+        - email

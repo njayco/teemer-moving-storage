@@ -16,6 +16,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
     { href: "/info/gallery", label: "Gallery" },
     { href: "/info/faq", label: "FAQ" },
     { href: "/info/contact", label: "Contact" },
+    { href: "/track", label: "Track Move" },
   ];
 
   return (

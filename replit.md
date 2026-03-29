@@ -60,6 +60,10 @@ A full-featured moving company web app with two distinct experiences:
 - `/info/quote/deposit/:quoteId` — Deposit payment page (Stripe checkout redirect)
 - `/info/quote/confirmation` — Payment confirmation page
 
+**Tracking:**
+- `/track` — Track your move lookup page (Job ID + email form)
+- `/track/:token` — Track by direct tracking token link (from email)
+
 **Platform:**
 - `/platform` — Platform entry
 - `/platform/customer` — Customer portal (Request Move + Track Job tabs)
@@ -107,7 +111,11 @@ A full-featured moving company web app with two distinct experiences:
 - `POST /api/quotes/:id/checkout` — Stripe Checkout Session for deposit
 - `POST /api/stripe/webhook` — Stripe webhook (marks quote deposit_paid, sends deposit confirmation + admin notification emails)
 - `GET/POST /api/jobs` — Jobs
-- `GET/PATCH /api/jobs/:jobId` — Individual job + status updates
+- `GET/PATCH /api/jobs/:jobId` — Individual job + status updates (PATCH auto-records timeline events for status changes and captain assignments)
+- `GET /api/jobs/:jobId/events` — Job timeline events (admin only)
+- `POST /api/jobs/:jobId/events` — Create timeline event (admin only)
+- `GET /api/track/:trackingToken` — Public tracking by token (no auth, customer-visible events only)
+- `POST /api/track/lookup` — Public tracking lookup by Job ID + email (no auth)
 - `POST /api/contact` — Contact form
 - `GET /api/admin/stats` — Admin dashboard stats
 - `GET /api/admin/email-logs/:jobId` — Email send history per job (admin only)

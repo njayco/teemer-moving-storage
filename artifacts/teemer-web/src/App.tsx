@@ -16,6 +16,8 @@ import QuotePage from "@/pages/info/quote";
 import QuoteDepositPage from "@/pages/info/quote-deposit";
 import QuoteConfirmationPage from "@/pages/info/quote-confirmation";
 import GalleryPage from "@/pages/info/gallery";
+import TrackLookupPage from "@/pages/track/lookup";
+import TrackByTokenPage from "@/pages/track/token";
 
 import CustomerPortal from "@/pages/platform/customer";
 import ProviderPortal from "@/pages/platform/provider";
@@ -49,6 +51,10 @@ function Router() {
       <Route path="/info/quote" component={QuotePage} />
       <Route path="/info/quote/deposit/:quoteId" component={QuoteDepositPage} />
       <Route path="/info/quote/confirmation" component={QuoteConfirmationPage} />
+
+      {/* Tracking */}
+      <Route path="/track" component={TrackLookupPage} />
+      <Route path="/track/:token" component={TrackByTokenPage} />
 
       {/* Platform */}
       <Route path="/platform" component={CustomerPortal} />

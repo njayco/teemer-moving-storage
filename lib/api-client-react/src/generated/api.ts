@@ -20,6 +20,7 @@ import type {
   AdminStats,
   ContactFormRequest,
   ContactFormResponse,
+  CreateJobEventRequest,
   CreateJobRequest,
   CreateUserRequest,
   CurrentUserResponse,
@@ -28,12 +29,15 @@ import type {
   EstimateBoxesResponse,
   HealthStatus,
   Job,
+  JobStatusEvent,
   ListJobsParams,
   LoginRequest,
   LoginResponse,
   QuoteRequest,
   QuoteResponse,
   StripeCheckoutResponse,
+  TrackingLookupRequest,
+  TrackingResponse,
   UpdateJobStatusRequest,
   UpdateQuoteStatusRequest,
   UserListItem,
@@ -1714,6 +1718,361 @@ export function useGetEmailLogs<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get job timeline events (admin only)
+ */
+export const getGetJobEventsUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/events`;
+};
+
+export const getJobEvents = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<JobStatusEvent[]> => {
+  return customFetch<JobStatusEvent[]>(getGetJobEventsUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetJobEventsQueryKey = (jobId: string) => {
+  return [`/api/jobs/${jobId}/events`] as const;
+};
+
+export const getGetJobEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getJobEvents>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getJobEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetJobEventsQueryKey(jobId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobEvents>>> = ({
+    signal,
+  }) => getJobEvents(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getJobEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetJobEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getJobEvents>>
+>;
+export type GetJobEventsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get job timeline events (admin only)
+ */
+
+export function useGetJobEvents<
+  TData = Awaited<ReturnType<typeof getJobEvents>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getJobEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetJobEventsQueryOptions(jobId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a job timeline event (admin only)
+ */
+export const getCreateJobEventUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/events`;
+};
+
+export const createJobEvent = async (
+  jobId: string,
+  createJobEventRequest: CreateJobEventRequest,
+  options?: RequestInit,
+): Promise<JobStatusEvent> => {
+  return customFetch<JobStatusEvent>(getCreateJobEventUrl(jobId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createJobEventRequest),
+  });
+};
+
+export const getCreateJobEventMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createJobEvent>>,
+    TError,
+    { jobId: string; data: BodyType<CreateJobEventRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createJobEvent>>,
+  TError,
+  { jobId: string; data: BodyType<CreateJobEventRequest> },
+  TContext
+> => {
+  const mutationKey = ["createJobEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createJobEvent>>,
+    { jobId: string; data: BodyType<CreateJobEventRequest> }
+  > = (props) => {
+    const { jobId, data } = props ?? {};
+
+    return createJobEvent(jobId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateJobEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createJobEvent>>
+>;
+export type CreateJobEventMutationBody = BodyType<CreateJobEventRequest>;
+export type CreateJobEventMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a job timeline event (admin only)
+ */
+export const useCreateJobEvent = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createJobEvent>>,
+    TError,
+    { jobId: string; data: BodyType<CreateJobEventRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createJobEvent>>,
+  TError,
+  { jobId: string; data: BodyType<CreateJobEventRequest> },
+  TContext
+> => {
+  return useMutation(getCreateJobEventMutationOptions(options));
+};
+
+/**
+ * @summary Get job tracking data by token
+ */
+export const getGetTrackingByTokenUrl = (trackingToken: string) => {
+  return `/api/track/${trackingToken}`;
+};
+
+export const getTrackingByToken = async (
+  trackingToken: string,
+  options?: RequestInit,
+): Promise<TrackingResponse> => {
+  return customFetch<TrackingResponse>(
+    getGetTrackingByTokenUrl(trackingToken),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetTrackingByTokenQueryKey = (trackingToken: string) => {
+  return [`/api/track/${trackingToken}`] as const;
+};
+
+export const getGetTrackingByTokenQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTrackingByToken>>,
+  TError = ErrorType<void>,
+>(
+  trackingToken: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTrackingByToken>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTrackingByTokenQueryKey(trackingToken);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTrackingByToken>>
+  > = ({ signal }) =>
+    getTrackingByToken(trackingToken, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trackingToken,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTrackingByToken>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTrackingByTokenQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTrackingByToken>>
+>;
+export type GetTrackingByTokenQueryError = ErrorType<void>;
+
+/**
+ * @summary Get job tracking data by token
+ */
+
+export function useGetTrackingByToken<
+  TData = Awaited<ReturnType<typeof getTrackingByToken>>,
+  TError = ErrorType<void>,
+>(
+  trackingToken: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTrackingByToken>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTrackingByTokenQueryOptions(
+    trackingToken,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Look up job tracking by job ID and email
+ */
+export const getLookupTrackingUrl = () => {
+  return `/api/track/lookup`;
+};
+
+export const lookupTracking = async (
+  trackingLookupRequest: TrackingLookupRequest,
+  options?: RequestInit,
+): Promise<TrackingResponse> => {
+  return customFetch<TrackingResponse>(getLookupTrackingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(trackingLookupRequest),
+  });
+};
+
+export const getLookupTrackingMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lookupTracking>>,
+    TError,
+    { data: BodyType<TrackingLookupRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lookupTracking>>,
+  TError,
+  { data: BodyType<TrackingLookupRequest> },
+  TContext
+> => {
+  const mutationKey = ["lookupTracking"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lookupTracking>>,
+    { data: BodyType<TrackingLookupRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return lookupTracking(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LookupTrackingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof lookupTracking>>
+>;
+export type LookupTrackingMutationBody = BodyType<TrackingLookupRequest>;
+export type LookupTrackingMutationError = ErrorType<void>;
+
+/**
+ * @summary Look up job tracking by job ID and email
+ */
+export const useLookupTracking = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lookupTracking>>,
+    TError,
+    { data: BodyType<TrackingLookupRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof lookupTracking>>,
+  TError,
+  { data: BodyType<TrackingLookupRequest> },
+  TContext
+> => {
+  return useMutation(getLookupTrackingMutationOptions(options));
+};
 
 /**
  * Get stats for the admin dashboard

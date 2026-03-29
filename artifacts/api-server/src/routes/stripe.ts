@@ -7,6 +7,7 @@ import {
   sendDepositConfirmationEmail,
   sendAdminNewJobNotification,
 } from "../lib/email-service";
+import { recordTimelineEvent } from "../lib/timeline";
 
 const router: IRouter = Router();
 
@@ -76,6 +77,14 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
       }
 
       req.log.info({ quoteId, sessionId: session.id }, "Quote marked deposit_paid");
+
+      recordTimelineEvent({
+        jobId: parsedQuoteId,
+        eventType: "deposit_paid",
+        statusLabel: "Deposit Paid",
+        visibleToCustomer: true,
+        notes: `Deposit of $${(updatedQuote.depositAmount ?? 50).toFixed(2)} received via Stripe`,
+      }).catch(() => {});
 
       const baseUrl = getAppBaseUrl();
       const trackingUrl = `${baseUrl}/track/${trackingToken}`;
