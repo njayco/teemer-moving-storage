@@ -489,6 +489,13 @@ export interface TrackingLookupRequest {
   email: string;
 }
 
+export interface InvoiceLineItem {
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  total?: number;
+}
+
 export interface SaveInvoiceRequest {
   laborHours?: number;
   hourlyRate?: number;
@@ -500,6 +507,7 @@ export interface SaveInvoiceRequest {
   discounts?: number;
   dueDate?: string;
   notes?: string;
+  items?: InvoiceLineItem[];
 }
 
 export type InvoiceResponseEditableSnapshot = { [key: string]: unknown };

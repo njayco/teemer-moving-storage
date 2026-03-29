@@ -32,6 +32,7 @@ export * from "./getJobEventsParams";
 export * from "./getRevenueReportParams";
 export * from "./healthStatus";
 export * from "./inventoryMap";
+export * from "./invoiceLineItem";
 export * from "./invoiceResponse";
 export * from "./invoiceResponseEditableSnapshot";
 export * from "./job";

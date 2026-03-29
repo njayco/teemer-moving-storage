@@ -900,7 +900,8 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
               </button>
               <button
                 onClick={handleMarkComplete}
-                disabled={updating || job.status === "complete"}
+                disabled={updating || job.status === "complete" || ((job.remainingBalance ?? 0) > 0 && job.paymentStatus !== "paid" && job.paymentStatus !== "paid_cash")}
+                title={((job.remainingBalance ?? 0) > 0 && job.paymentStatus !== "paid" && job.paymentStatus !== "paid_cash") ? "Payment required before completing" : undefined}
                 className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50"
               >
                 <CheckCircle className="w-4 h-4 text-green-600" /> Mark Complete

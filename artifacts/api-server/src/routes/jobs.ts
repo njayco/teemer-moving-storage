@@ -717,8 +717,10 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       return res.status(502).json({ success: false, error: "Failed to send invoice email" });
     }
 
+    const newPaymentStatus = remainingBalance <= 0 ? "paid" : "invoiced";
     await db.update(jobsTable).set({
       invoiceStatus: "sent",
+      paymentStatus: newPaymentStatus,
       status: remainingBalance > 0 ? "awaiting_remaining_balance" : job.status,
       remainingBalance,
       updatedAt: now,

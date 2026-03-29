@@ -920,6 +920,16 @@ export const SaveInvoiceBody = zod.object({
   discounts: zod.number().optional(),
   dueDate: zod.string().optional(),
   notes: zod.string().optional(),
+  items: zod
+    .array(
+      zod.object({
+        description: zod.string().optional(),
+        quantity: zod.number().optional(),
+        unitPrice: zod.number().optional(),
+        total: zod.number().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const SaveInvoiceResponse = zod.object({

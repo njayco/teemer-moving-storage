@@ -1697,6 +1697,17 @@ components:
         - jobId
         - email
 
+    InvoiceLineItem:
+      type: object
+      properties:
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        total:
+          type: number
     SaveInvoiceRequest:
       type: object
       properties:
@@ -1720,6 +1731,10 @@ components:
           type: string
         notes:
           type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItem"
 
     InvoiceResponse:
       type: object
