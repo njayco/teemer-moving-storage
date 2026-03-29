@@ -451,12 +451,16 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
     }
 
     if (status === "complete") {
-      const bal = existing.remainingBalance ?? 0;
       const ps = paymentStatus ?? existing.paymentStatus;
-      if (bal > 0 && ps !== "paid_cash" && ps !== "paid") {
-        return res.status(400).json({
-          error: "Cannot mark complete: remaining balance must be $0 or payment must be marked as paid.",
-        });
+      if (ps !== "paid_cash" && ps !== "paid") {
+        const total = existing.finalTotal ?? existing.estimatedPayout ?? 0;
+        const { remainingBalance: actualOutstanding } = await computeTotalPaidAndRemaining(
+          existing.id, existing.depositPaid ?? 0, total);
+        if (actualOutstanding > 0) {
+          return res.status(400).json({
+            error: "Cannot mark complete: remaining balance must be $0 or payment must be marked as paid.",
+          });
+        }
       }
     }
 
@@ -698,17 +702,10 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
         depositApplied: job.depositPaid ?? 0,
         remainingBalanceDue: remainingBalance,
         dueDate: dueDateStr,
-        status: "sent",
-        sentAt: now,
+        status: "draft",
       });
     } else {
       invoiceNumber = existingInvoice.invoiceNumber;
-      await db.update(invoicesTable).set({
-        remainingBalanceDue: remainingBalance,
-        status: "sent",
-        sentAt: now,
-        updatedAt: now,
-      }).where(eq(invoicesTable.id, existingInvoice.id));
     }
 
     const baseUrl = process.env.APP_BASE_URL
@@ -737,6 +734,21 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
 
     if (!result.success) {
       return res.status(502).json({ success: false, error: "Failed to send invoice email" });
+    }
+
+    if (existingInvoice) {
+      await db.update(invoicesTable).set({
+        remainingBalanceDue: remainingBalance,
+        status: "sent",
+        sentAt: now,
+        updatedAt: now,
+      }).where(eq(invoicesTable.id, existingInvoice.id));
+    } else {
+      await db.update(invoicesTable).set({
+        status: "sent",
+        sentAt: now,
+        updatedAt: now,
+      }).where(and(eq(invoicesTable.jobId, job.id), eq(invoicesTable.invoiceNumber, invoiceNumber)));
     }
 
     const newPaymentStatus = remainingBalance <= 0 ? "paid" : "invoiced";
@@ -1233,10 +1245,14 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
     }
 
     if (status === "complete") {
-      const balance = job.remainingBalance ?? 0;
       const pStatus = job.paymentStatus ?? "";
-      if (balance > 0 && pStatus !== "paid" && pStatus !== "paid_cash") {
-        return res.status(400).json({ error: "Cannot mark complete — outstanding balance must be paid first." });
+      if (pStatus !== "paid" && pStatus !== "paid_cash") {
+        const total = job.finalTotal ?? job.estimatedPayout ?? 0;
+        const { remainingBalance: actualOutstanding } = await computeTotalPaidAndRemaining(
+          job.id, job.depositPaid ?? 0, total);
+        if (actualOutstanding > 0) {
+          return res.status(400).json({ error: "Cannot mark complete — outstanding balance must be paid first." });
+        }
       }
       updates.completedAt = new Date();
     }
