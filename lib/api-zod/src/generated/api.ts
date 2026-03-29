@@ -879,6 +879,122 @@ export const EmailJobCustomerResponse = zod.object({
 });
 
 /**
+ * @summary Get invoice for a job (admin only)
+ */
+export const GetInvoiceParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const GetInvoiceResponse = zod.object({
+  id: zod.number().optional(),
+  invoiceNumber: zod.string().optional(),
+  subtotal: zod.number().optional(),
+  extraCharges: zod.number().optional(),
+  discounts: zod.number().optional(),
+  finalTotal: zod.number().optional(),
+  depositApplied: zod.number().optional(),
+  remainingBalanceDue: zod.number().optional(),
+  dueDate: zod.string().nullish(),
+  status: zod.string().optional(),
+  editableSnapshot: zod.object({}).passthrough().optional(),
+  sentAt: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Save/update invoice for a job (admin only)
+ */
+export const SaveInvoiceParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const SaveInvoiceBody = zod.object({
+  laborHours: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  travelFee: zod.number().optional(),
+  stairFee: zod.number().optional(),
+  storageFee: zod.number().optional(),
+  packingFee: zod.number().optional(),
+  extraCharges: zod.number().optional(),
+  discounts: zod.number().optional(),
+  dueDate: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const SaveInvoiceResponse = zod.object({
+  id: zod.number().optional(),
+  invoiceNumber: zod.string().optional(),
+  subtotal: zod.number().optional(),
+  extraCharges: zod.number().optional(),
+  discounts: zod.number().optional(),
+  finalTotal: zod.number().optional(),
+  depositApplied: zod.number().optional(),
+  remainingBalanceDue: zod.number().optional(),
+  dueDate: zod.string().nullish(),
+  status: zod.string().optional(),
+  editableSnapshot: zod.object({}).passthrough().optional(),
+  sentAt: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Get revenue report with filters (admin only)
+ */
+export const GetRevenueReportQueryParams = zod.object({
+  from: zod.coerce.string().optional(),
+  to: zod.coerce.string().optional(),
+  method: zod.coerce.string().optional(),
+  status: zod.coerce.string().optional(),
+});
+
+export const GetRevenueReportResponse = zod.object({
+  summary: zod
+    .object({
+      totalRevenue: zod.number().optional(),
+      cashRevenue: zod.number().optional(),
+      cardRevenue: zod.number().optional(),
+      depositRevenue: zod.number().optional(),
+      balanceRevenue: zod.number().optional(),
+      transactionCount: zod.number().optional(),
+    })
+    .optional(),
+  monthlyData: zod
+    .array(
+      zod.object({
+        month: zod.string().optional(),
+        total: zod.number().optional(),
+      }),
+    )
+    .optional(),
+  entries: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        jobId: zod.string().optional(),
+        customer: zod.string().optional(),
+        type: zod.string().optional(),
+        method: zod.string().nullish(),
+        amount: zod.number().optional(),
+        paidAt: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        jobStatus: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Export revenue data as CSV (admin only)
+ */
+export const ExportRevenueCsvQueryParams = zod.object({
+  from: zod.coerce.string().optional(),
+  to: zod.coerce.string().optional(),
+  method: zod.coerce.string().optional(),
+});
+
+/**
  * @summary Get job tracking data by ID and token
  */
 export const GetTrackingByTokenParams = zod.object({

@@ -24,6 +24,7 @@ import CustomerPortal from "@/pages/platform/customer";
 import ProviderPortal from "@/pages/platform/provider";
 import AdminDashboard from "@/pages/admin/dashboard";
 import CaptainDashboard from "@/pages/admin/captain-dashboard";
+import RevenuePage from "@/pages/admin/revenue";
 import AdminLoginPage from "@/pages/admin/login";
 import AdminAuthGuard from "@/pages/admin/auth-guard";
 import CaptainAuthGuard from "@/pages/admin/captain-auth-guard";
@@ -43,6 +44,14 @@ function ProtectedCaptain() {
     <CaptainAuthGuard>
       <CaptainDashboard />
     </CaptainAuthGuard>
+  );
+}
+
+function ProtectedRevenue() {
+  return (
+    <AdminAuthGuard>
+      <RevenuePage />
+    </AdminAuthGuard>
   );
 }
 
@@ -76,6 +85,7 @@ function Router() {
       {/* Admin */}
       <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin/captain" component={ProtectedCaptain} />
+      <Route path="/admin/revenue" component={ProtectedRevenue} />
       <Route path="/admin" component={ProtectedAdmin} />
 
       {/* 404 */}

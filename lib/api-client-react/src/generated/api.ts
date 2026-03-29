@@ -32,8 +32,11 @@ import type {
   EmailLog,
   EstimateBoxesRequest,
   EstimateBoxesResponse,
+  ExportRevenueCsvParams,
   GetJobEventsParams,
+  GetRevenueReportParams,
   HealthStatus,
+  InvoiceResponse,
   Job,
   JobStatusEvent,
   ListJobsParams,
@@ -41,6 +44,8 @@ import type {
   LoginResponse,
   QuoteRequest,
   QuoteResponse,
+  RevenueReportResponse,
+  SaveInvoiceRequest,
   SendJobInvoice200,
   StripeCheckoutResponse,
   TrackingLookupRequest,
@@ -2092,6 +2097,374 @@ export const useEmailJobCustomer = <
 > => {
   return useMutation(getEmailJobCustomerMutationOptions(options));
 };
+
+/**
+ * @summary Get invoice for a job (admin only)
+ */
+export const getGetInvoiceUrl = (jobId: string) => {
+  return `/api/invoices/${jobId}`;
+};
+
+export const getInvoice = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<InvoiceResponse> => {
+  return customFetch<InvoiceResponse>(getGetInvoiceUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetInvoiceQueryKey = (jobId: string) => {
+  return [`/api/invoices/${jobId}`] as const;
+};
+
+export const getGetInvoiceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInvoice>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoice>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetInvoiceQueryKey(jobId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvoice>>> = ({
+    signal,
+  }) => getInvoice(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInvoice>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInvoiceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInvoice>>
+>;
+export type GetInvoiceQueryError = ErrorType<void>;
+
+/**
+ * @summary Get invoice for a job (admin only)
+ */
+
+export function useGetInvoice<
+  TData = Awaited<ReturnType<typeof getInvoice>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoice>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInvoiceQueryOptions(jobId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save/update invoice for a job (admin only)
+ */
+export const getSaveInvoiceUrl = (jobId: string) => {
+  return `/api/invoices/${jobId}`;
+};
+
+export const saveInvoice = async (
+  jobId: string,
+  saveInvoiceRequest: SaveInvoiceRequest,
+  options?: RequestInit,
+): Promise<InvoiceResponse> => {
+  return customFetch<InvoiceResponse>(getSaveInvoiceUrl(jobId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saveInvoiceRequest),
+  });
+};
+
+export const getSaveInvoiceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveInvoice>>,
+    TError,
+    { jobId: string; data: BodyType<SaveInvoiceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveInvoice>>,
+  TError,
+  { jobId: string; data: BodyType<SaveInvoiceRequest> },
+  TContext
+> => {
+  const mutationKey = ["saveInvoice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveInvoice>>,
+    { jobId: string; data: BodyType<SaveInvoiceRequest> }
+  > = (props) => {
+    const { jobId, data } = props ?? {};
+
+    return saveInvoice(jobId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveInvoiceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveInvoice>>
+>;
+export type SaveInvoiceMutationBody = BodyType<SaveInvoiceRequest>;
+export type SaveInvoiceMutationError = ErrorType<void>;
+
+/**
+ * @summary Save/update invoice for a job (admin only)
+ */
+export const useSaveInvoice = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveInvoice>>,
+    TError,
+    { jobId: string; data: BodyType<SaveInvoiceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveInvoice>>,
+  TError,
+  { jobId: string; data: BodyType<SaveInvoiceRequest> },
+  TContext
+> => {
+  return useMutation(getSaveInvoiceMutationOptions(options));
+};
+
+/**
+ * @summary Get revenue report with filters (admin only)
+ */
+export const getGetRevenueReportUrl = (params?: GetRevenueReportParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/revenue?${stringifiedParams}`
+    : `/api/admin/revenue`;
+};
+
+export const getRevenueReport = async (
+  params?: GetRevenueReportParams,
+  options?: RequestInit,
+): Promise<RevenueReportResponse> => {
+  return customFetch<RevenueReportResponse>(getGetRevenueReportUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRevenueReportQueryKey = (
+  params?: GetRevenueReportParams,
+) => {
+  return [`/api/admin/revenue`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRevenueReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRevenueReport>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRevenueReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRevenueReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRevenueReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRevenueReport>>
+  > = ({ signal }) => getRevenueReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRevenueReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRevenueReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRevenueReport>>
+>;
+export type GetRevenueReportQueryError = ErrorType<void>;
+
+/**
+ * @summary Get revenue report with filters (admin only)
+ */
+
+export function useGetRevenueReport<
+  TData = Awaited<ReturnType<typeof getRevenueReport>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRevenueReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRevenueReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRevenueReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Export revenue data as CSV (admin only)
+ */
+export const getExportRevenueCsvUrl = (params?: ExportRevenueCsvParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/revenue/export?${stringifiedParams}`
+    : `/api/admin/revenue/export`;
+};
+
+export const exportRevenueCsv = async (
+  params?: ExportRevenueCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportRevenueCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportRevenueCsvQueryKey = (
+  params?: ExportRevenueCsvParams,
+) => {
+  return [`/api/admin/revenue/export`, ...(params ? [params] : [])] as const;
+};
+
+export const getExportRevenueCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportRevenueCsv>>,
+  TError = ErrorType<void>,
+>(
+  params?: ExportRevenueCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportRevenueCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportRevenueCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportRevenueCsv>>
+  > = ({ signal }) => exportRevenueCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportRevenueCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportRevenueCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportRevenueCsv>>
+>;
+export type ExportRevenueCsvQueryError = ErrorType<void>;
+
+/**
+ * @summary Export revenue data as CSV (admin only)
+ */
+
+export function useExportRevenueCsv<
+  TData = Awaited<ReturnType<typeof exportRevenueCsv>>,
+  TError = ErrorType<void>,
+>(
+  params?: ExportRevenueCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportRevenueCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportRevenueCsvQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get job tracking data by ID and token

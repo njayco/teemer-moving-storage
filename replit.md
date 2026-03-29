@@ -75,7 +75,13 @@ A full-featured moving company web app with two distinct experiences:
   - **Dashboard tab**: Overview stat cards (Total Jobs, Pending Jobs, In Progress, Completed, Total Quotes, Deposits Collected, Remaining Balances, Cash Payments, Total Revenue), Quick Actions, Revenue Pipeline
   - **Quotes tab**: Full quotes table with expand/collapse details, inline status change
   - **All Jobs tab**: Filterable (all 10 statuses), searchable (name/jobId/phone/email/invoice), full jobs table with Invoice column, slide-out detail panel
-  - **Job Detail Panel**: Full job info, StatusTimeline, email log, payment history, admin actions (Assign Captain, status dropdown, Mark Paid Cash, Mark Complete, Send Invoice, Email Customer)
+  - **Job Detail Panel**: Full job info, StatusTimeline, email log, payment history, admin actions (Assign Captain, status dropdown, Mark Paid Cash, Mark Complete, Send Invoice, Email Customer, Edit Invoice)
+  - **Invoice Editor Modal**: Editable line items (labor hours, hourly rate, travel/stair/storage/packing fees, extra charges, discounts), auto-calculates subtotal/final/remaining balance, saves to invoices table
+- `/admin/revenue` — Revenue & Payments Report (protected, admin role only)
+  - Summary stat cards (Total Revenue, Cash, Card/Stripe, Deposits, Balance Payments, Transactions)
+  - Monthly revenue bar chart
+  - Filterable payment transactions table (date range, payment method)
+  - CSV export with formula injection protection
 - `/admin/captain` — Captain Dashboard (protected, captain or admin role)
   - **Mobile-optimized** layout (max-w-lg, large touch targets)
   - **Stat cards**: Active, Upcoming, Completed job counts
@@ -137,6 +143,15 @@ A full-featured moving company web app with two distinct experiences:
 - `POST /api/jobs/:jobId/captain-note` — Captain adds timestamped operational note (captain or admin)
 - `GET /api/admin/stats` — Admin dashboard stats
 - `GET /api/admin/email-logs/:jobId` — Email send history per job (admin only)
+- `GET /api/invoices/:jobId` — Get invoice for a job (admin only)
+- `PATCH /api/invoices/:jobId` — Save/update invoice for a job (admin only, auto-calculates totals, saves to invoices table + updates job)
+- `GET /api/admin/revenue` — Revenue report with filters (from/to dates, method, status) + summary + monthly chart data
+- `GET /api/admin/revenue/export` — CSV export of payment transactions with filters
+
+### Business Rules
+- **Mark Complete**: Job cannot be marked complete unless remaining balance is $0 or payment status is paid/paid_cash (enforced server-side)
+- **Mark Paid (Cash)**: Creates payment record + revenue_ledger entry atomically
+- **Invoice Save**: Auto-calculates subtotal from line items, computes remaining balance accounting for all prior payments
 
 ### Email System (Resend)
 - **Service**: `artifacts/api-server/src/lib/email-service.ts` — centralized send functions

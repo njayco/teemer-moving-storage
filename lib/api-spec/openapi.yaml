@@ -520,6 +520,113 @@ paths:
           description: Admin access required
         "404":
           description: Job not found
+  /invoices/{jobId}:
+    get:
+      operationId: getInvoice
+      tags: [admin]
+      summary: Get invoice for a job (admin only)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice data (or null if none)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "403":
+          description: Admin access required
+        "404":
+          description: Job not found
+    patch:
+      operationId: saveInvoice
+      tags: [admin]
+      summary: Save/update invoice for a job (admin only)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveInvoiceRequest"
+      responses:
+        "200":
+          description: Invoice saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "403":
+          description: Admin access required
+        "404":
+          description: Job not found
+  /admin/revenue:
+    get:
+      operationId: getRevenueReport
+      tags: [admin]
+      summary: Get revenue report with filters (admin only)
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: method
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Revenue report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevenueReportResponse"
+        "403":
+          description: Admin access required
+  /admin/revenue/export:
+    get:
+      operationId: exportRevenueCsv
+      tags: [admin]
+      summary: Export revenue data as CSV (admin only)
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: method
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+        "403":
+          description: Admin access required
   /track/{id}/{trackingToken}:
     get:
       operationId: getTrackingByToken
@@ -1585,3 +1692,127 @@ components:
       required:
         - jobId
         - email
+
+    SaveInvoiceRequest:
+      type: object
+      properties:
+        laborHours:
+          type: number
+        hourlyRate:
+          type: number
+        travelFee:
+          type: number
+        stairFee:
+          type: number
+        storageFee:
+          type: number
+        packingFee:
+          type: number
+        extraCharges:
+          type: number
+        discounts:
+          type: number
+        dueDate:
+          type: string
+        notes:
+          type: string
+
+    InvoiceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceNumber:
+          type: string
+        subtotal:
+          type: number
+        extraCharges:
+          type: number
+        discounts:
+          type: number
+        finalTotal:
+          type: number
+        depositApplied:
+          type: number
+        remainingBalanceDue:
+          type: number
+        dueDate:
+          type: string
+          nullable: true
+        status:
+          type: string
+        editableSnapshot:
+          type: object
+        sentAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+
+    RevenueSummary:
+      type: object
+      properties:
+        totalRevenue:
+          type: number
+        cashRevenue:
+          type: number
+        cardRevenue:
+          type: number
+        depositRevenue:
+          type: number
+        balanceRevenue:
+          type: number
+        transactionCount:
+          type: integer
+
+    RevenueEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: string
+        customer:
+          type: string
+        type:
+          type: string
+        method:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        paidAt:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        jobStatus:
+          type: string
+          nullable: true
+
+    MonthlyRevenueData:
+      type: object
+      properties:
+        month:
+          type: string
+        total:
+          type: number
+
+    RevenueReportResponse:
+      type: object
+      properties:
+        summary:
+          $ref: "#/components/schemas/RevenueSummary"
+        monthlyData:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyRevenueData"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueEntry"

@@ -9,10 +9,11 @@ import {
   usersTable,
   invoicesTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, sum, sql, or, ilike, and, isNotNull } from "drizzle-orm";
+import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte } from "drizzle-orm";
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
+import { revenueLedgerTable } from "@workspace/db/schema";
 
 const CAPTAIN_STATUSES = [
   "scheduled", "en_route", "arrived", "in_progress",
@@ -402,6 +403,16 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       updates.completedAt = new Date();
     }
 
+    if (status === "complete") {
+      const bal = existing.remainingBalance ?? 0;
+      const ps = paymentStatus ?? existing.paymentStatus;
+      if (bal > 0 && ps !== "paid_cash" && ps !== "paid") {
+        return res.status(400).json({
+          error: "Cannot mark complete: remaining balance must be $0 or payment must be marked as paid.",
+        });
+      }
+    }
+
     let cashAmount = 0;
     if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
       cashAmount = existing.remainingBalance != null && existing.remainingBalance > 0
@@ -458,7 +469,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         createdByUserId: req.user?.userId ?? undefined,
       }).catch(() => {});
 
-      db.insert(paymentsTable)
+      const [payment] = await db.insert(paymentsTable)
         .values({
           jobId: updated.id,
           type: "remaining_balance",
@@ -466,7 +477,16 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
           amount: cashAmount,
           notes: "Marked as paid in cash by admin",
         })
-        .catch(() => {});
+        .returning();
+
+      if (payment) {
+        await db.insert(revenueLedgerTable).values({
+          jobId: updated.id,
+          paymentId: payment.id,
+          category: "cash_payment",
+          amount: cashAmount,
+        });
+      }
     }
 
     res.json(formatJobRow(updated));
@@ -748,6 +768,282 @@ router.get("/admin/stats", requireAdmin, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get admin stats");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const [job] = await db.select().from(jobsTable)
+      .where(sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`)
+      .limit(1);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    const {
+      laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
+      extraCharges, discounts, dueDate, notes: invoiceNotes,
+    } = req.body;
+
+    const subtotal = ((laborHours ?? job.estimatedHours ?? 0) * (hourlyRate ?? job.hourlyRate ?? 0))
+      + (travelFee ?? 0) + (stairFee ?? 0) + (storageFee ?? 0) + (packingFee ?? 0);
+    const extras = extraCharges ?? job.extraCharges ?? 0;
+    const disc = discounts ?? job.discounts ?? 0;
+    const finalTotal = subtotal + extras - disc;
+    const depositApplied = job.depositPaid ?? 0;
+
+    const existingPayments = await db.select({ total: sum(paymentsTable.amount) })
+      .from(paymentsTable).where(eq(paymentsTable.jobId, job.id));
+    const totalPaid = Number(existingPayments[0]?.total ?? 0);
+    const remainingBalanceDue = Math.max(0, finalTotal - totalPaid);
+
+    const snapshot = {
+      laborHours: laborHours ?? job.estimatedHours ?? 0,
+      hourlyRate: hourlyRate ?? job.hourlyRate ?? 0,
+      travelFee: travelFee ?? 0,
+      stairFee: stairFee ?? 0,
+      storageFee: storageFee ?? 0,
+      packingFee: packingFee ?? 0,
+      notes: invoiceNotes ?? "",
+    };
+
+    const [existing] = await db.select().from(invoicesTable)
+      .where(eq(invoicesTable.jobId, job.id)).limit(1);
+
+    let invoice;
+    if (existing) {
+      [invoice] = await db.update(invoicesTable).set({
+        subtotal, extraCharges: extras, discounts: disc, finalTotal,
+        depositApplied, remainingBalanceDue, dueDate: dueDate ?? existing.dueDate,
+        editableSnapshotJson: snapshot, updatedAt: new Date(),
+      }).where(eq(invoicesTable.id, existing.id)).returning();
+    } else {
+      const invoiceNumber = `INV-${job.jobId || job.id}-${Date.now().toString(36).toUpperCase()}`;
+      [invoice] = await db.insert(invoicesTable).values({
+        jobId: job.id, invoiceNumber, subtotal, extraCharges: extras,
+        discounts: disc, finalTotal, depositApplied, remainingBalanceDue,
+        dueDate: dueDate ?? null, status: "draft", editableSnapshotJson: snapshot,
+      }).returning();
+    }
+
+    await db.update(jobsTable).set({
+      extraCharges: extras, discounts: disc, finalTotal,
+      remainingBalance: remainingBalanceDue, updatedAt: new Date(),
+    }).where(eq(jobsTable.id, job.id));
+
+    res.json({
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      subtotal: invoice.subtotal,
+      extraCharges: invoice.extraCharges,
+      discounts: invoice.discounts,
+      finalTotal: invoice.finalTotal,
+      depositApplied: invoice.depositApplied,
+      remainingBalanceDue: invoice.remainingBalanceDue,
+      dueDate: invoice.dueDate,
+      status: invoice.status,
+      editableSnapshot: invoice.editableSnapshotJson,
+      createdAt: invoice.createdAt?.toISOString() ?? null,
+      updatedAt: invoice.updatedAt?.toISOString() ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to save invoice");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/invoices/:jobId", requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const [job] = await db.select({ id: jobsTable.id }).from(jobsTable)
+      .where(sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`)
+      .limit(1);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    const [invoice] = await db.select().from(invoicesTable)
+      .where(eq(invoicesTable.jobId, job.id)).limit(1);
+
+    if (!invoice) {
+      return res.json({
+        id: 0, invoiceNumber: "", subtotal: 0, extraCharges: 0, discounts: 0,
+        finalTotal: 0, depositApplied: 0, remainingBalanceDue: 0,
+        dueDate: null, status: "none", editableSnapshot: null,
+        sentAt: null, createdAt: null, updatedAt: null,
+      });
+    }
+
+    res.json({
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      subtotal: invoice.subtotal,
+      extraCharges: invoice.extraCharges,
+      discounts: invoice.discounts,
+      finalTotal: invoice.finalTotal,
+      depositApplied: invoice.depositApplied,
+      remainingBalanceDue: invoice.remainingBalanceDue,
+      dueDate: invoice.dueDate,
+      status: invoice.status,
+      editableSnapshot: invoice.editableSnapshotJson,
+      sentAt: invoice.sentAt?.toISOString() ?? null,
+      createdAt: invoice.createdAt?.toISOString() ?? null,
+      updatedAt: invoice.updatedAt?.toISOString() ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get invoice");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/admin/revenue", requireAdmin, async (req, res) => {
+  try {
+    const { from, to, method, status: jobStatus } = req.query;
+    const conditions = [];
+
+    if (from) {
+      conditions.push(gte(paymentsTable.paidAt, new Date(String(from))));
+    }
+    if (to) {
+      const endDate = new Date(String(to));
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(paymentsTable.paidAt, endDate));
+    }
+    if (method) {
+      conditions.push(eq(paymentsTable.method, String(method)));
+    }
+
+    let jobConditions: any[] = [];
+    if (jobStatus) {
+      jobConditions.push(eq(jobsTable.status, String(jobStatus)));
+    }
+
+    const payments = await db
+      .select({
+        paymentId: paymentsTable.id,
+        jobId: paymentsTable.jobId,
+        type: paymentsTable.type,
+        method: paymentsTable.method,
+        amount: paymentsTable.amount,
+        paidAt: paymentsTable.paidAt,
+        notes: paymentsTable.notes,
+        jobJobId: jobsTable.jobId,
+        customer: jobsTable.customer,
+        jobStatus: jobsTable.status,
+      })
+      .from(paymentsTable)
+      .leftJoin(jobsTable, eq(paymentsTable.jobId, jobsTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(paymentsTable.paidAt));
+
+    let filteredPayments = payments;
+    if (jobStatus) {
+      filteredPayments = payments.filter(p => p.jobStatus === String(jobStatus));
+    }
+
+    const totalRevenue = filteredPayments.reduce((s, p) => s + (p.amount ?? 0), 0);
+    const cashRevenue = filteredPayments.filter(p => p.method === "cash").reduce((s, p) => s + (p.amount ?? 0), 0);
+    const cardRevenue = filteredPayments.filter(p => p.method === "credit_card" || p.method === "stripe").reduce((s, p) => s + (p.amount ?? 0), 0);
+    const depositRevenue = filteredPayments.filter(p => p.type === "deposit").reduce((s, p) => s + (p.amount ?? 0), 0);
+    const balanceRevenue = filteredPayments.filter(p => p.type === "remaining_balance").reduce((s, p) => s + (p.amount ?? 0), 0);
+
+    const monthlyMap: Record<string, number> = {};
+    for (const p of filteredPayments) {
+      if (p.paidAt) {
+        const key = new Date(p.paidAt).toISOString().slice(0, 7);
+        monthlyMap[key] = (monthlyMap[key] ?? 0) + (p.amount ?? 0);
+      }
+    }
+    const monthlyData = Object.entries(monthlyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, total]) => ({ month, total }));
+
+    res.json({
+      summary: {
+        totalRevenue,
+        cashRevenue,
+        cardRevenue,
+        depositRevenue,
+        balanceRevenue,
+        transactionCount: filteredPayments.length,
+      },
+      monthlyData,
+      entries: filteredPayments.map(p => ({
+        id: p.paymentId,
+        jobId: p.jobJobId ?? p.jobId,
+        customer: p.customer ?? "Unknown",
+        type: p.type,
+        method: p.method,
+        amount: p.amount,
+        paidAt: p.paidAt ? new Date(p.paidAt).toISOString() : null,
+        notes: p.notes,
+        jobStatus: p.jobStatus,
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get revenue data");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/admin/revenue/export", requireAdmin, async (req, res) => {
+  try {
+    const { from, to, method, status: jobStatusFilter } = req.query;
+    const conditions = [];
+    if (from) conditions.push(gte(paymentsTable.paidAt, new Date(String(from))));
+    if (to) {
+      const endDate = new Date(String(to));
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(paymentsTable.paidAt, endDate));
+    }
+    if (method) conditions.push(eq(paymentsTable.method, String(method)));
+
+    const payments = await db
+      .select({
+        paymentId: paymentsTable.id,
+        type: paymentsTable.type,
+        method: paymentsTable.method,
+        amount: paymentsTable.amount,
+        paidAt: paymentsTable.paidAt,
+        notes: paymentsTable.notes,
+        jobJobId: jobsTable.jobId,
+        customer: jobsTable.customer,
+        jobStatus: jobsTable.status,
+      })
+      .from(paymentsTable)
+      .leftJoin(jobsTable, eq(paymentsTable.jobId, jobsTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(paymentsTable.paidAt));
+
+    let filteredPayments = payments;
+    if (jobStatusFilter) {
+      filteredPayments = payments.filter(p => p.jobStatus === String(jobStatusFilter));
+    }
+
+    const sanitizeCsv = (val: string) => {
+      let s = val.replace(/"/g, '""');
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return `"${s}"`;
+    };
+
+    const header = "Payment ID,Job ID,Customer,Type,Method,Amount,Date,Status,Notes\n";
+    const rows = filteredPayments.map(p =>
+      [
+        p.paymentId,
+        p.jobJobId ?? "",
+        sanitizeCsv(p.customer ?? ""),
+        p.type,
+        p.method ?? "",
+        (p.amount ?? 0).toFixed(2),
+        p.paidAt ? new Date(p.paidAt).toISOString().slice(0, 10) : "",
+        p.jobStatus ?? "",
+        sanitizeCsv(p.notes ?? ""),
+      ].join(",")
+    ).join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename=teemer-revenue-${new Date().toISOString().slice(0, 10)}.csv`);
+    res.send(header + rows);
+  } catch (err) {
+    req.log.error({ err }, "Failed to export revenue CSV");
     res.status(500).json({ error: "Internal server error" });
   }
 });

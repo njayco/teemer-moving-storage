@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { Link } from "wouter";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import {
   useGetAdminStats,
   useListJobs,
@@ -43,6 +43,8 @@ import {
   Ban,
   Send,
   Receipt,
+  TrendingUp,
+  Edit3,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusTimeline } from "@/components/StatusTimeline";
@@ -140,6 +142,206 @@ function InvoiceBadge({ status }: { status: string }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.bg} ${cfg.text}`}>
       {cfg.label}
     </span>
+  );
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+
+function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
+  jobId: string;
+  job: any;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [laborHours, setLaborHours] = useState(0);
+  const [hourlyRate, setHourlyRate] = useState(0);
+  const [travelFee, setTravelFee] = useState(0);
+  const [stairFee, setStairFee] = useState(0);
+  const [storageFee, setStorageFee] = useState(0);
+  const [packingFee, setPackingFee] = useState(0);
+  const [extraCharges, setExtraCharges] = useState(0);
+  const [discounts, setDiscounts] = useState(0);
+  const [dueDate, setDueDate] = useState("");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/invoices/${jobId}`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.editableSnapshot) {
+            const snap = data.editableSnapshot;
+            setLaborHours(snap.laborHours ?? 0);
+            setHourlyRate(snap.hourlyRate ?? 0);
+            setTravelFee(snap.travelFee ?? 0);
+            setStairFee(snap.stairFee ?? 0);
+            setStorageFee(snap.storageFee ?? 0);
+            setPackingFee(snap.packingFee ?? 0);
+            setExtraCharges(data.extraCharges ?? 0);
+            setDiscounts(data.discounts ?? 0);
+            setDueDate(data.dueDate ?? "");
+            setNotes(snap.notes ?? "");
+          } else {
+            setLaborHours(job?.estimatedHours ?? job?.quoteData?.estimatedHours ?? 0);
+            setHourlyRate(job?.hourlyRate ?? job?.quoteData?.hourlyRate ?? 0);
+            setExtraCharges(job?.extraCharges ?? 0);
+            setDiscounts(job?.discounts ?? 0);
+          }
+        }
+      } catch (_e) {
+        setLaborHours(job?.estimatedHours ?? 0);
+        setHourlyRate(job?.hourlyRate ?? 0);
+      }
+      setLoading(false);
+    })();
+  }, [jobId, job]);
+
+  const subtotal = (laborHours * hourlyRate) + travelFee + stairFee + storageFee + packingFee;
+  const finalTotal = subtotal + extraCharges - discounts;
+  const depositPaid = job?.depositPaid ?? 0;
+  const remainingBalance = Math.max(0, finalTotal - depositPaid);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${jobId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
+          extraCharges, discounts, dueDate: dueDate || undefined, notes,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to save invoice");
+      } else {
+        onSaved();
+        onClose();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="font-bold text-lg text-secondary">Edit Invoice</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Labor Hours</label>
+              <input type="number" step="0.5" value={laborHours} onChange={(e) => setLaborHours(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Hourly Rate ($)</label>
+              <input type="number" step="1" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Travel Fee ($)</label>
+              <input type="number" step="1" value={travelFee} onChange={(e) => setTravelFee(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Stair Fee ($)</label>
+              <input type="number" step="1" value={stairFee} onChange={(e) => setStairFee(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Storage Fee ($)</label>
+              <input type="number" step="1" value={storageFee} onChange={(e) => setStorageFee(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Packing Fee ($)</label>
+              <input type="number" step="1" value={packingFee} onChange={(e) => setPackingFee(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Extra Charges ($)</label>
+              <input type="number" step="1" value={extraCharges} onChange={(e) => setExtraCharges(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Discounts ($)</label>
+              <input type="number" step="1" value={discounts} onChange={(e) => setDiscounts(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Due Date</label>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none" />
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Subtotal (labor + fees)</span>
+              <span className="font-medium">${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">+ Extra Charges</span>
+              <span className="font-medium">${extraCharges.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">- Discounts</span>
+              <span className="font-medium text-red-500">-${discounts.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-slate-700 font-bold">Final Total</span>
+              <span className="font-bold text-secondary">${finalTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Deposit Applied</span>
+              <span className="font-medium text-primary">-${depositPaid.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-slate-700 font-bold">Remaining Balance</span>
+              <span className="font-bold text-amber-600">${remainingBalance.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
+              Save Invoice
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -422,6 +624,7 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
   const { mutateAsync: updateJob } = useUpdateJobStatus();
   const qc = useQueryClient();
   const [showCaptainModal, setShowCaptainModal] = useState(false);
+  const [showInvoiceEditor, setShowInvoiceEditor] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   const handleStatusChange = async (status: string) => {
@@ -467,12 +670,20 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
   };
 
   const handleMarkComplete = async () => {
+    const bal = job?.remainingBalance ?? 0;
+    const ps = job?.paymentStatus;
+    if (bal > 0 && ps !== "paid_cash" && ps !== "paid") {
+      alert("Cannot mark complete: remaining balance must be $0 or payment must be marked as paid.");
+      return;
+    }
     setUpdating(true);
     try {
       await updateJob({ jobId: job?.jobId || jobId, data: { status: "complete" } });
       await refetch();
       qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } catch (err: any) {
+      alert(err?.message || "Failed to mark complete");
     } finally {
       setUpdating(false);
     }
@@ -636,6 +847,13 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
               >
                 <Send className="w-4 h-4 text-indigo-500" /> Email Customer
               </button>
+              <button
+                onClick={() => setShowInvoiceEditor(true)}
+                disabled={updating}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50"
+              >
+                <Edit3 className="w-4 h-4 text-amber-500" /> Edit Invoice
+              </button>
               <select
                 value={job.status || "pending"}
                 disabled={updating}
@@ -712,6 +930,19 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
           currentCaptainId={job.assignedCaptainId}
           onClose={() => setShowCaptainModal(false)}
           onAssign={handleAssignCaptain}
+        />
+      )}
+
+      {showInvoiceEditor && (
+        <InvoiceEditorModal
+          jobId={job.jobId || jobId}
+          job={job}
+          onClose={() => setShowInvoiceEditor(false)}
+          onSaved={() => {
+            refetch();
+            qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+            qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+          }}
         />
       )}
     </div>
@@ -878,6 +1109,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs">("dashboard");
   const { user, logout } = useAuth();
 
+  const [, setLocation] = useLocation();
+
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", tab: "dashboard" as const },
     { icon: FileText, label: "Quotes", tab: "quotes" as const },
@@ -910,6 +1143,15 @@ export default function AdminDashboard() {
                 )}
               </button>
             ))}
+            <div className="border-t border-white/10 mt-2 pt-2">
+              <button
+                onClick={() => setLocation("/admin/revenue")}
+                className="w-full flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <TrendingUp className="w-4 h-4 mr-3" />
+                Revenue Report
+              </button>
+            </div>
           </nav>
         </div>
         <div className="p-4 border-t border-white/10">

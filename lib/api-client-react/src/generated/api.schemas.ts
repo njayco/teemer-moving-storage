@@ -489,6 +489,70 @@ export interface TrackingLookupRequest {
   email: string;
 }
 
+export interface SaveInvoiceRequest {
+  laborHours?: number;
+  hourlyRate?: number;
+  travelFee?: number;
+  stairFee?: number;
+  storageFee?: number;
+  packingFee?: number;
+  extraCharges?: number;
+  discounts?: number;
+  dueDate?: string;
+  notes?: string;
+}
+
+export type InvoiceResponseEditableSnapshot = { [key: string]: unknown };
+
+export interface InvoiceResponse {
+  id?: number;
+  invoiceNumber?: string;
+  subtotal?: number;
+  extraCharges?: number;
+  discounts?: number;
+  finalTotal?: number;
+  depositApplied?: number;
+  remainingBalanceDue?: number;
+  dueDate?: string | null;
+  status?: string;
+  editableSnapshot?: InvoiceResponseEditableSnapshot;
+  sentAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface RevenueSummary {
+  totalRevenue?: number;
+  cashRevenue?: number;
+  cardRevenue?: number;
+  depositRevenue?: number;
+  balanceRevenue?: number;
+  transactionCount?: number;
+}
+
+export interface RevenueEntry {
+  id?: number;
+  jobId?: string;
+  customer?: string;
+  type?: string;
+  method?: string | null;
+  amount?: number;
+  paidAt?: string | null;
+  notes?: string | null;
+  jobStatus?: string | null;
+}
+
+export interface MonthlyRevenueData {
+  month?: string;
+  total?: number;
+}
+
+export interface RevenueReportResponse {
+  summary?: RevenueSummary;
+  monthlyData?: MonthlyRevenueData[];
+  entries?: RevenueEntry[];
+}
+
 export type ListJobsParams = {
   /**
    * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
@@ -517,6 +581,19 @@ export type EmailJobCustomerBody = {
 export type EmailJobCustomer200 = {
   success?: boolean;
   message?: string;
+};
+
+export type GetRevenueReportParams = {
+  from?: string;
+  to?: string;
+  method?: string;
+  status?: string;
+};
+
+export type ExportRevenueCsvParams = {
+  from?: string;
+  to?: string;
+  method?: string;
 };
 
 export type AddCaptainNoteBody = {
