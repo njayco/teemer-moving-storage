@@ -28,58 +28,44 @@ export interface PricingResult {
   };
 }
 
-// Crew configuration: { bedrooms, livingRooms } → { movers, rate, baseHours }
-// Rules per business spec:
-//   1 bed + 1 living  → 2 movers, $165/hr, 5 hrs
-//   2 bed + 1 living  → 3 movers, $200/hr, 6 hrs
-//   3 bed + 1 living  → 3 movers, $200/hr, 8 hrs
-//   4 bed + 1 living  → 4 movers, $300/hr, 8 hrs
-function getBaseConfig(bedrooms: number): {
+// Business rule: bedrooms + living rooms together determine crew/rate/base hours.
+// Spec examples all use "N bedrooms + 1 living room" as the canonical tier definition.
+// Additional living rooms contribute to the total room count.
+function getCrewConfig(totalRooms: number): {
   movers: number;
   rate: number;
   baseHours: number;
 } {
-  if (bedrooms <= 1) return { movers: 2, rate: 165, baseHours: 5 };
-  if (bedrooms === 2) return { movers: 3, rate: 200, baseHours: 6 };
-  if (bedrooms === 3) return { movers: 3, rate: 200, baseHours: 8 };
-  return { movers: 4, rate: 300, baseHours: 8 }; // 4+
+  if (totalRooms <= 2) return { movers: 2, rate: 165, baseHours: 5 };   // 1 bed + 1 LR
+  if (totalRooms === 3) return { movers: 3, rate: 200, baseHours: 6 };  // 2 bed + 1 LR
+  if (totalRooms === 4) return { movers: 3, rate: 200, baseHours: 8 };  // 3 bed + 1 LR
+  return { movers: 4, rate: 300, baseHours: 8 };                         // 4+ bed + 1 LR
 }
 
-// Map crew size → hourly rate
-function rateForCrew(movers: number): number {
+// Crew size maps to a specific hourly rate.
+function rateForCrewSize(movers: number): number {
   if (movers <= 2) return 165;
   if (movers === 3) return 200;
-  return 300; // 4+
+  return 300;
 }
 
-// Count total inventory items
+// Count total inventory items (sum of all quantities).
 function totalInventoryItems(inventory: Record<string, number>): number {
   return Object.values(inventory).reduce((sum, qty) => sum + Math.max(0, qty), 0);
 }
 
-// Heavy / large item names that warrant extra time
-const HEAVY_ITEMS = new Set([
-  "sectional sofa",
-  "king bed",
-  "armoire",
-  "wardrobe",
-  "china cabinet",
-  "entertainment center",
-  "refrigerator",
-  "oven / stove",
-  "dishwasher",
-  "generator",
-  "snow blower",
-  "lawn mower",
-  "safe",
-  "piano",
-  "pool table",
+// Heavy or bulky items that are known to add move time.
+const HEAVY_ITEM_NAMES = new Set([
+  "sectional sofa", "king bed", "armoire", "wardrobe",
+  "china cabinet", "entertainment center", "refrigerator",
+  "oven / stove", "dishwasher", "generator", "snow blower",
+  "lawn mower", "safe", "piano", "pool table",
 ]);
 
 function heavyInventoryCount(inventory: Record<string, number>): number {
   let count = 0;
   for (const [item, qty] of Object.entries(inventory)) {
-    if (HEAVY_ITEMS.has(item.toLowerCase())) {
+    if (HEAVY_ITEM_NAMES.has(item.toLowerCase())) {
       count += Math.max(0, qty);
     }
   }
@@ -88,66 +74,59 @@ function heavyInventoryCount(inventory: Record<string, number>): number {
 
 export function calculatePricing(input: PricingInput): PricingResult {
   const bedrooms = Math.max(0, Math.round(input.numberOfBedrooms));
-  const config = getBaseConfig(bedrooms);
+  const livingRooms = Math.max(0, Math.round(input.numberOfLivingRooms));
+  const totalRooms = bedrooms + livingRooms;
 
-  // Apply garage / outdoor furniture rule: +1 mover
+  const config = getCrewConfig(totalRooms);
+
+  // Garage or outdoor furniture adds +1 mover; rate adjusts accordingly.
   let movers = config.movers;
   if (input.hasGarage || input.hasOutdoorFurniture) {
     movers += 1;
   }
+  const hourlyRate = rateForCrewSize(movers);
 
-  const hourlyRate = rateForCrew(movers);
-
-  // Start with base hours from config
   let hours = config.baseHours;
 
-  // Adjust hours based on inventory weight
   const totalItems = totalInventoryItems(input.inventory ?? {});
   const heavyCount = heavyInventoryCount(input.inventory ?? {});
 
-  // Medium load: >30 total items → +1 hr
+  // Inventory volume adjustments.
   if (totalItems > 30) hours += 1;
-  // Heavy load: >50 total items → +1 more hr
   if (totalItems > 50) hours += 1;
-  // Heavy/bulky items flag
+  // Explicit heavy-item flags and counts.
   if (input.hasHeavyItems) hours += 1;
-  // Explicit heavy inventory items
   if (heavyCount >= 3) hours += 1;
   if (heavyCount >= 6) hours += 1;
-  // Stairs add time
+  // Structural factors.
   if (input.hasStairs) hours += 0.5;
-  // Extra living rooms
-  const extraLivingRooms = Math.max(0, input.numberOfLivingRooms - 1);
+  // Extra living rooms beyond the first add time.
+  const extraLivingRooms = Math.max(0, livingRooms - 1);
   hours += extraLivingRooms * 0.5;
 
-  // Clamp: 4 hour minimum, 10 hour maximum
+  // Clamp to business limits.
   hours = Math.max(4, Math.min(10, hours));
 
-  // Materials pricing
+  // Materials: stretch wrap 1 roll per bedroom when lightly furnished,
+  // 2 rolls per bedroom when fully furnished (per "1–2 per bedroom" rule).
   const effectiveBedrooms = Math.max(1, bedrooms);
-  const stretchWrapQty = Math.min(effectiveBedrooms * 2, 6); // 1–2 per bedroom, max 6
-  const stretchWrapCost = input.needsPackingMaterials ? stretchWrapQty * 55 : 0;
+  const stretchWrapPerBedroom = input.isFullyFurnished ? 2 : 1;
+  const stretchWrapCost = input.needsPackingMaterials
+    ? stretchWrapPerBedroom * effectiveBedrooms * 55
+    : 0;
   const tapeCost = input.needsPackingMaterials ? effectiveBedrooms * 13.5 : 0;
   const smallBoxCost = (input.smallBoxes ?? 0) * 3.5;
   const mediumBoxCost = (input.mediumBoxes ?? 0) * 6.5;
 
-  const laborSubtotal = Math.round(movers === config.movers
-    ? hourlyRate * hours
-    : hourlyRate * hours);
-
-  const materialsSubtotal = Math.round(
-    stretchWrapCost + tapeCost + smallBoxCost + mediumBoxCost
-  );
-
+  const laborSubtotal = Math.round(hourlyRate * hours);
+  const materialsSubtotal = Math.round(stretchWrapCost + tapeCost + smallBoxCost + mediumBoxCost);
   const totalEstimate = laborSubtotal + materialsSubtotal;
-
-  // Deposit rule
   const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5);
 
   return {
     crewSize: movers,
     hourlyRate,
-    estimatedHours: Math.round(hours * 2) / 2, // round to nearest 0.5
+    estimatedHours: Math.round(hours * 2) / 2,
     laborSubtotal,
     materialsSubtotal,
     totalEstimate,
