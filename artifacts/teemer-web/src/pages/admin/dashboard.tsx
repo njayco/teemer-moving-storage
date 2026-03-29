@@ -140,7 +140,7 @@ function QuotesTab() {
     try {
       await updateStatus({ id, data: { status } });
       await refetch();
-      qc.invalidateQueries({ queryKey: ["getAdminStats"] });
+      qc.invalidateQueries({ queryKey: ['/api/admin/stats'] });
     } finally {
       setUpdatingId(null);
     }
@@ -201,16 +201,19 @@ function QuotesTab() {
                       {quote.depositAmount != null ? `$${quote.depositAmount.toFixed(2)}` : "—"}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        value={quote.status ?? "quote_requested"}
-                        disabled={updatingId === quote.id}
-                        onChange={(e) => handleStatusChange(quote.id!, e.target.value as QuoteStatus)}
-                        className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer disabled:opacity-50"
-                      >
-                        <option value="quote_requested">Quote Requested</option>
-                        <option value="deposit_paid">Deposit Paid</option>
-                        <option value="booked">Booked</option>
-                      </select>
+                      <div className="flex flex-col gap-1.5">
+                        <StatusBadge status={quote.status ?? "quote_requested"} />
+                        <select
+                          value={quote.status ?? "quote_requested"}
+                          disabled={updatingId === quote.id}
+                          onChange={(e) => handleStatusChange(quote.id!, e.target.value as QuoteStatus)}
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer disabled:opacity-50"
+                        >
+                          <option value="quote_requested">Quote Requested</option>
+                          <option value="deposit_paid">Deposit Paid</option>
+                          <option value="booked">Booked</option>
+                        </select>
+                      </div>
                     </td>
                   </tr>
                   {isExpanded && (

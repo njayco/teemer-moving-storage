@@ -257,7 +257,7 @@ router.get("/admin/stats", async (req, res) => {
 
     const stats = {
       totalActiveJobs: 48,
-      pendingRequests: Number(quoteCounts?.pendingQuotes ?? 12),
+      pendingRequests: Number(quoteCounts?.pendingQuotes ?? 0),
       jobsInTransit: 31,
       completedToday: 19,
       availableCrews: 22,
