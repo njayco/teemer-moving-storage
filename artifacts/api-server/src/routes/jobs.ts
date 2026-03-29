@@ -443,9 +443,11 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
 
     let cashAmount = 0;
     if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
-      cashAmount = existing.remainingBalance != null && existing.remainingBalance > 0
-        ? existing.remainingBalance
-        : (existing.finalTotal ?? existing.estimatedPayout ?? 0);
+      const existingPmts = await db.select({ total: sum(paymentsTable.amount) })
+        .from(paymentsTable).where(eq(paymentsTable.jobId, existing.id));
+      const alreadyPaid = Number(existingPmts[0]?.total ?? 0);
+      const total = existing.finalTotal ?? existing.estimatedPayout ?? 0;
+      cashAmount = Math.max(0, total - alreadyPaid);
       if (updates.remainingBalance === undefined) {
         updates.remainingBalance = 0;
       }
@@ -493,27 +495,29 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         eventType: "status_change",
         statusLabel: "Paid in Cash",
         visibleToCustomer: true,
-        notes: `Payment marked as paid in cash ($${cashAmount})`,
+        notes: `Payment marked as paid in cash ($${cashAmount.toFixed(2)})`,
         createdByUserId: req.user?.userId ?? undefined,
       }).catch(() => {});
 
-      const [payment] = await db.insert(paymentsTable)
-        .values({
-          jobId: updated.id,
-          type: "remaining_balance",
-          method: "cash",
-          amount: cashAmount,
-          notes: "Marked as paid in cash by admin",
-        })
-        .returning();
+      if (cashAmount > 0) {
+        const [payment] = await db.insert(paymentsTable)
+          .values({
+            jobId: updated.id,
+            type: "remaining_balance",
+            method: "cash",
+            amount: cashAmount,
+            notes: "Marked as paid in cash by admin",
+          })
+          .returning();
 
-      if (payment) {
-        await db.insert(revenueLedgerTable).values({
-          jobId: updated.id,
-          paymentId: payment.id,
-          category: "cash_payment",
-          amount: cashAmount,
-        });
+        if (payment) {
+          await db.insert(revenueLedgerTable).values({
+            jobId: updated.id,
+            paymentId: payment.id,
+            category: "cash_payment",
+            amount: cashAmount,
+          });
+        }
       }
     }
 
@@ -1213,6 +1217,11 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
     }
 
     if (status === "complete") {
+      const balance = job.remainingBalance ?? 0;
+      const pStatus = job.paymentStatus ?? "";
+      if (balance > 0 && pStatus !== "paid" && pStatus !== "paid_cash") {
+        return res.status(400).json({ error: "Cannot mark complete — outstanding balance must be paid first." });
+      }
       updates.completedAt = new Date();
     }
 
