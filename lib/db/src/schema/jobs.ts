@@ -34,7 +34,7 @@ export const jobsTable = pgTable("jobs", {
   hourlyRate: real("hourly_rate"),
   estimateSubtotal: real("estimate_subtotal"),
   extraCharges: real("extra_charges").default(0),
-  discountsAmount: real("discounts_amount").default(0),
+  discounts: real("discounts").default(0),
   finalTotal: real("final_total"),
   depositPaid: real("deposit_paid").default(0),
   remainingBalance: real("remaining_balance"),

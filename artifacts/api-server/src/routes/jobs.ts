@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { jobsTable, quoteRequestsTable } from "@workspace/db/schema";
 import { eq, desc, count, sum, sql } from "drizzle-orm";
+import { requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -238,7 +239,7 @@ router.patch("/jobs/:jobId", async (req, res) => {
   }
 });
 
-router.get("/admin/stats", async (req, res) => {
+router.get("/admin/stats", requireAdmin, async (req, res) => {
   try {
     const jobs = await db.select().from(jobsTable).orderBy(desc(jobsTable.createdAt)).limit(10);
 

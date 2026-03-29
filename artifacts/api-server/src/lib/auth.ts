@@ -2,7 +2,15 @@ import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-const JWT_SECRET = process.env.JWT_SECRET || "teemer-dev-secret-change-in-prod";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET environment variable is required in production");
+  }
+  return "teemer-dev-secret-local-only";
+}
+const JWT_SECRET = getJwtSecret();
 const SALT_ROUNDS = 10;
 const TOKEN_COOKIE = "teemer_auth";
 const TOKEN_EXPIRY = "7d";
