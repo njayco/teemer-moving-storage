@@ -63,6 +63,9 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   estimatedPriceLow: real("estimated_price_low"),
   estimatedPriceHigh: real("estimated_price_high"),
 
+  // Tracking
+  trackingToken: text("tracking_token"),
+
   // Status: quote_requested | deposit_paid | booked | pending (legacy)
   status: text("status").default("quote_requested"),
 

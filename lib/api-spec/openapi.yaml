@@ -347,14 +347,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContactFormResponse"
-  /admin/email-logs/{quoteId}:
+  /admin/email-logs/quote/{quoteId}:
     get:
-      operationId: getEmailLogs
+      operationId: getEmailLogsByQuote
       tags: [admin]
       summary: Get email logs for a quote
-      description: Returns email send history for a specific quote/job (admin only)
+      description: Returns email send history for a specific quote (admin only)
       parameters:
         - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of email logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailLog"
+        "403":
+          description: Admin access required
+  /admin/email-logs/job/{jobId}:
+    get:
+      operationId: getEmailLogsByJob
+      tags: [admin]
+      summary: Get email logs for a job
+      description: Returns email send history for a specific job (admin only)
+      parameters:
+        - name: jobId
           in: path
           required: true
           schema:

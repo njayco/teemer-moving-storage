@@ -481,14 +481,14 @@ export const SubmitContactFormBody = zod.object({
 });
 
 /**
- * Returns email send history for a specific quote/job (admin only)
+ * Returns email send history for a specific quote (admin only)
  * @summary Get email logs for a quote
  */
-export const GetEmailLogsParams = zod.object({
+export const GetEmailLogsByQuoteParams = zod.object({
   quoteId: zod.coerce.string(),
 });
 
-export const GetEmailLogsResponseItem = zod.object({
+export const GetEmailLogsByQuoteResponseItem = zod.object({
   id: zod.number(),
   quoteId: zod.number().optional(),
   jobId: zod.number().optional(),
@@ -498,7 +498,31 @@ export const GetEmailLogsResponseItem = zod.object({
   status: zod.enum(["sent", "failed", "skipped"]),
   sentAt: zod.string().optional(),
 });
-export const GetEmailLogsResponse = zod.array(GetEmailLogsResponseItem);
+export const GetEmailLogsByQuoteResponse = zod.array(
+  GetEmailLogsByQuoteResponseItem,
+);
+
+/**
+ * Returns email send history for a specific job (admin only)
+ * @summary Get email logs for a job
+ */
+export const GetEmailLogsByJobParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const GetEmailLogsByJobResponseItem = zod.object({
+  id: zod.number(),
+  quoteId: zod.number().optional(),
+  jobId: zod.number().optional(),
+  emailType: zod.string(),
+  recipient: zod.string(),
+  resendId: zod.string().optional(),
+  status: zod.enum(["sent", "failed", "skipped"]),
+  sentAt: zod.string().optional(),
+});
+export const GetEmailLogsByJobResponse = zod.array(
+  GetEmailLogsByJobResponseItem,
+);
 
 /**
  * Get stats for the admin dashboard

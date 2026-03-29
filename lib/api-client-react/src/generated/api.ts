@@ -1538,35 +1538,35 @@ export const useSubmitContactForm = <
 };
 
 /**
- * Returns email send history for a specific quote/job (admin only)
+ * Returns email send history for a specific quote (admin only)
  * @summary Get email logs for a quote
  */
-export const getGetEmailLogsUrl = (quoteId: string) => {
-  return `/api/admin/email-logs/${quoteId}`;
+export const getGetEmailLogsByQuoteUrl = (quoteId: string) => {
+  return `/api/admin/email-logs/quote/${quoteId}`;
 };
 
-export const getEmailLogs = async (
+export const getEmailLogsByQuote = async (
   quoteId: string,
   options?: RequestInit,
 ): Promise<EmailLog[]> => {
-  return customFetch<EmailLog[]>(getGetEmailLogsUrl(quoteId), {
+  return customFetch<EmailLog[]>(getGetEmailLogsByQuoteUrl(quoteId), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetEmailLogsQueryKey = (quoteId: string) => {
-  return [`/api/admin/email-logs/${quoteId}`] as const;
+export const getGetEmailLogsByQuoteQueryKey = (quoteId: string) => {
+  return [`/api/admin/email-logs/quote/${quoteId}`] as const;
 };
 
-export const getGetEmailLogsQueryOptions = <
-  TData = Awaited<ReturnType<typeof getEmailLogs>>,
+export const getGetEmailLogsByQuoteQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEmailLogsByQuote>>,
   TError = ErrorType<void>,
 >(
   quoteId: string,
   options?: {
     query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getEmailLogs>>,
+      Awaited<ReturnType<typeof getEmailLogsByQuote>>,
       TError,
       TData
     >;
@@ -1575,11 +1575,13 @@ export const getGetEmailLogsQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetEmailLogsQueryKey(quoteId);
+  const queryKey =
+    queryOptions?.queryKey ?? getGetEmailLogsByQuoteQueryKey(quoteId);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailLogs>>> = ({
-    signal,
-  }) => getEmailLogs(quoteId, { signal, ...requestOptions });
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getEmailLogsByQuote>>
+  > = ({ signal }) =>
+    getEmailLogsByQuote(quoteId, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -1587,36 +1589,125 @@ export const getGetEmailLogsQueryOptions = <
     enabled: !!quoteId,
     ...queryOptions,
   } as UseQueryOptions<
-    Awaited<ReturnType<typeof getEmailLogs>>,
+    Awaited<ReturnType<typeof getEmailLogsByQuote>>,
     TError,
     TData
   > & { queryKey: QueryKey };
 };
 
-export type GetEmailLogsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getEmailLogs>>
+export type GetEmailLogsByQuoteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEmailLogsByQuote>>
 >;
-export type GetEmailLogsQueryError = ErrorType<void>;
+export type GetEmailLogsByQuoteQueryError = ErrorType<void>;
 
 /**
  * @summary Get email logs for a quote
  */
 
-export function useGetEmailLogs<
-  TData = Awaited<ReturnType<typeof getEmailLogs>>,
+export function useGetEmailLogsByQuote<
+  TData = Awaited<ReturnType<typeof getEmailLogsByQuote>>,
   TError = ErrorType<void>,
 >(
   quoteId: string,
   options?: {
     query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getEmailLogs>>,
+      Awaited<ReturnType<typeof getEmailLogsByQuote>>,
       TError,
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetEmailLogsQueryOptions(quoteId, options);
+  const queryOptions = getGetEmailLogsByQuoteQueryOptions(quoteId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns email send history for a specific job (admin only)
+ * @summary Get email logs for a job
+ */
+export const getGetEmailLogsByJobUrl = (jobId: string) => {
+  return `/api/admin/email-logs/job/${jobId}`;
+};
+
+export const getEmailLogsByJob = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<EmailLog[]> => {
+  return customFetch<EmailLog[]>(getGetEmailLogsByJobUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEmailLogsByJobQueryKey = (jobId: string) => {
+  return [`/api/admin/email-logs/job/${jobId}`] as const;
+};
+
+export const getGetEmailLogsByJobQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEmailLogsByJob>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailLogsByJob>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetEmailLogsByJobQueryKey(jobId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getEmailLogsByJob>>
+  > = ({ signal }) => getEmailLogsByJob(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailLogsByJob>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEmailLogsByJobQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEmailLogsByJob>>
+>;
+export type GetEmailLogsByJobQueryError = ErrorType<void>;
+
+/**
+ * @summary Get email logs for a job
+ */
+
+export function useGetEmailLogsByJob<
+  TData = Awaited<ReturnType<typeof getEmailLogsByJob>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getEmailLogsByJob>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEmailLogsByJobQueryOptions(jobId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

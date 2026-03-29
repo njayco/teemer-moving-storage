@@ -91,6 +91,7 @@ export interface DepositConfirmationData {
 export function depositConfirmationHtml(data: DepositConfirmationData): string {
   const rows: [string, string][] = [
     ["Quote #", String(data.quoteId)],
+    ["Status", "Deposit Paid — Scheduling In Progress"],
     ["Move Date", data.moveDate],
   ];
   if (data.arrivalWindow) rows.push(["Arrival Window", data.arrivalWindow]);

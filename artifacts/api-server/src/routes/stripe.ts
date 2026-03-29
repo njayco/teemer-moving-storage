@@ -72,7 +72,7 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
       const [updatedQuote] = await db
         .update(quoteRequestsTable)
-        .set({ status: "deposit_paid" })
+        .set({ status: "deposit_paid", trackingToken })
         .where(eq(quoteRequestsTable.id, parsedQuoteId))
         .returning();
 

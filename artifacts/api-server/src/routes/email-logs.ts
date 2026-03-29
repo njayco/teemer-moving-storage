@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { emailLogsTable } from "@workspace/db/schema";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
-router.get("/admin/email-logs/:quoteId", requireAdmin, async (req, res) => {
+router.get("/admin/email-logs/quote/:quoteId", requireAdmin, async (req, res) => {
   try {
     const quoteId = parseInt(req.params.quoteId, 10);
     if (isNaN(quoteId)) {
@@ -17,25 +17,48 @@ router.get("/admin/email-logs/:quoteId", requireAdmin, async (req, res) => {
     const logs = await db
       .select()
       .from(emailLogsTable)
-      .where(or(eq(emailLogsTable.quoteId, quoteId), eq(emailLogsTable.jobId, quoteId)))
+      .where(eq(emailLogsTable.quoteId, quoteId))
       .orderBy(desc(emailLogsTable.sentAt));
 
-    res.json(
-      logs.map((log) => ({
-        id: log.id,
-        quoteId: log.quoteId,
-        jobId: log.jobId,
-        emailType: log.emailType,
-        recipient: log.recipient,
-        resendId: log.resendId,
-        status: log.status,
-        sentAt: log.sentAt?.toISOString() ?? null,
-      }))
-    );
+    res.json(formatLogs(logs));
   } catch (err) {
     req.log.error({ err }, "Failed to fetch email logs");
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+router.get("/admin/email-logs/job/:jobId", requireAdmin, async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.jobId, 10);
+    if (isNaN(jobId)) {
+      res.status(400).json({ error: "Invalid job ID" });
+      return;
+    }
+
+    const logs = await db
+      .select()
+      .from(emailLogsTable)
+      .where(eq(emailLogsTable.jobId, jobId))
+      .orderBy(desc(emailLogsTable.sentAt));
+
+    res.json(formatLogs(logs));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch email logs");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+function formatLogs(logs: (typeof emailLogsTable.$inferSelect)[]) {
+  return logs.map((log) => ({
+    id: log.id,
+    quoteId: log.quoteId,
+    jobId: log.jobId,
+    emailType: log.emailType,
+    recipient: log.recipient,
+    resendId: log.resendId,
+    status: log.status,
+    sentAt: log.sentAt?.toISOString() ?? null,
+  }));
+}
 
 export default router;
