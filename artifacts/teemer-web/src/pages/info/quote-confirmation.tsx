@@ -14,14 +14,13 @@ export default function QuoteConfirmationPage() {
       enabled: !!quoteId,
       queryKey: ["quote", quoteId],
       refetchInterval: (query) => {
-        const status = query.state.data?.quoteRequest?.status;
+        const status = query.state.data?.status;
         return status === "deposit_paid" ? false : 3000;
       },
     },
   });
 
-  const quoteStatus = quote?.quoteRequest?.status;
-  const isPaid = quoteStatus === "deposit_paid";
+  const isPaid = quote?.status === "deposit_paid";
   const moveDate = quote?.quoteRequest?.moveDate;
   const customerName = quote?.quoteRequest?.contactName;
   const totalEstimate = quote?.totalEstimate;
