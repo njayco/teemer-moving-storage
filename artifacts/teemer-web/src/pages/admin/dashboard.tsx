@@ -60,9 +60,12 @@ const JOB_STATUS_CONFIG: Record<string, { label: string; bg: string; text: strin
   pending: { label: "Pending", bg: "bg-amber-100", text: "text-amber-700" },
   scheduled: { label: "Scheduled", bg: "bg-blue-100", text: "text-blue-700" },
   captain_assigned: { label: "Captain Assigned", bg: "bg-purple-100", text: "text-purple-700" },
+  en_route: { label: "En Route", bg: "bg-cyan-100", text: "text-cyan-700" },
   arrived: { label: "Arrived", bg: "bg-teal-100", text: "text-teal-700" },
   in_progress: { label: "In Progress", bg: "bg-orange-100", text: "text-orange-700" },
   at_storage: { label: "At Storage", bg: "bg-indigo-100", text: "text-indigo-700" },
+  returning: { label: "Returning", bg: "bg-sky-100", text: "text-sky-700" },
+  delayed: { label: "Delayed", bg: "bg-rose-100", text: "text-rose-700" },
   awaiting_remaining_balance: { label: "Awaiting Balance", bg: "bg-yellow-100", text: "text-yellow-700" },
   paid_in_cash: { label: "Paid in Cash", bg: "bg-emerald-100", text: "text-emerald-700" },
   complete: { label: "Complete", bg: "bg-green-100", text: "text-green-700" },
@@ -70,8 +73,8 @@ const JOB_STATUS_CONFIG: Record<string, { label: string; bg: string; text: strin
 };
 
 const JOB_STATUS_OPTIONS = [
-  "pending", "scheduled", "captain_assigned", "arrived", "in_progress",
-  "at_storage", "awaiting_remaining_balance", "paid_in_cash", "complete", "cancelled",
+  "pending", "scheduled", "captain_assigned", "en_route", "arrived", "in_progress",
+  "at_storage", "returning", "delayed", "awaiting_remaining_balance", "paid_in_cash", "complete", "cancelled",
 ];
 
 const FILTER_TABS = [
@@ -82,6 +85,9 @@ const FILTER_TABS = [
   { value: "arrived", label: "Arrived" },
   { value: "in_progress", label: "In Progress" },
   { value: "at_storage", label: "At Storage" },
+  { value: "en_route", label: "En Route" },
+  { value: "returning", label: "Returning" },
+  { value: "delayed", label: "Delayed" },
   { value: "awaiting_remaining_balance", label: "Awaiting Balance" },
   { value: "paid_in_cash", label: "Paid Cash" },
   { value: "complete", label: "Complete" },

@@ -766,7 +766,7 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
     if (notes !== undefined) {
       const existingNotes = job.notes || "";
       const timestamp = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
-      const newEntry = `[${timestamp}] ${notes}`;
+      const newEntry = `[${timestamp}] ${notes.trim()}`;
       updates.notes = existingNotes ? `${existingNotes}\n${newEntry}` : newEntry;
     }
 
