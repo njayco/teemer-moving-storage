@@ -16,6 +16,12 @@ export interface AdminStats {
   availableCrews: number;
   availableTrucks: number;
   revenueToday: number;
+  /** Total number of quote requests submitted */
+  totalQuotes?: number;
+  /** Total deposit amount collected from paid/booked quotes */
+  depositCollected?: number;
+  /** Total estimated revenue across all quotes */
+  revenuePipeline?: number;
   weeklyRevenue: AdminStatsWeeklyRevenueItem[];
   recentJobs: Job[];
 }

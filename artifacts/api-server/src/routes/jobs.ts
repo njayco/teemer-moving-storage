@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { jobsTable, quoteRequestsTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count, sum, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -242,14 +242,30 @@ router.get("/admin/stats", async (req, res) => {
   try {
     const jobs = await db.select().from(jobsTable).orderBy(desc(jobsTable.createdAt)).limit(10);
 
+    const [quoteCounts] = await db
+      .select({
+        totalQuotes: count(quoteRequestsTable.id),
+        depositCollected: sum(
+          sql`CASE WHEN ${quoteRequestsTable.status} IN ('deposit_paid', 'booked') THEN ${quoteRequestsTable.depositAmount} ELSE 0 END`
+        ),
+        revenuePipeline: sum(quoteRequestsTable.totalEstimate),
+        pendingQuotes: sum(
+          sql`CASE WHEN ${quoteRequestsTable.status} = 'quote_requested' THEN 1 ELSE 0 END`
+        ),
+      })
+      .from(quoteRequestsTable);
+
     const stats = {
       totalActiveJobs: 48,
-      pendingRequests: 12,
+      pendingRequests: Number(quoteCounts?.pendingQuotes ?? 12),
       jobsInTransit: 31,
       completedToday: 19,
       availableCrews: 22,
       availableTrucks: 25,
       revenueToday: 18450,
+      totalQuotes: Number(quoteCounts?.totalQuotes ?? 0),
+      depositCollected: Number(quoteCounts?.depositCollected ?? 0),
+      revenuePipeline: Number(quoteCounts?.revenuePipeline ?? 0),
       weeklyRevenue: [
         { day: "Mon", amount: 12000 },
         { day: "Tue", amount: 15000 },

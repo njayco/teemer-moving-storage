@@ -682,6 +682,15 @@ components:
           type: integer
         revenueToday:
           type: number
+        totalQuotes:
+          type: integer
+          description: Total number of quote requests submitted
+        depositCollected:
+          type: number
+          description: Total deposit amount collected from paid/booked quotes
+        revenuePipeline:
+          type: number
+          description: Total estimated revenue across all quotes
         weeklyRevenue:
           type: array
           items:

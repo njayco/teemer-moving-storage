@@ -441,6 +441,18 @@ export const GetAdminStatsResponse = zod.object({
   availableCrews: zod.number(),
   availableTrucks: zod.number(),
   revenueToday: zod.number(),
+  totalQuotes: zod
+    .number()
+    .optional()
+    .describe("Total number of quote requests submitted"),
+  depositCollected: zod
+    .number()
+    .optional()
+    .describe("Total deposit amount collected from paid\/booked quotes"),
+  revenuePipeline: zod
+    .number()
+    .optional()
+    .describe("Total estimated revenue across all quotes"),
   weeklyRevenue: zod.array(
     zod.object({
       day: zod.string(),
