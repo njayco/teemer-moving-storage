@@ -27,6 +27,7 @@ import type {
   QuoteRequest,
   QuoteResponse,
   UpdateJobStatusRequest,
+  UpdateQuoteStatusRequest,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -115,7 +116,7 @@ export function useHealthCheck<
 }
 
 /**
- * Submit a moving quote request from a customer
+ * Submit a moving quote request from a customer. Runs the pricing engine and returns the calculated estimate.
  * @summary Submit a quote request
  */
 export const getSubmitQuoteRequestUrl = () => {
@@ -276,6 +277,180 @@ export function useListQuoteRequests<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get a single quote request
+ */
+export const getGetQuoteRequestUrl = (id: string) => {
+  return `/api/quotes/${id}`;
+};
+
+export const getQuoteRequest = async (
+  id: string,
+  options?: RequestInit,
+): Promise<QuoteResponse> => {
+  return customFetch<QuoteResponse>(getGetQuoteRequestUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetQuoteRequestQueryKey = (id: string) => {
+  return [`/api/quotes/${id}`] as const;
+};
+
+export const getGetQuoteRequestQueryOptions = <
+  TData = Awaited<ReturnType<typeof getQuoteRequest>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getQuoteRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetQuoteRequestQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getQuoteRequest>>> = ({
+    signal,
+  }) => getQuoteRequest(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getQuoteRequest>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetQuoteRequestQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getQuoteRequest>>
+>;
+export type GetQuoteRequestQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a single quote request
+ */
+
+export function useGetQuoteRequest<
+  TData = Awaited<ReturnType<typeof getQuoteRequest>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getQuoteRequest>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetQuoteRequestQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a quote request status
+ */
+export const getUpdateQuoteStatusUrl = (id: string) => {
+  return `/api/quotes/${id}/status`;
+};
+
+export const updateQuoteStatus = async (
+  id: string,
+  updateQuoteStatusRequest: UpdateQuoteStatusRequest,
+  options?: RequestInit,
+): Promise<QuoteResponse> => {
+  return customFetch<QuoteResponse>(getUpdateQuoteStatusUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateQuoteStatusRequest),
+  });
+};
+
+export const getUpdateQuoteStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateQuoteStatus>>,
+    TError,
+    { id: string; data: BodyType<UpdateQuoteStatusRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateQuoteStatus>>,
+  TError,
+  { id: string; data: BodyType<UpdateQuoteStatusRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateQuoteStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateQuoteStatus>>,
+    { id: string; data: BodyType<UpdateQuoteStatusRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateQuoteStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateQuoteStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateQuoteStatus>>
+>;
+export type UpdateQuoteStatusMutationBody = BodyType<UpdateQuoteStatusRequest>;
+export type UpdateQuoteStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a quote request status
+ */
+export const useUpdateQuoteStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateQuoteStatus>>,
+    TError,
+    { id: string; data: BodyType<UpdateQuoteStatusRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateQuoteStatus>>,
+  TError,
+  { id: string; data: BodyType<UpdateQuoteStatusRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateQuoteStatusMutationOptions(options));
+};
 
 /**
  * Get available moving jobs for providers

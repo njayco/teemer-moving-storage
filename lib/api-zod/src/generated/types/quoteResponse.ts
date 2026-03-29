@@ -5,13 +5,21 @@
  * Teemer Moving & Storage API
  * OpenAPI spec version: 0.1.0
  */
-import type { QuoteRequest } from "./quoteRequest";
+import type { QuoteRequestEcho } from "./quoteRequestEcho";
 
 export interface QuoteResponse {
   id: string;
-  estimatedPriceLow: number;
-  estimatedPriceHigh: number;
+  /** quote_requested | deposit_paid | booked */
   status: string;
   createdAt: string;
-  quoteRequest: QuoteRequest;
+  crewSize?: number;
+  hourlyRate?: number;
+  estimatedHours?: number;
+  laborSubtotal?: number;
+  materialsSubtotal?: number;
+  totalEstimate?: number;
+  depositAmount?: number;
+  estimatedPriceLow?: number;
+  estimatedPriceHigh?: number;
+  quoteRequest: QuoteRequestEcho;
 }

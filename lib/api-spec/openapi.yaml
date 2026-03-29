@@ -34,7 +34,7 @@ paths:
       operationId: submitQuoteRequest
       tags: [quotes]
       summary: Submit a quote request
-      description: Submit a moving quote request from a customer
+      description: Submit a moving quote request from a customer. Runs the pricing engine and returns the calculated estimate.
       requestBody:
         required: true
         content:
@@ -62,6 +62,50 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/QuoteResponse"
+  /quotes/{id}:
+    get:
+      operationId: getQuoteRequest
+      tags: [quotes]
+      summary: Get a single quote request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quote request details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteResponse"
+        "404":
+          description: Quote not found
+  /quotes/{id}/status:
+    patch:
+      operationId: updateQuoteStatus
+      tags: [quotes]
+      summary: Update a quote request status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuoteStatusRequest"
+      responses:
+        "200":
+          description: Quote status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteResponse"
   /jobs:
     get:
       operationId: listJobs
@@ -190,9 +234,51 @@ components:
           type: string
       required:
         - status
+
+    # ─── Inventory ─────────────────────────────────────────────────────────────
+    InventoryMap:
+      type: object
+      description: Map of item name to quantity. Keys are item names, values are quantities.
+      additionalProperties:
+        type: integer
+      example:
+        "Sofa": 1
+        "Queen bed": 2
+        "Refrigerator": 1
+
+    # ─── Quote Request ──────────────────────────────────────────────────────────
     QuoteRequest:
       type: object
       properties:
+        # Contact
+        contactName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        # Move details
+        moveDate:
+          type: string
+          description: ISO date string or formatted date
+        arrivalTimeWindow:
+          type: string
+          description: "Preferred arrival window, e.g. '8AM–10AM'"
+        pickupAddress:
+          type: string
+        dropoffAddress:
+          type: string
+        secondStop:
+          type: string
+          description: Optional second stop address
+        storageNeeded:
+          type: boolean
+        storageUnitChoice:
+          type: string
+          description: "e.g. '5x10', '10x10'"
+        additionalNotes:
+          type: string
+        # Legacy fields (still accepted)
         moveType:
           type: string
           description: "local or long-distance"
@@ -203,58 +289,160 @@ components:
           type: string
         destinationAddress:
           type: string
-        moveDate:
-          type: string
         moveSize:
           type: string
-          description: "studio, 1br, 2br, 3br, 4br+, house"
         numberOfRooms:
           type: integer
         packingHelpNeeded:
           type: string
-          description: "full, partial, none"
         specialItems:
           type: string
-        storageNeeded:
+        # Home size
+        numberOfBedrooms:
+          type: integer
+          minimum: 0
+        numberOfLivingRooms:
+          type: integer
+          minimum: 0
+        isFullyFurnished:
           type: boolean
+        hasGarage:
+          type: boolean
+        hasOutdoorFurniture:
+          type: boolean
+        hasStairs:
+          type: boolean
+        hasHeavyItems:
+          type: boolean
+        # Inventory
+        inventory:
+          $ref: "#/components/schemas/InventoryMap"
+        # Boxes
+        boxesAlreadyPacked:
+          type: integer
+        needsPackingMaterials:
+          type: boolean
+        smallBoxes:
+          type: integer
+        mediumBoxes:
+          type: integer
+      required:
+        - contactName
+        - phone
+        - email
+        - moveDate
+        - pickupAddress
+        - dropoffAddress
+
+    # ─── Quote Response ─────────────────────────────────────────────────────────
+    QuoteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          description: "quote_requested | deposit_paid | booked"
+        createdAt:
+          type: string
+        # Pricing results
+        crewSize:
+          type: integer
+        hourlyRate:
+          type: number
+        estimatedHours:
+          type: number
+        laborSubtotal:
+          type: number
+        materialsSubtotal:
+          type: number
+        totalEstimate:
+          type: number
+        depositAmount:
+          type: number
+        # Legacy compat
+        estimatedPriceLow:
+          type: number
+        estimatedPriceHigh:
+          type: number
+        # Full request echo
+        quoteRequest:
+          $ref: "#/components/schemas/QuoteRequestEcho"
+      required:
+        - id
+        - status
+        - createdAt
+        - quoteRequest
+
+    QuoteRequestEcho:
+      type: object
+      description: Echo of the quote request fields as stored
+      properties:
         contactName:
           type: string
         phone:
           type: string
         email:
           type: string
+        moveDate:
+          type: string
+        arrivalTimeWindow:
+          type: string
+        pickupAddress:
+          type: string
+        dropoffAddress:
+          type: string
+        secondStop:
+          type: string
+        storageNeeded:
+          type: boolean
+        storageUnitChoice:
+          type: string
         additionalNotes:
           type: string
-      required:
-        - moveType
-        - originAddress
-        - destinationAddress
-        - moveDate
-        - contactName
-        - phone
-        - email
-    QuoteResponse:
+        moveType:
+          type: string
+        residentialOrCommercial:
+          type: string
+        originAddress:
+          type: string
+        destinationAddress:
+          type: string
+        numberOfBedrooms:
+          type: integer
+        numberOfLivingRooms:
+          type: integer
+        isFullyFurnished:
+          type: boolean
+        hasGarage:
+          type: boolean
+        hasOutdoorFurniture:
+          type: boolean
+        hasStairs:
+          type: boolean
+        hasHeavyItems:
+          type: boolean
+        inventory:
+          $ref: "#/components/schemas/InventoryMap"
+        boxesAlreadyPacked:
+          type: integer
+        needsPackingMaterials:
+          type: boolean
+        smallBoxes:
+          type: integer
+        mediumBoxes:
+          type: integer
+
+    UpdateQuoteStatusRequest:
       type: object
       properties:
-        id:
-          type: string
-        estimatedPriceLow:
-          type: number
-        estimatedPriceHigh:
-          type: number
         status:
           type: string
-        createdAt:
-          type: string
-        quoteRequest:
-          $ref: "#/components/schemas/QuoteRequest"
+          description: "quote_requested | deposit_paid | booked"
       required:
-        - id
-        - estimatedPriceLow
-        - estimatedPriceHigh
         - status
-        - createdAt
-        - quoteRequest
+
+    # ─── Jobs ──────────────────────────────────────────────────────────────────
     Job:
       type: object
       properties:
@@ -297,6 +485,7 @@ components:
         - dateTime
         - estimatedPayout
         - status
+
     CreateJobRequest:
       type: object
       properties:
@@ -325,6 +514,7 @@ components:
         - moveType
         - dateTime
         - estimatedPayout
+
     UpdateJobStatusRequest:
       type: object
       properties:
@@ -338,6 +528,8 @@ components:
           type: string
       required:
         - status
+
+    # ─── Contact ───────────────────────────────────────────────────────────────
     ContactFormRequest:
       type: object
       properties:
@@ -362,6 +554,7 @@ components:
         - phone
         - email
         - message
+
     ContactFormResponse:
       type: object
       properties:
@@ -372,6 +565,8 @@ components:
       required:
         - success
         - message
+
+    # ─── Admin ─────────────────────────────────────────────────────────────────
     AdminStats:
       type: object
       properties:

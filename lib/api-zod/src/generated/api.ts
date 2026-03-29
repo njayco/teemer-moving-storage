@@ -16,30 +16,62 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Submit a moving quote request from a customer
+ * Submit a moving quote request from a customer. Runs the pricing engine and returns the calculated estimate.
  * @summary Submit a quote request
  */
+export const submitQuoteRequestBodyNumberOfBedroomsMin = 0;
+
+export const submitQuoteRequestBodyNumberOfLivingRoomsMin = 0;
+
 export const SubmitQuoteRequestBody = zod.object({
-  moveType: zod.string().describe("local or long-distance"),
+  contactName: zod.string(),
+  phone: zod.string(),
+  email: zod.string(),
+  moveDate: zod.string().describe("ISO date string or formatted date"),
+  arrivalTimeWindow: zod
+    .string()
+    .optional()
+    .describe("Preferred arrival window, e.g. '8AM–10AM'"),
+  pickupAddress: zod.string(),
+  dropoffAddress: zod.string(),
+  secondStop: zod.string().optional().describe("Optional second stop address"),
+  storageNeeded: zod.boolean().optional(),
+  storageUnitChoice: zod.string().optional().describe("e.g. '5x10', '10x10'"),
+  additionalNotes: zod.string().optional(),
+  moveType: zod.string().optional().describe("local or long-distance"),
   residentialOrCommercial: zod
     .string()
     .optional()
     .describe("residential or commercial"),
-  originAddress: zod.string(),
-  destinationAddress: zod.string(),
-  moveDate: zod.string(),
-  moveSize: zod
-    .string()
-    .optional()
-    .describe("studio, 1br, 2br, 3br, 4br+, house"),
+  originAddress: zod.string().optional(),
+  destinationAddress: zod.string().optional(),
+  moveSize: zod.string().optional(),
   numberOfRooms: zod.number().optional(),
-  packingHelpNeeded: zod.string().optional().describe("full, partial, none"),
+  packingHelpNeeded: zod.string().optional(),
   specialItems: zod.string().optional(),
-  storageNeeded: zod.boolean().optional(),
-  contactName: zod.string(),
-  phone: zod.string(),
-  email: zod.string(),
-  additionalNotes: zod.string().optional(),
+  numberOfBedrooms: zod
+    .number()
+    .min(submitQuoteRequestBodyNumberOfBedroomsMin)
+    .optional(),
+  numberOfLivingRooms: zod
+    .number()
+    .min(submitQuoteRequestBodyNumberOfLivingRoomsMin)
+    .optional(),
+  isFullyFurnished: zod.boolean().optional(),
+  hasGarage: zod.boolean().optional(),
+  hasOutdoorFurniture: zod.boolean().optional(),
+  hasStairs: zod.boolean().optional(),
+  hasHeavyItems: zod.boolean().optional(),
+  inventory: zod
+    .record(zod.string(), zod.number())
+    .optional()
+    .describe(
+      "Map of item name to quantity. Keys are item names, values are quantities.",
+    ),
+  boxesAlreadyPacked: zod.number().optional(),
+  needsPackingMaterials: zod.boolean().optional(),
+  smallBoxes: zod.number().optional(),
+  mediumBoxes: zod.number().optional(),
 });
 
 /**
@@ -48,36 +80,177 @@ export const SubmitQuoteRequestBody = zod.object({
  */
 export const ListQuoteRequestsResponseItem = zod.object({
   id: zod.string(),
-  estimatedPriceLow: zod.number(),
-  estimatedPriceHigh: zod.number(),
-  status: zod.string(),
+  status: zod.string().describe("quote_requested | deposit_paid | booked"),
   createdAt: zod.string(),
-  quoteRequest: zod.object({
-    moveType: zod.string().describe("local or long-distance"),
-    residentialOrCommercial: zod
-      .string()
-      .optional()
-      .describe("residential or commercial"),
-    originAddress: zod.string(),
-    destinationAddress: zod.string(),
-    moveDate: zod.string(),
-    moveSize: zod
-      .string()
-      .optional()
-      .describe("studio, 1br, 2br, 3br, 4br+, house"),
-    numberOfRooms: zod.number().optional(),
-    packingHelpNeeded: zod.string().optional().describe("full, partial, none"),
-    specialItems: zod.string().optional(),
-    storageNeeded: zod.boolean().optional(),
-    contactName: zod.string(),
-    phone: zod.string(),
-    email: zod.string(),
-    additionalNotes: zod.string().optional(),
-  }),
+  crewSize: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  laborSubtotal: zod.number().optional(),
+  materialsSubtotal: zod.number().optional(),
+  totalEstimate: zod.number().optional(),
+  depositAmount: zod.number().optional(),
+  estimatedPriceLow: zod.number().optional(),
+  estimatedPriceHigh: zod.number().optional(),
+  quoteRequest: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      secondStop: zod.string().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      moveType: zod.string().optional(),
+      residentialOrCommercial: zod.string().optional(),
+      originAddress: zod.string().optional(),
+      destinationAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasGarage: zod.boolean().optional(),
+      hasOutdoorFurniture: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      boxesAlreadyPacked: zod.number().optional(),
+      needsPackingMaterials: zod.boolean().optional(),
+      smallBoxes: zod.number().optional(),
+      mediumBoxes: zod.number().optional(),
+    })
+    .describe("Echo of the quote request fields as stored"),
 });
 export const ListQuoteRequestsResponse = zod.array(
   ListQuoteRequestsResponseItem,
 );
+
+/**
+ * @summary Get a single quote request
+ */
+export const GetQuoteRequestParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetQuoteRequestResponse = zod.object({
+  id: zod.string(),
+  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+  createdAt: zod.string(),
+  crewSize: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  laborSubtotal: zod.number().optional(),
+  materialsSubtotal: zod.number().optional(),
+  totalEstimate: zod.number().optional(),
+  depositAmount: zod.number().optional(),
+  estimatedPriceLow: zod.number().optional(),
+  estimatedPriceHigh: zod.number().optional(),
+  quoteRequest: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      secondStop: zod.string().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      moveType: zod.string().optional(),
+      residentialOrCommercial: zod.string().optional(),
+      originAddress: zod.string().optional(),
+      destinationAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasGarage: zod.boolean().optional(),
+      hasOutdoorFurniture: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      boxesAlreadyPacked: zod.number().optional(),
+      needsPackingMaterials: zod.boolean().optional(),
+      smallBoxes: zod.number().optional(),
+      mediumBoxes: zod.number().optional(),
+    })
+    .describe("Echo of the quote request fields as stored"),
+});
+
+/**
+ * @summary Update a quote request status
+ */
+export const UpdateQuoteStatusParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateQuoteStatusBody = zod.object({
+  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+});
+
+export const UpdateQuoteStatusResponse = zod.object({
+  id: zod.string(),
+  status: zod.string().describe("quote_requested | deposit_paid | booked"),
+  createdAt: zod.string(),
+  crewSize: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  laborSubtotal: zod.number().optional(),
+  materialsSubtotal: zod.number().optional(),
+  totalEstimate: zod.number().optional(),
+  depositAmount: zod.number().optional(),
+  estimatedPriceLow: zod.number().optional(),
+  estimatedPriceHigh: zod.number().optional(),
+  quoteRequest: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      secondStop: zod.string().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      moveType: zod.string().optional(),
+      residentialOrCommercial: zod.string().optional(),
+      originAddress: zod.string().optional(),
+      destinationAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasGarage: zod.boolean().optional(),
+      hasOutdoorFurniture: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      boxesAlreadyPacked: zod.number().optional(),
+      needsPackingMaterials: zod.boolean().optional(),
+      smallBoxes: zod.number().optional(),
+      mediumBoxes: zod.number().optional(),
+    })
+    .describe("Echo of the quote request fields as stored"),
+});
 
 /**
  * Get available moving jobs for providers

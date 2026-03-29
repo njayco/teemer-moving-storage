@@ -7,35 +7,26 @@
  */
 import type { InventoryMap } from "./inventoryMap";
 
-export interface QuoteRequest {
-  contactName: string;
-  phone: string;
-  email: string;
-  /** ISO date string or formatted date */
-  moveDate: string;
-  /** Preferred arrival window, e.g. '8AM–10AM' */
+/**
+ * Echo of the quote request fields as stored
+ */
+export interface QuoteRequestEcho {
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  moveDate?: string;
   arrivalTimeWindow?: string;
-  pickupAddress: string;
-  dropoffAddress: string;
-  /** Optional second stop address */
+  pickupAddress?: string;
+  dropoffAddress?: string;
   secondStop?: string;
   storageNeeded?: boolean;
-  /** e.g. '5x10', '10x10' */
   storageUnitChoice?: string;
   additionalNotes?: string;
-  /** local or long-distance */
   moveType?: string;
-  /** residential or commercial */
   residentialOrCommercial?: string;
   originAddress?: string;
   destinationAddress?: string;
-  moveSize?: string;
-  numberOfRooms?: number;
-  packingHelpNeeded?: string;
-  specialItems?: string;
-  /** @minimum 0 */
   numberOfBedrooms?: number;
-  /** @minimum 0 */
   numberOfLivingRooms?: number;
   isFullyFurnished?: boolean;
   hasGarage?: boolean;

@@ -9,34 +9,108 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Map of item name to quantity. Keys are item names, values are quantities.
+ */
+export interface InventoryMap {
+  [key: string]: number;
+}
+
 export interface QuoteRequest {
-  /** local or long-distance */
-  moveType: string;
-  /** residential or commercial */
-  residentialOrCommercial?: string;
-  originAddress: string;
-  destinationAddress: string;
-  moveDate: string;
-  /** studio, 1br, 2br, 3br, 4br+, house */
-  moveSize?: string;
-  numberOfRooms?: number;
-  /** full, partial, none */
-  packingHelpNeeded?: string;
-  specialItems?: string;
-  storageNeeded?: boolean;
   contactName: string;
   phone: string;
   email: string;
+  /** ISO date string or formatted date */
+  moveDate: string;
+  /** Preferred arrival window, e.g. '8AM–10AM' */
+  arrivalTimeWindow?: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  /** Optional second stop address */
+  secondStop?: string;
+  storageNeeded?: boolean;
+  /** e.g. '5x10', '10x10' */
+  storageUnitChoice?: string;
   additionalNotes?: string;
+  /** local or long-distance */
+  moveType?: string;
+  /** residential or commercial */
+  residentialOrCommercial?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  moveSize?: string;
+  numberOfRooms?: number;
+  packingHelpNeeded?: string;
+  specialItems?: string;
+  /** @minimum 0 */
+  numberOfBedrooms?: number;
+  /** @minimum 0 */
+  numberOfLivingRooms?: number;
+  isFullyFurnished?: boolean;
+  hasGarage?: boolean;
+  hasOutdoorFurniture?: boolean;
+  hasStairs?: boolean;
+  hasHeavyItems?: boolean;
+  inventory?: InventoryMap;
+  boxesAlreadyPacked?: number;
+  needsPackingMaterials?: boolean;
+  smallBoxes?: number;
+  mediumBoxes?: number;
+}
+
+/**
+ * Echo of the quote request fields as stored
+ */
+export interface QuoteRequestEcho {
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  moveDate?: string;
+  arrivalTimeWindow?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  secondStop?: string;
+  storageNeeded?: boolean;
+  storageUnitChoice?: string;
+  additionalNotes?: string;
+  moveType?: string;
+  residentialOrCommercial?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  numberOfBedrooms?: number;
+  numberOfLivingRooms?: number;
+  isFullyFurnished?: boolean;
+  hasGarage?: boolean;
+  hasOutdoorFurniture?: boolean;
+  hasStairs?: boolean;
+  hasHeavyItems?: boolean;
+  inventory?: InventoryMap;
+  boxesAlreadyPacked?: number;
+  needsPackingMaterials?: boolean;
+  smallBoxes?: number;
+  mediumBoxes?: number;
 }
 
 export interface QuoteResponse {
   id: string;
-  estimatedPriceLow: number;
-  estimatedPriceHigh: number;
+  /** quote_requested | deposit_paid | booked */
   status: string;
   createdAt: string;
-  quoteRequest: QuoteRequest;
+  crewSize?: number;
+  hourlyRate?: number;
+  estimatedHours?: number;
+  laborSubtotal?: number;
+  materialsSubtotal?: number;
+  totalEstimate?: number;
+  depositAmount?: number;
+  estimatedPriceLow?: number;
+  estimatedPriceHigh?: number;
+  quoteRequest: QuoteRequestEcho;
+}
+
+export interface UpdateQuoteStatusRequest {
+  /** quote_requested | deposit_paid | booked */
+  status: string;
 }
 
 export interface Job {
