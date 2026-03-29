@@ -27,6 +27,12 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      if (session.payment_status !== "paid") {
+        req.log.info({ paymentStatus: session.payment_status }, "Checkout completed but payment not yet paid, skipping");
+        res.json({ received: true });
+        return;
+      }
+
       const quoteId = session.metadata?.quoteId;
       if (!quoteId || isNaN(parseInt(quoteId, 10))) {
         req.log.error({ metadata: session.metadata }, "Invalid or missing quoteId in checkout session metadata");
