@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { emailLogsTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { emailLogsTable, jobsTable } from "@workspace/db/schema";
+import { eq, or, desc } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -35,10 +35,21 @@ router.get("/admin/email-logs/:jobId", requireAdmin, async (req, res) => {
       return;
     }
 
+    const [job] = await db
+      .select({ quoteId: jobsTable.quoteId })
+      .from(jobsTable)
+      .where(eq(jobsTable.id, jobId))
+      .limit(1);
+
+    const conditions = [eq(emailLogsTable.jobId, jobId)];
+    if (job?.quoteId) {
+      conditions.push(eq(emailLogsTable.quoteId, job.quoteId));
+    }
+
     const logs = await db
       .select()
       .from(emailLogsTable)
-      .where(eq(emailLogsTable.jobId, jobId))
+      .where(or(...conditions))
       .orderBy(desc(emailLogsTable.sentAt));
 
     res.json(formatLogs(logs));
