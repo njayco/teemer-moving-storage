@@ -1,0 +1,403 @@
+Use this as your **Replit AI build prompt**:
+
+Build and extend the existing **Teemer Moving & Storage** web application by adding a fully automated **Free Quote Estimator** that calculates moving estimates based on customer input. Keep the existing branding, layout, and business information already built into the app, and add this estimator as a major conversion-focused feature on the website.
+
+## Goal
+
+Create a professional, mobile-friendly quoting experience that allows customers to get an instant moving estimate, choose their move details, and place a deposit to book the move.
+
+The estimator should feel modern, clear, trustworthy, and easy to use. It should work as both a lead generator and a real booking tool.
+
+## Main Feature to Build
+
+Add an **Automated Free Quote Estimator** with the following flow:
+
+### Step 1: Customer Move Details
+
+Collect:
+
+* Full name
+* Email
+* Phone number
+* Move date
+* Preferred arrival time window
+* Pickup address
+* Dropoff address
+* Optional second stop or storage stop
+* Does customer need storage? yes/no
+* Notes / special instructions
+
+### Step 2: Home Size and Room Count
+
+Let customers choose:
+
+* Number of bedrooms
+* Number of living rooms
+* Is the home fully furnished? yes/no
+* Is there a garage? yes/no
+* Is there outdoor furniture? yes/no
+* Are there stairs? yes/no
+* Are there heavy / bulky items? yes/no
+
+### Step 3: Inventory Selection
+
+Create a large checklist-based inventory selector with quantities for each item. Each item should have + / - quantity controls or a number input.
+
+Use this full list of belongings:
+
+#### Living Room
+
+* Sofa
+* Sectional sofa
+* Loveseat
+* Recliner
+* Coffee table
+* End table
+* TV stand
+* Small TV
+* Medium TV
+* Large TV
+* Bookshelf
+* Lamp
+* Rug
+* Entertainment center
+* Console table
+
+#### Bedroom
+
+* Twin bed
+* Full bed
+* Queen bed
+* King bed
+* Mattress
+* Box spring
+* Headboard
+* Nightstand
+* Dresser
+* Tall dresser
+* Mirror
+* Wardrobe
+* Armoire
+* Vanity
+* Desk
+* Desk chair
+
+#### Dining Room
+
+* Dining table
+* Dining chair
+* China cabinet
+* Buffet / sideboard
+* Bar cart
+* Curio cabinet
+
+#### Kitchen
+
+* Refrigerator
+* Mini fridge
+* Microwave
+* Oven / stove
+* Dishwasher
+* Kitchen cart
+* Small appliance set
+
+#### Office
+
+* Office desk
+* Office chair
+* Filing cabinet
+* Computer
+* Printer
+* Monitor
+
+#### Garage / Storage / Utility
+
+* Toolbox
+* Tools
+* Shelving unit
+* Storage bins
+* Ladder
+* Generator
+* Snow blower
+* Lawn mower
+
+#### Outdoor
+
+* Patio table
+* Patio chairs
+* Grill (no propane)
+* Bicycle
+* Outdoor bench
+* Umbrella
+* Planters
+
+#### Miscellaneous
+
+* AC unit
+* Curtains
+* Wall art
+* Floor lamp
+* Table lamp
+* Mirror
+* Boxes
+* Suitcases
+* Plastic bins
+
+Also include a section for:
+
+* Custom item name
+* Custom item quantity
+
+### Step 4: Box Estimate
+
+Ask:
+
+* How many boxes are already packed?
+* Does the customer need packing materials? yes/no
+* Does the customer want help estimating boxes? yes/no
+
+If yes, use OpenAI to estimate how many **small boxes** and **medium boxes** are likely needed based on:
+
+* number of bedrooms
+* number of living rooms
+* whether fully furnished
+* selected inventory items
+* customer notes
+
+Display the result as:
+
+* Estimated small boxes
+* Estimated medium boxes
+* Confidence note like “This is an estimate and may change after final review.”
+
+Also allow the customer to manually adjust:
+
+* small boxes quantity
+* medium boxes quantity
+
+## Pricing Logic
+
+Implement the following pricing rules exactly as the business logic for the estimator.
+
+### Minimums and Limits
+
+* 4 hour minimum on all moves
+* Maximum working time is 10 hours
+* Travel time is included in hours worked
+* Example: if the move is 6 working hours and 2 hours of travel, quote 8 hours total
+
+### Standard Crew / Hourly Pricing
+
+#### One bedroom plus one living room
+
+* 2 movers
+* $165 per hour
+* estimated 5 hours
+* fully furnished assumption
+
+#### Two bedroom plus one living room
+
+* 3 movers
+* $200 per hour
+* estimated 6 hours
+* estimated around $3,000 in fuller jobs, but use the hourly formula for base estimator and allow a higher-range message if inventory is heavy
+
+#### Three bedrooms plus one living room
+
+* 3 movers
+* $200 per hour
+* estimated 8 hours
+* estimated around $3,000
+
+#### Four bedrooms plus one living room
+
+* 4 movers
+* $300 per hour
+* estimated 8 hours
+* estimated around $4,000
+
+### Garage / Outdoor Rule
+
+If there is a garage or outdoor furniture, add:
+
+* +1 extra mover
+
+### Materials Pricing
+
+Charge materials per bedroom as needed:
+
+* Stretch wrap: 1–2 per bedroom at $55 each
+* Tape: 1 roll per bedroom at $13.50 each
+* Small box: $3.50 each
+* Medium box: $6.50 each
+
+### Deposit Rules
+
+* If total quote is under $1,000, required deposit is $50
+* If total quote is over $1,000, required deposit is 50% of total
+
+## Quote Calculation Engine
+
+Create logic that calculates:
+
+* recommended crew size
+* hourly rate
+* estimated hours
+* labor subtotal
+* materials subtotal
+* deposit due today
+* estimated total quote
+
+The estimator should consider:
+
+* bedrooms
+* living rooms
+* inventory quantity
+* garage / outdoor furniture
+* travel time input if applicable
+* materials selected
+* estimated boxes
+
+Use smart logic to adjust hours upward when inventory is heavy.
+
+Example guidance:
+
+* small loads stay near standard hours
+* heavy furniture loads can add 1 to 2 hours
+* do not exceed 10 total hours automatically
+* never quote below 4 hours
+
+## Quote Results Screen
+
+After calculation, show a polished quote summary with:
+
+* move date
+* estimated crew size
+* hourly rate
+* estimated hours
+* labor subtotal
+* materials subtotal
+* estimated total
+* deposit required today
+* disclaimer that final quote may be adjusted after review
+
+Also show a section:
+
+### “What’s Included”
+
+* Loading and unloading
+* Travel time included in quoted hours
+* Professional moving crew
+* Basic move planning
+* Optional storage coordination
+
+### “Important Notes”
+
+* 4 hour minimum
+* Max 10 hours
+* Heavy or unusual items may require custom review
+* Final estimate subject to confirmation
+
+## Storage Feature
+
+If customer selects storage needed, show StoreQuest Long Beach options and let them choose a unit:
+
+### Small
+
+* 5x5 — $50/month
+* 5x7.5 — $103/month
+* 5x10 — $175/month
+* 5x12 — $185/month
+
+### Medium
+
+* 7.5x10 — $200/month
+
+### Large
+
+* 10x10 — $259/month
+
+Make it clear storage pricing is monthly and separate from moving labor unless explicitly bundled later.
+
+## Booking and Payment
+
+After quote results, allow customer to continue to booking by paying the deposit.
+
+Build:
+
+* “Reserve My Move” button
+* Stripe deposit payment flow
+* Save quote + booking request to database
+* Create admin view or database entry for new quote requests
+* Mark status as:
+
+  * quote requested
+  * deposit paid
+  * booked
+
+Send confirmation email after deposit is paid with:
+
+* quote summary
+* deposit paid
+* move date
+* contact info
+* disclaimer that final confirmation may follow
+
+## Admin / Data Requirements
+
+Store quote requests in database with:
+
+* customer info
+* addresses
+* move details
+* inventory
+* box estimate
+* calculated quote
+* deposit amount
+* storage choice
+* booking status
+* created at timestamp
+
+## UX and Design Requirements
+
+* Build on top of the current Teemer Moving & Storage site, not a separate disconnected app
+* Keep design polished and conversion-focused
+* Mobile responsive
+* Use a step-by-step wizard with progress indicator
+* Clean cards, modern inputs, trust-building layout
+* Strong CTA buttons
+* Customer should feel like this is a premium moving company
+
+## Technical Requirements
+
+Use the current app stack if already started. If no stack is fully established, use:
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* shadcn/ui
+* Stripe for deposits
+* OpenAI API for box estimation
+* PostgreSQL or Supabase for quote storage
+
+## OpenAI Integration Requirement
+
+Use OpenAI only for estimating small and medium box counts based on customer selections. The final labor pricing should still follow our business rules and not be invented by AI. AI should support the estimator, not replace our pricing logic.
+
+## Output Expectations
+
+Implement:
+
+1. the front-end quote wizard
+2. the pricing calculator logic
+3. the OpenAI box estimation call
+4. Stripe deposit flow
+5. database persistence
+6. admin-friendly quote records
+7. confirmation UI after booking
+
+Also generate clean reusable components and organize code well.
+
+At the end, make sure the estimator is fully usable and production-ready inside the existing Teemer Moving & Storage website.
+
+If you want, I can turn this into a **more technical Replit agent prompt** with database schema, API routes, Stripe flow, and OpenAI prompt wiring included.
