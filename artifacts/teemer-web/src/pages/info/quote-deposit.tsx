@@ -1,11 +1,36 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { useRoute } from "wouter";
-import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft } from "lucide-react";
+import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
+import { useState } from "react";
 
 export default function QuoteDepositPage() {
   const [, params] = useRoute("/info/quote/deposit/:quoteId");
   const quoteId = params?.quoteId ?? "";
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handlePayDeposit = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/quotes/${quoteId}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "Unable to start checkout. Please call us to pay the deposit.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Unable to connect to payment service. Please call us to pay the deposit.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <InfoLayout>
@@ -27,29 +52,50 @@ export default function QuoteDepositPage() {
             </div>
 
             <div className="px-8 py-8 space-y-6">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                <CreditCard className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-amber-900 text-sm">Online Deposit Coming Soon</p>
-                  <p className="text-sm text-amber-800 mt-1">
-                    We're setting up secure online payments. In the meantime, call or text us to reserve your date with a deposit over the phone.
-                  </p>
+              {error && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-900 text-sm">Payment Unavailable</p>
+                    <p className="text-sm text-amber-800 mt-1">{error}</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-3">
-                <p className="font-semibold text-slate-800">Reserve by phone or text:</p>
-                <a
-                  href="tel:+15162693724"
-                  className="flex items-center gap-3 bg-primary text-white px-6 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 justify-center"
+                <button
+                  type="button"
+                  onClick={handlePayDeposit}
+                  disabled={loading || !quoteId}
+                  className="w-full flex items-center gap-3 bg-primary text-white px-6 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Phone className="w-5 h-5" />
-                  (516) 269-3724
-                </a>
+                  {loading ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" /> Redirecting to Payment…</>
+                  ) : (
+                    <><CreditCard className="w-5 h-5" /> Pay Deposit Online</>
+                  )}
+                </button>
                 <p className="text-center text-xs text-slate-400">
-                  Mon–Fri 7AM–6PM · Long Beach, NY 11561
+                  Secured by Stripe · Your card details are never stored on our servers
                 </p>
               </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-100" />
+                <span className="text-xs text-slate-400 font-medium">or reserve by phone</span>
+                <div className="flex-1 h-px bg-slate-100" />
+              </div>
+
+              <a
+                href="tel:+15162693724"
+                className="flex items-center gap-3 border-2 border-slate-200 text-slate-700 px-6 py-4 rounded-xl font-semibold hover:border-primary hover:text-primary transition-all justify-center"
+              >
+                <Phone className="w-5 h-5" />
+                (516) 269-3724
+              </a>
+              <p className="text-center text-xs text-slate-400">
+                Mon–Fri 7AM–6PM · Long Beach, NY 11561
+              </p>
 
               <div className="border-t border-slate-100 pt-6 space-y-2">
                 {[

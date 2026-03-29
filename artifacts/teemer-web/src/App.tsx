@@ -13,6 +13,7 @@ import FaqPage from "@/pages/info/faq";
 import ContactPage from "@/pages/info/contact";
 import QuotePage from "@/pages/info/quote";
 import QuoteDepositPage from "@/pages/info/quote-deposit";
+import QuoteConfirmationPage from "@/pages/info/quote-confirmation";
 import GalleryPage from "@/pages/info/gallery";
 
 import CustomerPortal from "@/pages/platform/customer";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/info/contact" component={ContactPage} />
       <Route path="/info/quote" component={QuotePage} />
       <Route path="/info/quote/deposit/:quoteId" component={QuoteDepositPage} />
+      <Route path="/info/quote/confirmation" component={QuoteConfirmationPage} />
 
       {/* Platform */}
       <Route path="/platform" component={CustomerPortal} />

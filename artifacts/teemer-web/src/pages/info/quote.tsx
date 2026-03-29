@@ -461,7 +461,7 @@ export default function QuotePage() {
     setAiError(null);
     setAiEstimate(null);
     try {
-      const res = await fetch("/api/ai/estimate-boxes", {
+      const res = await fetch("/api/quotes/estimate-boxes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

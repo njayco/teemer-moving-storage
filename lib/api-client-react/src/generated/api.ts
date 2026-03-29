@@ -21,11 +21,14 @@ import type {
   ContactFormRequest,
   ContactFormResponse,
   CreateJobRequest,
+  EstimateBoxesRequest,
+  EstimateBoxesResponse,
   HealthStatus,
   Job,
   ListJobsParams,
   QuoteRequest,
   QuoteResponse,
+  StripeCheckoutResponse,
   UpdateJobStatusRequest,
   UpdateQuoteStatusRequest,
 } from "./api.schemas";
@@ -364,6 +367,257 @@ export function useGetQuoteRequest<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Uses OpenAI to estimate the number of small and medium boxes needed based on home size and inventory selections.
+ * @summary AI box count estimation
+ */
+export const getEstimateBoxesUrl = () => {
+  return `/api/quotes/estimate-boxes`;
+};
+
+export const estimateBoxes = async (
+  estimateBoxesRequest: EstimateBoxesRequest,
+  options?: RequestInit,
+): Promise<EstimateBoxesResponse> => {
+  return customFetch<EstimateBoxesResponse>(getEstimateBoxesUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(estimateBoxesRequest),
+  });
+};
+
+export const getEstimateBoxesMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof estimateBoxes>>,
+    TError,
+    { data: BodyType<EstimateBoxesRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof estimateBoxes>>,
+  TError,
+  { data: BodyType<EstimateBoxesRequest> },
+  TContext
+> => {
+  const mutationKey = ["estimateBoxes"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof estimateBoxes>>,
+    { data: BodyType<EstimateBoxesRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return estimateBoxes(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EstimateBoxesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof estimateBoxes>>
+>;
+export type EstimateBoxesMutationBody = BodyType<EstimateBoxesRequest>;
+export type EstimateBoxesMutationError = ErrorType<void>;
+
+/**
+ * @summary AI box count estimation
+ */
+export const useEstimateBoxes = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof estimateBoxes>>,
+    TError,
+    { data: BodyType<EstimateBoxesRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof estimateBoxes>>,
+  TError,
+  { data: BodyType<EstimateBoxesRequest> },
+  TContext
+> => {
+  return useMutation(getEstimateBoxesMutationOptions(options));
+};
+
+/**
+ * @summary Create Stripe Checkout Session for deposit
+ */
+export const getCreateCheckoutSessionUrl = (id: string) => {
+  return `/api/quotes/${id}/checkout`;
+};
+
+export const createCheckoutSession = async (
+  id: string,
+  options?: RequestInit,
+): Promise<StripeCheckoutResponse> => {
+  return customFetch<StripeCheckoutResponse>(getCreateCheckoutSessionUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCreateCheckoutSessionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCheckoutSession>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCheckoutSession>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["createCheckoutSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCheckoutSession>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return createCheckoutSession(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCheckoutSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCheckoutSession>>
+>;
+
+export type CreateCheckoutSessionMutationError = ErrorType<void>;
+
+/**
+ * @summary Create Stripe Checkout Session for deposit
+ */
+export const useCreateCheckoutSession = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCheckoutSession>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCheckoutSession>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getCreateCheckoutSessionMutationOptions(options));
+};
+
+/**
+ * Receives Stripe payment events and updates quote status to deposit_paid.
+ * @summary Stripe webhook endpoint
+ */
+export const getStripeWebhookUrl = () => {
+  return `/api/stripe/webhook`;
+};
+
+export const stripeWebhook = async (options?: RequestInit): Promise<void> => {
+  return customFetch<void>(getStripeWebhookUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStripeWebhookMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stripeWebhook>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof stripeWebhook>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["stripeWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof stripeWebhook>>,
+    void
+  > = () => {
+    return stripeWebhook(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StripeWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof stripeWebhook>>
+>;
+
+export type StripeWebhookMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Stripe webhook endpoint
+ */
+export const useStripeWebhook = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stripeWebhook>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof stripeWebhook>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getStripeWebhookMutationOptions(options));
+};
 
 /**
  * @summary Update a quote request status

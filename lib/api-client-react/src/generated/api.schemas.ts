@@ -120,6 +120,28 @@ export interface QuoteResponse {
   quoteRequest: QuoteRequestEcho;
 }
 
+export interface EstimateBoxesRequest {
+  inventory?: InventoryMap;
+  numberOfBedrooms?: number;
+  numberOfLivingRooms?: number;
+  isFullyFurnished?: boolean;
+}
+
+export interface EstimateBoxesResponse {
+  /** Estimated number of small boxes */
+  small: number;
+  /** Estimated number of medium boxes */
+  medium: number;
+  /** Confidence note from AI */
+  note: string;
+}
+
+export interface StripeCheckoutResponse {
+  /** Stripe Checkout hosted URL to redirect the customer to */
+  url: string;
+  sessionId: string;
+}
+
 /**
  * quote_requested | deposit_paid | booked
  */

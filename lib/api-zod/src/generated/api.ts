@@ -195,6 +195,42 @@ export const GetQuoteRequestResponse = zod.object({
 });
 
 /**
+ * Uses OpenAI to estimate the number of small and medium boxes needed based on home size and inventory selections.
+ * @summary AI box count estimation
+ */
+export const EstimateBoxesBody = zod.object({
+  inventory: zod
+    .record(zod.string(), zod.number())
+    .optional()
+    .describe(
+      "Map of item name to quantity. Keys are item names, values are quantities.",
+    ),
+  numberOfBedrooms: zod.number().optional(),
+  numberOfLivingRooms: zod.number().optional(),
+  isFullyFurnished: zod.boolean().optional(),
+});
+
+export const EstimateBoxesResponse = zod.object({
+  small: zod.number().describe("Estimated number of small boxes"),
+  medium: zod.number().describe("Estimated number of medium boxes"),
+  note: zod.string().describe("Confidence note from AI"),
+});
+
+/**
+ * @summary Create Stripe Checkout Session for deposit
+ */
+export const CreateCheckoutSessionParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const CreateCheckoutSessionResponse = zod.object({
+  url: zod
+    .string()
+    .describe("Stripe Checkout hosted URL to redirect the customer to"),
+  sessionId: zod.string(),
+});
+
+/**
  * @summary Update a quote request status
  */
 export const UpdateQuoteStatusParams = zod.object({

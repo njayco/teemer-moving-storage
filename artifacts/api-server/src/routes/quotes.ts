@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { quoteRequestsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { calculatePricing } from "../lib/pricing-engine.js";
+import OpenAI from "openai";
 
 const router: IRouter = Router();
 
@@ -231,6 +232,131 @@ router.post("/quotes", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to create quote");
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /quotes/estimate-boxes  — AI box estimation via OpenAI
+router.post("/quotes/estimate-boxes", async (req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: "AI box estimation is not configured yet. Please enter box counts manually." });
+    return;
+  }
+
+  const { inventory = {}, numberOfBedrooms = 1, numberOfLivingRooms = 1, isFullyFurnished = true } = req.body as {
+    inventory?: Record<string, number>;
+    numberOfBedrooms?: number;
+    numberOfLivingRooms?: number;
+    isFullyFurnished?: boolean;
+  };
+
+  const inventoryLines = Object.entries(inventory)
+    .map(([item, qty]) => `  - ${item}: ${qty}`)
+    .join("\n") || "  (no items listed)";
+
+  const prompt = `You are a moving company estimator. Based on the following move details, estimate how many small boxes (book-sized, ~1.5 cu ft) and medium boxes (mid-size, ~3 cu ft) the customer will need for packing.
+
+Move details:
+- Bedrooms: ${numberOfBedrooms}
+- Living rooms: ${numberOfLivingRooms}
+- Fully furnished: ${isFullyFurnished ? "Yes" : "No"}
+- Selected furniture/items:
+${inventoryLines}
+
+Rules:
+- Consider that each bedroom typically needs 5-10 small boxes and 3-5 medium boxes for closet items, books, and miscellaneous.
+- Each living room needs 2-4 small boxes and 1-2 medium boxes.
+- Kitchen items usually add 5-10 small boxes and 3-5 medium boxes.
+- Heavy items like safes and pianos don't need boxes.
+- Round to nearest 5 for cleanliness.
+
+Return ONLY valid JSON in this exact format, no markdown, no explanation:
+{"small": <number>, "medium": <number>, "note": "<one-sentence confidence note>"}`;
+
+  try {
+    const openai = new OpenAI({ apiKey });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 150,
+    });
+
+    const text = completion.choices[0]?.message?.content?.trim() ?? "";
+    const parsed = JSON.parse(text) as { small: number; medium: number; note: string };
+
+    if (typeof parsed.small !== "number" || typeof parsed.medium !== "number") {
+      throw new Error("Invalid response format");
+    }
+
+    res.json({ small: parsed.small, medium: parsed.medium, note: parsed.note ?? "" });
+  } catch (err) {
+    req.log.error({ err }, "OpenAI estimate-boxes failed");
+    res.status(500).json({ error: "Failed to estimate boxes. Please enter counts manually." });
+  }
+});
+
+// POST /quotes/:id/checkout  — Create Stripe Checkout Session for deposit
+router.post("/quotes/:id/checkout", async (req, res) => {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    res.status(503).json({ error: "Online payment is not configured yet. Please call us to pay the deposit." });
+    return;
+  }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid quote ID" });
+    return;
+  }
+
+  try {
+    const [quote] = await db
+      .select()
+      .from(quoteRequestsTable)
+      .where(eq(quoteRequestsTable.id, id));
+
+    if (!quote) {
+      res.status(404).json({ error: "Quote not found" });
+      return;
+    }
+
+    const depositCents = Math.round((quote.depositAmount ?? 50) * 100);
+    const moveDate = quote.moveDate ?? "TBD";
+    const customerName = quote.contactName ?? "Customer";
+
+    const { default: Stripe } = await import("stripe");
+    const stripe = new Stripe(stripeKey);
+
+    const host = req.headers.origin || `https://${req.headers.host}`;
+    const successUrl = `${host}/info/quote/confirmation?quoteId=${id}&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${host}/info/quote/deposit/${id}`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: depositCents,
+            product_data: {
+              name: "Move Deposit — Teemer Moving & Storage",
+              description: `Move date: ${moveDate} · Customer: ${customerName} · Quote #${id}`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: { quoteId: String(id) },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
+
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err) {
+    req.log.error({ err }, "Stripe checkout session creation failed");
+    res.status(500).json({ error: "Failed to create payment session. Please call us to pay the deposit." });
   }
 });
 

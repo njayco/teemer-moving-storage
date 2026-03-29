@@ -82,6 +82,58 @@ paths:
                 $ref: "#/components/schemas/QuoteResponse"
         "404":
           description: Quote not found
+  /quotes/estimate-boxes:
+    post:
+      operationId: estimateBoxes
+      tags: [quotes]
+      summary: AI box count estimation
+      description: Uses OpenAI to estimate the number of small and medium boxes needed based on home size and inventory selections.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EstimateBoxesRequest"
+      responses:
+        "200":
+          description: Box count estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstimateBoxesResponse"
+        "503":
+          description: AI estimation not configured
+  /quotes/{id}/checkout:
+    post:
+      operationId: createCheckoutSession
+      tags: [quotes]
+      summary: Create Stripe Checkout Session for deposit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stripe Checkout Session URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeCheckoutResponse"
+        "404":
+          description: Quote not found
+        "503":
+          description: Payment not configured
+  /stripe/webhook:
+    post:
+      operationId: stripeWebhook
+      tags: [quotes]
+      summary: Stripe webhook endpoint
+      description: Receives Stripe payment events and updates quote status to deposit_paid.
+      responses:
+        "200":
+          description: Webhook received
   /quotes/{id}/status:
     patch:
       operationId: updateQuoteStatus
@@ -433,6 +485,47 @@ components:
           type: integer
         mediumBoxes:
           type: integer
+
+    EstimateBoxesRequest:
+      type: object
+      properties:
+        inventory:
+          $ref: "#/components/schemas/InventoryMap"
+        numberOfBedrooms:
+          type: integer
+        numberOfLivingRooms:
+          type: integer
+        isFullyFurnished:
+          type: boolean
+
+    EstimateBoxesResponse:
+      type: object
+      properties:
+        small:
+          type: integer
+          description: Estimated number of small boxes
+        medium:
+          type: integer
+          description: Estimated number of medium boxes
+        note:
+          type: string
+          description: Confidence note from AI
+      required:
+        - small
+        - medium
+        - note
+
+    StripeCheckoutResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Stripe Checkout hosted URL to redirect the customer to
+        sessionId:
+          type: string
+      required:
+        - url
+        - sessionId
 
     UpdateQuoteStatusRequest:
       type: object
