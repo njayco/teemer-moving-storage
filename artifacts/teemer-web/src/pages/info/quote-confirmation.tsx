@@ -1,5 +1,5 @@
 import { InfoLayout } from "@/components/layout/info-layout";
-import { CheckCircle2, Calendar, Phone, ArrowRight } from "lucide-react";
+import { CheckCircle2, Calendar, Phone, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useSearch } from "wouter";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
 import { Link } from "wouter";
@@ -9,16 +9,55 @@ export default function QuoteConfirmationPage() {
   const params = new URLSearchParams(search);
   const quoteId = params.get("quoteId") ?? "";
 
-  const { data: quote } = useGetQuoteRequest(quoteId, {
-    query: { enabled: !!quoteId, queryKey: ["quote", quoteId] },
+  const { data: quote, isLoading } = useGetQuoteRequest(quoteId, {
+    query: {
+      enabled: !!quoteId,
+      queryKey: ["quote", quoteId],
+      refetchInterval: (query) => {
+        const status = query.state.data?.quoteRequest?.status;
+        return status === "deposit_paid" ? false : 3000;
+      },
+    },
   });
 
+  const quoteStatus = quote?.quoteRequest?.status;
+  const isPaid = quoteStatus === "deposit_paid";
   const moveDate = quote?.quoteRequest?.moveDate;
   const customerName = quote?.quoteRequest?.contactName;
   const totalEstimate = quote?.totalEstimate;
   const depositAmount = quote?.depositAmount;
   const crewSize = quote?.crewSize;
   const estimatedHours = quote?.estimatedHours;
+
+  if (isLoading) {
+    return (
+      <InfoLayout>
+        <div className="min-h-[70vh] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </InfoLayout>
+    );
+  }
+
+  if (!isPaid) {
+    return (
+      <InfoLayout>
+        <div className="min-h-[70vh] bg-gradient-to-br from-amber-50 to-slate-50 py-16 px-4">
+          <div className="max-w-lg mx-auto text-center space-y-4">
+            <Loader2 className="w-10 h-10 animate-spin text-amber-500 mx-auto" />
+            <h1 className="text-xl font-bold text-slate-800">Processing Your Payment…</h1>
+            <p className="text-slate-500 text-sm">
+              We're confirming your deposit. This usually takes a few seconds.
+            </p>
+            <p className="text-slate-400 text-xs">
+              If this page doesn't update within a minute, please call us at{" "}
+              <a href="tel:+15162693724" className="text-primary font-semibold">(516) 269-3724</a>.
+            </p>
+          </div>
+        </div>
+      </InfoLayout>
+    );
+  }
 
   return (
     <InfoLayout>
