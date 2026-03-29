@@ -13,6 +13,25 @@ import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte } from "
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
+
+async function computeTotalPaidAndRemaining(
+  jobId: number,
+  depositPaidOnJob: number,
+  finalTotal: number,
+): Promise<{ totalPaid: number; remainingBalance: number }> {
+  const [result] = await db.select({
+    depositPayments: sum(sql`CASE WHEN ${paymentsTable.type} = 'deposit' THEN ${paymentsTable.amount} ELSE 0 END`),
+    nonDepositPayments: sum(sql`CASE WHEN ${paymentsTable.type} != 'deposit' THEN ${paymentsTable.amount} ELSE 0 END`),
+  }).from(paymentsTable).where(eq(paymentsTable.jobId, jobId));
+
+  const depositFromRows = Number(result?.depositPayments ?? 0);
+  const nonDepositFromRows = Number(result?.nonDepositPayments ?? 0);
+
+  const depositComponent = Math.max(depositFromRows, depositPaidOnJob);
+  const totalPaid = depositComponent + nonDepositFromRows;
+  const remainingBalance = Math.max(0, finalTotal - totalPaid);
+  return { totalPaid, remainingBalance };
+}
 import { revenueLedgerTable } from "@workspace/db/schema";
 
 const CAPTAIN_STATUSES = [
@@ -443,11 +462,10 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
 
     let cashAmount = 0;
     if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
-      const existingPmts = await db.select({ total: sum(paymentsTable.amount) })
-        .from(paymentsTable).where(eq(paymentsTable.jobId, existing.id));
-      const alreadyPaid = Number(existingPmts[0]?.total ?? 0);
       const total = existing.finalTotal ?? existing.estimatedPayout ?? 0;
-      cashAmount = Math.max(0, total - alreadyPaid);
+      const { remainingBalance: outstanding } = await computeTotalPaidAndRemaining(
+        existing.id, existing.depositPaid ?? 0, total);
+      cashAmount = outstanding;
       if (updates.remainingBalance === undefined) {
         updates.remainingBalance = 0;
       }
@@ -657,13 +675,9 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
     const email = quote?.email;
     if (!email) return res.status(400).json({ error: "No customer email found for this job" });
 
-    const existingPayments = await db.select({ total: sum(paymentsTable.amount) })
-      .from(paymentsTable).where(eq(paymentsTable.jobId, job.id));
-    const paymentRowsTotal = Number(existingPayments[0]?.total ?? 0);
-    const depositOnJob = job.depositPaid ?? 0;
-    const totalPaid = Math.max(paymentRowsTotal, depositOnJob);
     const finalTotal = job.finalTotal ?? job.estimatedPayout ?? 0;
-    const remainingBalance = Math.max(0, finalTotal - totalPaid);
+    const { totalPaid, remainingBalance } = await computeTotalPaidAndRemaining(
+      job.id, job.depositPaid ?? 0, finalTotal);
 
     const [existingInvoice] = await db.select().from(invoicesTable)
       .where(eq(invoicesTable.jobId, job.id)).limit(1);
@@ -882,11 +896,8 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
     const finalTotal = subtotal + extras - disc;
     const depositApplied = job.depositPaid ?? 0;
 
-    const existingPayments = await db.select({ total: sum(paymentsTable.amount) })
-      .from(paymentsTable).where(eq(paymentsTable.jobId, job.id));
-    const paymentRowsTotal = Number(existingPayments[0]?.total ?? 0);
-    const totalPaid = Math.max(paymentRowsTotal, depositApplied);
-    const remainingBalanceDue = Math.max(0, finalTotal - totalPaid);
+    const { remainingBalance: remainingBalanceDue } = await computeTotalPaidAndRemaining(
+      job.id, depositApplied, finalTotal);
 
     const validatedItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }> = Array.isArray(items)
       ? items.map((item: { description?: string; quantity?: number; unitPrice?: number }) => ({

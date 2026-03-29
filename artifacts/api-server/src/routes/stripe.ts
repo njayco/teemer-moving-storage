@@ -104,27 +104,36 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         .where(eq(jobsTable.quoteId, parsedQuoteId)).limit(1);
       if (existingJob) {
         const sessionId = typeof session.id === "string" ? session.id : "";
-        await db.insert(paymentsTable).values({
-          jobId: existingJob.id,
-          type: "deposit",
-          method: "stripe",
-          amount: depositPaid,
-          reference: sessionId,
-          notes: `Stripe deposit for quote #${parsedQuoteId}`,
-        });
-        await db.insert(revenueLedgerTable).values({
-          jobId: existingJob.id,
-          category: "deposit",
-          amount: depositPaid,
-        });
-        recordTimelineEvent({
-          jobId: existingJob.id,
-          eventType: "payment_recorded",
-          statusLabel: "Deposit Payment Recorded",
-          visibleToCustomer: true,
-          notes: `Deposit of $${depositPaid.toFixed(2)} recorded via Stripe`,
-        }).catch(() => {});
-        req.log.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
+        const [existingPayment] = sessionId
+          ? await db.select().from(paymentsTable)
+              .where(and(eq(paymentsTable.jobId, existingJob.id), eq(paymentsTable.reference, sessionId)))
+              .limit(1)
+          : [undefined];
+        if (!existingPayment) {
+          await db.transaction(async (tx) => {
+            await tx.insert(paymentsTable).values({
+              jobId: existingJob.id,
+              type: "deposit",
+              method: "stripe",
+              amount: depositPaid,
+              reference: sessionId,
+              notes: `Stripe deposit for quote #${parsedQuoteId}`,
+            });
+            await tx.insert(revenueLedgerTable).values({
+              jobId: existingJob.id,
+              category: "deposit",
+              amount: depositPaid,
+            });
+          });
+          recordTimelineEvent({
+            jobId: existingJob.id,
+            eventType: "payment_recorded",
+            statusLabel: "Deposit Payment Recorded",
+            visibleToCustomer: true,
+            notes: `Deposit of $${depositPaid.toFixed(2)} recorded via Stripe`,
+          }).catch(() => {});
+          req.log.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
+        }
       }
 
       sendDepositConfirmationEmail({
