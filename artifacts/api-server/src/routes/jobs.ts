@@ -9,7 +9,7 @@ import {
   usersTable,
   invoicesTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, sum, sql, or, ilike, and } from "drizzle-orm";
+import { eq, desc, count, sum, sql, or, ilike, and, isNotNull } from "drizzle-orm";
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
@@ -754,12 +754,15 @@ router.get("/admin/stats", requireAdmin, async (req, res) => {
 
 router.get("/captain/jobs", requireCaptainOrAdmin, async (req, res) => {
   try {
-    const captainId = req.user!.userId;
+    const isAdmin = req.user!.role === "admin";
+    const whereClause = isAdmin
+      ? isNotNull(jobsTable.assignedCaptainId)
+      : eq(jobsTable.assignedCaptainId, req.user!.userId);
 
     const jobs = await db
       .select()
       .from(jobsTable)
-      .where(eq(jobsTable.assignedCaptainId, captainId))
+      .where(whereClause)
       .orderBy(desc(jobsTable.createdAt));
 
     const quoteIds = jobs.map((j) => j.quoteId).filter((id): id is number => id != null);

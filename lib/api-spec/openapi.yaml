@@ -1157,6 +1157,46 @@ components:
           type: number
 
     # ─── Captain ─────────────────────────────────────────────────────────────
+    CaptainQuoteData:
+      type: object
+      properties:
+        contactName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        moveDate:
+          type: string
+        arrivalTimeWindow:
+          type: string
+        pickupAddress:
+          type: string
+        dropoffAddress:
+          type: string
+        numberOfBedrooms:
+          type: integer
+        numberOfLivingRooms:
+          type: integer
+        isFullyFurnished:
+          type: boolean
+        hasStairs:
+          type: boolean
+        hasHeavyItems:
+          type: boolean
+        storageNeeded:
+          type: boolean
+        storageUnitChoice:
+          type: string
+        additionalNotes:
+          type: string
+        inventory:
+          $ref: "#/components/schemas/InventoryMap"
+        crewSize:
+          type: integer
+        estimatedHours:
+          type: number
+
     CaptainJob:
       type: object
       properties:
@@ -1165,7 +1205,7 @@ components:
         jobId:
           type: string
         customer:
-          type: object
+          type: string
         pickupLocation:
           type: string
         destination:
@@ -1187,7 +1227,7 @@ components:
         eta:
           type: string
         assignedCaptainId:
-          type: string
+          type: integer
         arrivalWindow:
           type: string
         originAddress:
@@ -1207,7 +1247,7 @@ components:
         completedAt:
           type: string
         quoteData:
-          type: object
+          $ref: "#/components/schemas/CaptainQuoteData"
       required:
         - id
         - jobId

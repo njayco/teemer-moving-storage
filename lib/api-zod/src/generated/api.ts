@@ -949,7 +949,7 @@ export const LookupTrackingResponse = zod.object({
 export const ListCaptainJobsResponseItem = zod.object({
   id: zod.string(),
   jobId: zod.string(),
-  customer: zod.object({}).passthrough().optional(),
+  customer: zod.string().optional(),
   pickupLocation: zod.string().optional(),
   destination: zod.string().optional(),
   moveType: zod.string().optional(),
@@ -960,7 +960,7 @@ export const ListCaptainJobsResponseItem = zod.object({
   assignedMover: zod.string().optional(),
   truckStatus: zod.string().optional(),
   eta: zod.string().optional(),
-  assignedCaptainId: zod.string().optional(),
+  assignedCaptainId: zod.number().optional(),
   arrivalWindow: zod.string().optional(),
   originAddress: zod.string().optional(),
   destinationAddress: zod.string().optional(),
@@ -970,7 +970,33 @@ export const ListCaptainJobsResponseItem = zod.object({
   createdAt: zod.string().optional(),
   updatedAt: zod.string().optional(),
   completedAt: zod.string().optional(),
-  quoteData: zod.object({}).passthrough().optional(),
+  quoteData: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      crewSize: zod.number().optional(),
+      estimatedHours: zod.number().optional(),
+    })
+    .optional(),
 });
 export const ListCaptainJobsResponse = zod.array(ListCaptainJobsResponseItem);
 
@@ -1002,7 +1028,7 @@ export const UpdateCaptainJobStatusBody = zod.object({
 export const UpdateCaptainJobStatusResponse = zod.object({
   id: zod.string(),
   jobId: zod.string(),
-  customer: zod.object({}).passthrough().optional(),
+  customer: zod.string().optional(),
   pickupLocation: zod.string().optional(),
   destination: zod.string().optional(),
   moveType: zod.string().optional(),
@@ -1013,7 +1039,7 @@ export const UpdateCaptainJobStatusResponse = zod.object({
   assignedMover: zod.string().optional(),
   truckStatus: zod.string().optional(),
   eta: zod.string().optional(),
-  assignedCaptainId: zod.string().optional(),
+  assignedCaptainId: zod.number().optional(),
   arrivalWindow: zod.string().optional(),
   originAddress: zod.string().optional(),
   destinationAddress: zod.string().optional(),
@@ -1023,7 +1049,33 @@ export const UpdateCaptainJobStatusResponse = zod.object({
   createdAt: zod.string().optional(),
   updatedAt: zod.string().optional(),
   completedAt: zod.string().optional(),
-  quoteData: zod.object({}).passthrough().optional(),
+  quoteData: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      crewSize: zod.number().optional(),
+      estimatedHours: zod.number().optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -1040,7 +1092,7 @@ export const AddCaptainNoteBody = zod.object({
 export const AddCaptainNoteResponse = zod.object({
   id: zod.string(),
   jobId: zod.string(),
-  customer: zod.object({}).passthrough().optional(),
+  customer: zod.string().optional(),
   pickupLocation: zod.string().optional(),
   destination: zod.string().optional(),
   moveType: zod.string().optional(),
@@ -1051,7 +1103,7 @@ export const AddCaptainNoteResponse = zod.object({
   assignedMover: zod.string().optional(),
   truckStatus: zod.string().optional(),
   eta: zod.string().optional(),
-  assignedCaptainId: zod.string().optional(),
+  assignedCaptainId: zod.number().optional(),
   arrivalWindow: zod.string().optional(),
   originAddress: zod.string().optional(),
   destinationAddress: zod.string().optional(),
@@ -1061,7 +1113,33 @@ export const AddCaptainNoteResponse = zod.object({
   createdAt: zod.string().optional(),
   updatedAt: zod.string().optional(),
   completedAt: zod.string().optional(),
-  quoteData: zod.object({}).passthrough().optional(),
+  quoteData: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      crewSize: zod.number().optional(),
+      estimatedHours: zod.number().optional(),
+    })
+    .optional(),
 });
 
 /**

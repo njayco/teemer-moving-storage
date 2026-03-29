@@ -5,13 +5,12 @@
  * Teemer Moving & Storage API
  * OpenAPI spec version: 0.1.0
  */
-import type { CaptainJobCustomer } from "./captainJobCustomer";
-import type { CaptainJobQuoteData } from "./captainJobQuoteData";
+import type { CaptainQuoteData } from "./captainQuoteData";
 
 export interface CaptainJob {
   id: string;
   jobId: string;
-  customer?: CaptainJobCustomer;
+  customer?: string;
   pickupLocation?: string;
   destination?: string;
   moveType?: string;
@@ -22,7 +21,7 @@ export interface CaptainJob {
   assignedMover?: string;
   truckStatus?: string;
   eta?: string;
-  assignedCaptainId?: string;
+  assignedCaptainId?: number;
   arrivalWindow?: string;
   originAddress?: string;
   destinationAddress?: string;
@@ -32,5 +31,5 @@ export interface CaptainJob {
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;
-  quoteData?: CaptainJobQuoteData;
+  quoteData?: CaptainQuoteData;
 }

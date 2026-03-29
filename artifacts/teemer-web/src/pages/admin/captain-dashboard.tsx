@@ -4,6 +4,7 @@ import {
   useUpdateCaptainJobStatus,
   useAddCaptainNote,
   type CaptainJob,
+  type CaptainStatusUpdateRequestStatus,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -99,7 +100,7 @@ function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
   const nextActions = getNextActions(job.status ?? "pending");
   const moveDate = job.quoteData?.moveDate || job.dateTime;
 
-  const handleStatusUpdate = useCallback(async (newStatus: string) => {
+  const handleStatusUpdate = useCallback(async (newStatus: CaptainStatusUpdateRequestStatus) => {
     setUpdating(newStatus);
     try {
       await updateStatus({ jobId: job.jobId || job.id, data: { status: newStatus } });
@@ -228,7 +229,7 @@ function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
                   return (
                     <button
                       key={action.status}
-                      onClick={() => handleStatusUpdate(action.status)}
+                      onClick={() => handleStatusUpdate(action.status as CaptainStatusUpdateRequestStatus)}
                       disabled={updating !== null}
                       className={`flex items-center gap-2 px-4 py-3 ${action.color} text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 active:scale-95`}
                     >

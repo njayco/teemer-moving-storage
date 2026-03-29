@@ -299,14 +299,31 @@ export interface UpdateJobStatusRequest {
   remainingBalance?: number;
 }
 
-export type CaptainJobCustomer = { [key: string]: unknown };
-
-export type CaptainJobQuoteData = { [key: string]: unknown };
+export interface CaptainQuoteData {
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  moveDate?: string;
+  arrivalTimeWindow?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  numberOfBedrooms?: number;
+  numberOfLivingRooms?: number;
+  isFullyFurnished?: boolean;
+  hasStairs?: boolean;
+  hasHeavyItems?: boolean;
+  storageNeeded?: boolean;
+  storageUnitChoice?: string;
+  additionalNotes?: string;
+  inventory?: InventoryMap;
+  crewSize?: number;
+  estimatedHours?: number;
+}
 
 export interface CaptainJob {
   id: string;
   jobId: string;
-  customer?: CaptainJobCustomer;
+  customer?: string;
   pickupLocation?: string;
   destination?: string;
   moveType?: string;
@@ -317,7 +334,7 @@ export interface CaptainJob {
   assignedMover?: string;
   truckStatus?: string;
   eta?: string;
-  assignedCaptainId?: string;
+  assignedCaptainId?: number;
   arrivalWindow?: string;
   originAddress?: string;
   destinationAddress?: string;
@@ -327,7 +344,7 @@ export interface CaptainJob {
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;
-  quoteData?: CaptainJobQuoteData;
+  quoteData?: CaptainQuoteData;
 }
 
 export type CaptainStatusUpdateRequestStatus =
