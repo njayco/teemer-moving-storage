@@ -30,8 +30,7 @@ const USERS_TO_SEED: UserSeed[] = [
 async function upsertUser(seed: UserSeed) {
   const password = process.env[seed.passwordEnvVar];
   if (!password) {
-    console.warn(`⚠ Skipping ${seed.email}: ${seed.passwordEnvVar} secret is not set.`);
-    return;
+    throw new Error(`Cannot seed ${seed.email}: ${seed.passwordEnvVar} secret is not set. Add it to Secrets before running.`);
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
