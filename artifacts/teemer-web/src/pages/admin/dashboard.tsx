@@ -165,6 +165,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
   const [discounts, setDiscounts] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<Array<{ description: string; quantity: number; unitPrice: number }>>([]);
 
   useEffect(() => {
     (async () => {
@@ -184,6 +185,13 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
             setDiscounts(data.discounts ?? 0);
             setDueDate(data.dueDate ?? "");
             setNotes(snap.notes ?? "");
+            if (Array.isArray(snap.items)) {
+              setItems(snap.items.map((i: { description?: string; quantity?: number; unitPrice?: number }) => ({
+                description: String(i.description ?? ""),
+                quantity: Number(i.quantity ?? 1),
+                unitPrice: Number(i.unitPrice ?? 0),
+              })));
+            }
           } else {
             setLaborHours(job?.estimatedHours ?? job?.quoteData?.estimatedHours ?? 0);
             setHourlyRate(job?.hourlyRate ?? job?.quoteData?.hourlyRate ?? 0);
@@ -213,7 +221,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
-          extraCharges, discounts, dueDate: dueDate || undefined, notes,
+          extraCharges, discounts, dueDate: dueDate || undefined, notes, items,
         }),
       });
       if (!res.ok) {
@@ -300,6 +308,70 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
             <label className="text-xs font-medium text-slate-500 block mb-1">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none" />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-slate-500">Line Items</label>
+              <button
+                type="button"
+                onClick={() => setItems([...items, { description: "", quantity: 1, unitPrice: 0 }])}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                + Add Item
+              </button>
+            </div>
+            {items.length > 0 && (
+              <div className="space-y-2">
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      value={item.description}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        updated[idx] = { ...updated[idx], description: e.target.value };
+                        setItems(updated);
+                      }}
+                      className="flex-1 px-2 py-1.5 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        updated[idx] = { ...updated[idx], quantity: Number(e.target.value) };
+                        setItems(updated);
+                      }}
+                      className="w-16 px-2 py-1.5 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        updated[idx] = { ...updated[idx], unitPrice: Number(e.target.value) };
+                        setItems(updated);
+                      }}
+                      className="w-20 px-2 py-1.5 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                    <span className="text-xs text-slate-500 w-16 text-right pt-2">${(item.quantity * item.unitPrice).toFixed(2)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                      className="text-red-400 hover:text-red-600 pt-1.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">

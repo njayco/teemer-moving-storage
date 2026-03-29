@@ -224,17 +224,28 @@ export interface RemainingBalanceData {
   discounts: number;
   finalTotal: number;
   remainingBalance: number;
+  invoiceNumber?: string;
+  dueDate?: string;
+  payLink?: string;
 }
 
 export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string {
+  const payButton = data.payLink
+    ? `<div style="text-align:center;margin:16px 0;">
+         <a href="${escapeHtml(data.payLink)}" style="display:inline-block;background:${PRIMARY_COLOR};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Pay Now</a>
+       </div>`
+    : "";
+
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Remaining Balance Invoice</h2>
+    ${data.invoiceNumber ? `<p style="margin:0 0 4px;color:#64748b;font-size:13px;">Invoice #${escapeHtml(data.invoiceNumber)}</p>` : ""}
     <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
       Hi ${escapeHtml(data.customerName)}, here is the invoice for the remaining balance on your move (Quote #${data.quoteId}).
     </p>
     ${sectionHeading("Invoice Details")}
     ${detailTable([
       ["Move Date", data.moveDate],
+      ...(data.dueDate ? [["Due Date", data.dueDate] as [string, string]] : []),
       ["Original Estimate", formatCurrency(data.totalEstimate)],
       ["Extra Charges", formatCurrency(data.extraCharges)],
       ["Discounts", `-${formatCurrency(data.discounts)}`],
@@ -245,7 +256,8 @@ export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string 
       <p style="margin:0;color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Amount Due</p>
       <p style="margin:4px 0 0;color:#dc2626;font-size:28px;font-weight:700;">${formatCurrency(data.remainingBalance)}</p>
     </div>
-    <p style="color:#64748b;font-size:12px;text-align:center;">Payment is due on move day. Contact us with any questions.</p>
+    ${payButton}
+    <p style="color:#64748b;font-size:12px;text-align:center;">${data.dueDate ? `Payment is due by ${escapeHtml(data.dueDate)}.` : "Payment is due on move day."} Contact us with any questions.</p>
   `;
   return baseLayout("Invoice — Teemer Moving & Storage", body);
 }

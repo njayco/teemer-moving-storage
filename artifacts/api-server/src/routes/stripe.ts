@@ -117,6 +117,13 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
           category: "deposit",
           amount: depositPaid,
         });
+        recordTimelineEvent({
+          jobId: existingJob.id,
+          eventType: "payment_recorded",
+          statusLabel: "Deposit Payment Recorded",
+          visibleToCustomer: true,
+          notes: `Deposit of $${depositPaid.toFixed(2)} recorded via Stripe`,
+        }).catch(() => {});
         req.log.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
       }
 

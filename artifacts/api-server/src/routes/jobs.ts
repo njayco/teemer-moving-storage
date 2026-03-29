@@ -254,18 +254,26 @@ router.post("/jobs", requireAdmin, async (req, res) => {
         .where(and(eq(paymentsTable.jobId, job.id), eq(paymentsTable.type, "deposit")))
         .limit(1);
       if (existingDeposit.length === 0) {
+        const depositAmount = job.depositPaid ?? 0;
         await db.insert(paymentsTable).values({
           jobId: job.id,
           type: "deposit",
           method: "stripe",
-          amount: job.depositPaid ?? 0,
+          amount: depositAmount,
           notes: `Deposit recorded at job creation`,
         });
         await db.insert(revenueLedgerTable).values({
           jobId: job.id,
           category: "deposit",
-          amount: job.depositPaid ?? 0,
+          amount: depositAmount,
         });
+        recordTimelineEvent({
+          jobId: job.id,
+          eventType: "payment_recorded",
+          statusLabel: "Deposit Recorded",
+          visibleToCustomer: true,
+          notes: `Deposit of $${depositAmount.toFixed(2)} recorded`,
+        }).catch(() => {});
       }
     }
 
@@ -681,6 +689,14 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       }).where(eq(invoicesTable.id, existingInvoice.id));
     }
 
+    const baseUrl = process.env.APP_BASE_URL
+      || (process.env.REPLIT_DEPLOYMENT === "1"
+        ? `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`
+        : `https://${process.env.REPLIT_DEV_DOMAIN}`);
+    const payLink = quote?.trackingToken
+      ? `${baseUrl}/track/${job.quoteId ?? job.id}/${quote.trackingToken}`
+      : undefined;
+
     const result = await sendRemainingBalanceInvoiceEmail({
       email,
       customerName: quote?.contactName ?? job.customer ?? "Customer",
@@ -692,6 +708,9 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       finalTotal,
       remainingBalance,
       moveDate: quote?.moveDate ?? job.dateTime ?? "",
+      invoiceNumber,
+      dueDate: dueDateStr,
+      payLink,
     });
 
     if (!result.success) {
@@ -843,7 +862,7 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
 
     const {
       laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
-      extraCharges, discounts, dueDate, notes: invoiceNotes,
+      extraCharges, discounts, dueDate, notes: invoiceNotes, items,
     } = req.body;
 
     const subtotal = ((laborHours ?? job.estimatedHours ?? 0) * (hourlyRate ?? job.hourlyRate ?? 0))
@@ -858,6 +877,15 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
     const totalPaid = Number(existingPayments[0]?.total ?? 0);
     const remainingBalanceDue = Math.max(0, finalTotal - totalPaid);
 
+    const validatedItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }> = Array.isArray(items)
+      ? items.map((item: { description?: string; quantity?: number; unitPrice?: number }) => ({
+          description: String(item.description ?? ""),
+          quantity: Number(item.quantity ?? 1),
+          unitPrice: Number(item.unitPrice ?? 0),
+          total: Number(item.quantity ?? 1) * Number(item.unitPrice ?? 0),
+        }))
+      : [];
+
     const snapshot = {
       laborHours: laborHours ?? job.estimatedHours ?? 0,
       hourlyRate: hourlyRate ?? job.hourlyRate ?? 0,
@@ -866,6 +894,7 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       storageFee: storageFee ?? 0,
       packingFee: packingFee ?? 0,
       notes: invoiceNotes ?? "",
+      items: validatedItems,
     };
 
     const [existing] = await db.select().from(invoicesTable)
