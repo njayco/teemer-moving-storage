@@ -46,6 +46,10 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
       residentialOrCommercial: q.residentialOrCommercial || "residential",
       originAddress: q.originAddress,
       destinationAddress: q.destinationAddress,
+      moveSize: q.moveSize || undefined,
+      numberOfRooms: q.numberOfRooms || undefined,
+      packingHelpNeeded: q.packingHelpNeeded || "none",
+      specialItems: q.specialItems || undefined,
       // Home size
       numberOfBedrooms: q.numberOfBedrooms ?? 1,
       numberOfLivingRooms: q.numberOfLivingRooms ?? 1,
