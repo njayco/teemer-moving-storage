@@ -20,6 +20,151 @@ function getAppBaseUrl(): string {
   return domain ? `https://${domain}` : "https://teemer.com";
 }
 
+interface FinalizeDepositParams {
+  parsedQuoteId: number;
+  stripeSessionId: string;
+  logger: Request["log"];
+}
+
+async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: FinalizeDepositParams): Promise<{ updated: boolean; alreadyProcessed: boolean }> {
+  const trackingToken = crypto.randomUUID();
+
+  const [updatedQuote] = await db
+    .update(quoteRequestsTable)
+    .set({ status: "deposit_paid", trackingToken })
+    .where(
+      and(
+        eq(quoteRequestsTable.id, parsedQuoteId),
+        notInArray(quoteRequestsTable.status, ["deposit_paid", "booked"])
+      )
+    )
+    .returning();
+
+  if (!updatedQuote) {
+    const [existingJob] = await db.select().from(jobsTable)
+      .where(eq(jobsTable.quoteId, parsedQuoteId)).limit(1);
+    if (existingJob && stripeSessionId) {
+      const [existingPayment] = await db.select().from(paymentsTable)
+        .where(and(eq(paymentsTable.jobId, existingJob.id), eq(paymentsTable.reference, stripeSessionId)))
+        .limit(1);
+      if (!existingPayment) {
+        const [quote] = await db.select().from(quoteRequestsTable)
+          .where(eq(quoteRequestsTable.id, parsedQuoteId)).limit(1);
+        const depositPaid = quote?.depositAmount ?? 50;
+        await db.transaction(async (tx) => {
+          await tx.insert(paymentsTable).values({
+            jobId: existingJob.id,
+            type: "deposit",
+            method: "stripe",
+            amount: depositPaid,
+            reference: stripeSessionId,
+            notes: `Stripe deposit for quote #${parsedQuoteId}`,
+          });
+          await tx.insert(revenueLedgerTable).values({
+            jobId: existingJob.id,
+            category: "deposit",
+            amount: depositPaid,
+          });
+        });
+        logger.info({ jobId: existingJob.id, amount: depositPaid }, "Late deposit payment recorded for already-processed quote");
+      }
+    }
+    return { updated: false, alreadyProcessed: true };
+  }
+
+  logger.info({ quoteId: parsedQuoteId, sessionId: stripeSessionId }, "Quote marked deposit_paid");
+
+  recordTimelineEvent({
+    jobId: parsedQuoteId,
+    eventType: "deposit_paid",
+    statusLabel: "Deposit Paid",
+    visibleToCustomer: true,
+    notes: `Deposit of $${(updatedQuote.depositAmount ?? 50).toFixed(2)} received via Stripe`,
+  }).catch(() => {});
+
+  const baseUrl = getAppBaseUrl();
+  const trackingUrl = `${baseUrl}/track/${parsedQuoteId}/${trackingToken}`;
+  const depositPaid = updatedQuote.depositAmount ?? 50;
+  const totalEstimate = updatedQuote.totalEstimate ?? 0;
+  const remainingBalance = totalEstimate - depositPaid;
+
+  const inventoryObj = (updatedQuote.inventory as Record<string, number>) || {};
+  const inventoryItems = Object.entries(inventoryObj);
+  const inventorySummary =
+    inventoryItems.length > 0
+      ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
+      : "No specific items listed";
+  const boxesSummary = `Small: ${updatedQuote.smallBoxes ?? 0}, Medium: ${updatedQuote.mediumBoxes ?? 0}`;
+
+  const [existingJob] = await db.select().from(jobsTable)
+    .where(eq(jobsTable.quoteId, parsedQuoteId)).limit(1);
+  if (existingJob) {
+    const [existingPayment] = stripeSessionId
+      ? await db.select().from(paymentsTable)
+          .where(and(eq(paymentsTable.jobId, existingJob.id), eq(paymentsTable.reference, stripeSessionId)))
+          .limit(1)
+      : [undefined];
+    if (!existingPayment) {
+      await db.transaction(async (tx) => {
+        await tx.insert(paymentsTable).values({
+          jobId: existingJob.id,
+          type: "deposit",
+          method: "stripe",
+          amount: depositPaid,
+          reference: stripeSessionId,
+          notes: `Stripe deposit for quote #${parsedQuoteId}`,
+        });
+        await tx.insert(revenueLedgerTable).values({
+          jobId: existingJob.id,
+          category: "deposit",
+          amount: depositPaid,
+        });
+      });
+      recordTimelineEvent({
+        jobId: existingJob.id,
+        eventType: "payment_recorded",
+        statusLabel: "Deposit Payment Recorded",
+        visibleToCustomer: true,
+        notes: `Deposit of $${depositPaid.toFixed(2)} recorded via Stripe`,
+      }).catch(() => {});
+      logger.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
+    }
+  }
+
+  sendDepositConfirmationEmail({
+    customerName: updatedQuote.contactName ?? "Customer",
+    email: updatedQuote.email ?? "",
+    quoteId: parsedQuoteId,
+    moveDate: updatedQuote.moveDate ?? "TBD",
+    arrivalWindow: updatedQuote.arrivalTimeWindow ?? undefined,
+    pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
+    dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
+    secondStop: updatedQuote.secondStop ?? undefined,
+    inventorySummary,
+    boxesSummary,
+    crewSize: updatedQuote.crewSize ?? undefined,
+    estimatedHours: updatedQuote.estimatedHours ?? undefined,
+    totalEstimate,
+    depositPaid,
+    remainingBalance,
+    trackingUrl,
+  }).catch((err) => logger.error({ err }, "Failed to send deposit confirmation email"));
+
+  sendAdminNewJobNotification({
+    quoteId: parsedQuoteId,
+    customerName: updatedQuote.contactName ?? "Customer",
+    customerEmail: updatedQuote.email ?? "",
+    customerPhone: updatedQuote.phone ?? "",
+    moveDate: updatedQuote.moveDate ?? "TBD",
+    pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
+    dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
+    totalEstimate,
+    depositPaid,
+  }).catch((err) => logger.error({ err }, "Failed to send admin new job notification"));
+
+  return { updated: true, alreadyProcessed: false };
+}
+
 router.post("/stripe/webhook", async (req: Request, res: Response) => {
   try {
     const { getUncachableStripeClient } = await import("../lib/stripe-client.js");
@@ -56,116 +201,15 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
       }
 
       const parsedQuoteId = parseInt(quoteId, 10);
+      const result = await finalizeDeposit({
+        parsedQuoteId,
+        stripeSessionId: session.id,
+        logger: req.log,
+      });
 
-      const trackingToken = crypto.randomUUID();
-
-      const [updatedQuote] = await db
-        .update(quoteRequestsTable)
-        .set({ status: "deposit_paid", trackingToken })
-        .where(
-          and(
-            eq(quoteRequestsTable.id, parsedQuoteId),
-            notInArray(quoteRequestsTable.status, ["deposit_paid", "booked"])
-          )
-        )
-        .returning();
-
-      if (!updatedQuote) {
-        req.log.info({ quoteId }, "Quote already processed or not found, skipping duplicate webhook");
-        res.json({ received: true });
-        return;
+      if (result.alreadyProcessed) {
+        req.log.info({ quoteId }, "Quote already processed, webhook ensured side effects present");
       }
-
-      req.log.info({ quoteId, sessionId: session.id }, "Quote marked deposit_paid");
-
-      recordTimelineEvent({
-        jobId: parsedQuoteId,
-        eventType: "deposit_paid",
-        statusLabel: "Deposit Paid",
-        visibleToCustomer: true,
-        notes: `Deposit of $${(updatedQuote.depositAmount ?? 50).toFixed(2)} received via Stripe`,
-      }).catch(() => {});
-
-      const baseUrl = getAppBaseUrl();
-      const trackingUrl = `${baseUrl}/track/${parsedQuoteId}/${trackingToken}`;
-      const depositPaid = updatedQuote.depositAmount ?? 50;
-      const totalEstimate = updatedQuote.totalEstimate ?? 0;
-      const remainingBalance = totalEstimate - depositPaid;
-
-      const inventoryObj = (updatedQuote.inventory as Record<string, number>) || {};
-      const inventoryItems = Object.entries(inventoryObj);
-      const inventorySummary =
-        inventoryItems.length > 0
-          ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
-          : "No specific items listed";
-      const boxesSummary = `Small: ${updatedQuote.smallBoxes ?? 0}, Medium: ${updatedQuote.mediumBoxes ?? 0}`;
-
-      const [existingJob] = await db.select().from(jobsTable)
-        .where(eq(jobsTable.quoteId, parsedQuoteId)).limit(1);
-      if (existingJob) {
-        const sessionId = typeof session.id === "string" ? session.id : "";
-        const [existingPayment] = sessionId
-          ? await db.select().from(paymentsTable)
-              .where(and(eq(paymentsTable.jobId, existingJob.id), eq(paymentsTable.reference, sessionId)))
-              .limit(1)
-          : [undefined];
-        if (!existingPayment) {
-          await db.transaction(async (tx) => {
-            await tx.insert(paymentsTable).values({
-              jobId: existingJob.id,
-              type: "deposit",
-              method: "stripe",
-              amount: depositPaid,
-              reference: sessionId,
-              notes: `Stripe deposit for quote #${parsedQuoteId}`,
-            });
-            await tx.insert(revenueLedgerTable).values({
-              jobId: existingJob.id,
-              category: "deposit",
-              amount: depositPaid,
-            });
-          });
-          recordTimelineEvent({
-            jobId: existingJob.id,
-            eventType: "payment_recorded",
-            statusLabel: "Deposit Payment Recorded",
-            visibleToCustomer: true,
-            notes: `Deposit of $${depositPaid.toFixed(2)} recorded via Stripe`,
-          }).catch(() => {});
-          req.log.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
-        }
-      }
-
-      sendDepositConfirmationEmail({
-        customerName: updatedQuote.contactName ?? "Customer",
-        email: updatedQuote.email ?? "",
-        quoteId: parsedQuoteId,
-        moveDate: updatedQuote.moveDate ?? "TBD",
-        arrivalWindow: updatedQuote.arrivalTimeWindow ?? undefined,
-        pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
-        dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
-        secondStop: updatedQuote.secondStop ?? undefined,
-        inventorySummary,
-        boxesSummary,
-        crewSize: updatedQuote.crewSize ?? undefined,
-        estimatedHours: updatedQuote.estimatedHours ?? undefined,
-        totalEstimate,
-        depositPaid,
-        remainingBalance,
-        trackingUrl,
-      }).catch((err) => req.log.error({ err }, "Failed to send deposit confirmation email"));
-
-      sendAdminNewJobNotification({
-        quoteId: parsedQuoteId,
-        customerName: updatedQuote.contactName ?? "Customer",
-        customerEmail: updatedQuote.email ?? "",
-        customerPhone: updatedQuote.phone ?? "",
-        moveDate: updatedQuote.moveDate ?? "TBD",
-        pickupAddress: updatedQuote.pickupAddress || updatedQuote.originAddress || "",
-        dropoffAddress: updatedQuote.dropoffAddress || updatedQuote.destinationAddress || "",
-        totalEstimate,
-        depositPaid,
-      }).catch((err) => req.log.error({ err }, "Failed to send admin new job notification"));
     }
 
     res.json({ received: true });
@@ -175,7 +219,7 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/verify-session", async (req: Request, res: Response) => {
+router.post("/stripe/verify-session", async (req: Request, res: Response) => {
   try {
     const { sessionId, quoteId } = req.body as { sessionId?: string; quoteId?: string };
     if (!sessionId || !quoteId) {
@@ -199,25 +243,15 @@ router.post("/verify-session", async (req: Request, res: Response) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status === "paid" && session.metadata?.quoteId === quoteId) {
-      const trackingToken = crypto.randomUUID();
-      const [updatedQuote] = await db.update(quoteRequestsTable)
-        .set({ status: "deposit_paid", trackingToken })
-        .where(
-          and(
-            eq(quoteRequestsTable.id, parsedQuoteId),
-            notInArray(quoteRequestsTable.status, ["deposit_paid", "booked"])
-          )
-        )
-        .returning();
+      const result = await finalizeDeposit({
+        parsedQuoteId,
+        stripeSessionId: sessionId,
+        logger: req.log,
+      });
 
-      if (updatedQuote) {
-        req.log.info({ quoteId: parsedQuoteId }, "Payment verified via session fallback, quote updated");
+      if (result.updated || result.alreadyProcessed) {
         return res.json({ verified: true, status: "deposit_paid" });
       }
-
-      const [currentQuote] = await db.select().from(quoteRequestsTable)
-        .where(eq(quoteRequestsTable.id, parsedQuoteId)).limit(1);
-      return res.json({ verified: true, status: currentQuote?.status ?? "deposit_paid" });
     }
 
     return res.json({ verified: false, status: quote?.status ?? "pending" });

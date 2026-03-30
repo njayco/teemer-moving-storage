@@ -1,12 +1,12 @@
 import { InfoLayout } from "@/components/layout/info-layout";
-import { CheckCircle2, Calendar, Phone, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, Calendar, Phone, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useSearch } from "wouter";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+const MAX_POLL_COUNT = 20;
 
 export default function QuoteConfirmationPage() {
   const search = useSearch();
@@ -15,7 +15,34 @@ export default function QuoteConfirmationPage() {
   const sessionId = params.get("session_id") ?? "";
   const queryClient = useQueryClient();
   const verifyAttempted = useRef(false);
-  const pollCount = useRef(0);
+  const pollCountRef = useRef(0);
+  const [verifyResult, setVerifyResult] = useState<"pending" | "verified" | "failed">("pending");
+  const [pollExhausted, setPollExhausted] = useState(false);
+
+  const verifyPayment = useCallback(async () => {
+    if (verifyAttempted.current || !sessionId || !quoteId) return;
+    verifyAttempted.current = true;
+    try {
+      const res = await fetch("/api/stripe/verify-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, quoteId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.verified) {
+          setVerifyResult("verified");
+          queryClient.invalidateQueries({ queryKey: ["quote", quoteId] });
+        } else {
+          setVerifyResult("failed");
+        }
+      } else {
+        setVerifyResult("failed");
+      }
+    } catch {
+      setVerifyResult("failed");
+    }
+  }, [sessionId, quoteId, queryClient]);
 
   const { data: quote, isLoading } = useGetQuoteRequest(quoteId, {
     query: {
@@ -24,36 +51,26 @@ export default function QuoteConfirmationPage() {
       refetchInterval: (query) => {
         const status = query.state.data?.status;
         if (status === "deposit_paid" || status === "booked") return false;
-        pollCount.current++;
+        pollCountRef.current++;
+        if (pollCountRef.current >= MAX_POLL_COUNT) {
+          setPollExhausted(true);
+          return false;
+        }
         return 3000;
       },
     },
   });
 
   useEffect(() => {
-    if (!sessionId || !quoteId || verifyAttempted.current) return;
+    if (!sessionId || !quoteId) return;
     if (quote?.status === "deposit_paid" || quote?.status === "booked") return;
 
-    const timer = setTimeout(async () => {
-      if (verifyAttempted.current) return;
-      verifyAttempted.current = true;
-      try {
-        const res = await fetch(`${API_BASE}api/stripe/verify-session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, quoteId }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.verified) {
-            queryClient.invalidateQueries({ queryKey: ["quote", quoteId] });
-          }
-        }
-      } catch {}
-    }, 5000);
+    const timer = setTimeout(() => {
+      verifyPayment();
+    }, 3000);
 
     return () => clearTimeout(timer);
-  }, [sessionId, quoteId, quote?.status, queryClient]);
+  }, [sessionId, quoteId, quote?.status, verifyPayment]);
 
   const isPaid = quote?.status === "deposit_paid" || quote?.status === "booked";
   const moveDate = quote?.quoteRequest?.moveDate;
@@ -68,6 +85,34 @@ export default function QuoteConfirmationPage() {
       <InfoLayout>
         <div className="min-h-[70vh] flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </InfoLayout>
+    );
+  }
+
+  if (!isPaid && (verifyResult === "failed" || (pollExhausted && !sessionId))) {
+    return (
+      <InfoLayout>
+        <div className="min-h-[70vh] bg-gradient-to-br from-amber-50 to-slate-50 py-16 px-4">
+          <div className="max-w-lg mx-auto text-center space-y-4">
+            <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+            <h1 className="text-xl font-bold text-slate-800">We Couldn't Confirm Your Payment Yet</h1>
+            <p className="text-slate-500 text-sm">
+              If you completed payment on Stripe, don't worry — your deposit is safe.
+              Our team will confirm your booking shortly.
+            </p>
+            <p className="text-slate-500 text-sm">
+              Please call us at{" "}
+              <a href="tel:+15162693724" className="text-primary font-semibold">(516) 269-3724</a>{" "}
+              if you need immediate confirmation.
+            </p>
+            <Link
+              href="/info"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:underline pt-2"
+            >
+              Back to Home <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </InfoLayout>
     );
