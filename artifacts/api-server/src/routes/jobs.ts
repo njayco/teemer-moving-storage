@@ -10,7 +10,7 @@ import {
   invoicesTable,
   revenueLedgerTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte } from "drizzle-orm";
+import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte, inArray } from "drizzle-orm";
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
@@ -215,7 +215,7 @@ router.get("/jobs", requireAdmin, async (req, res) => {
       const quotes = await db
         .select()
         .from(quoteRequestsTable)
-        .where(sql`${quoteRequestsTable.id} = ANY(${quoteIds})`);
+        .where(inArray(quoteRequestsTable.id, quoteIds));
       for (const q of quotes) {
         quotesMap.set(q.id, q);
       }
@@ -1201,7 +1201,7 @@ router.get("/captain/jobs", requireCaptainOrAdmin, async (req, res) => {
       const quotes = await db
         .select()
         .from(quoteRequestsTable)
-        .where(sql`${quoteRequestsTable.id} = ANY(${quoteIds})`);
+        .where(inArray(quoteRequestsTable.id, quoteIds));
       for (const q of quotes) {
         quotesMap.set(q.id, q);
       }
