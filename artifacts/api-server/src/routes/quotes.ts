@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { quoteRequestsTable } from "@workspace/db/schema";
+import { quoteRequestsTable, jobsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { calculatePricing, calculateJunkRemovalPricing } from "../lib/pricing-engine.js";
 import { recordTimelineEvent } from "../lib/timeline";
+import { sendBookingConfirmationEmail } from "../lib/email-service";
+import { logger } from "../lib/logger";
 import OpenAI from "openai";
 
 const router: IRouter = Router();
@@ -148,16 +150,119 @@ router.patch("/quotes/:id/status", async (req, res) => {
       res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(", ")}` });
       return;
     }
-    const [updated] = await db
-      .update(quoteRequestsTable)
-      .set({ status })
-      .where(eq(quoteRequestsTable.id, id))
-      .returning();
-    if (!updated) {
-      res.status(404).json({ error: "Quote not found" });
-      return;
+    if (status === "booked") {
+      const [existingJob] = await db
+        .select()
+        .from(jobsTable)
+        .where(eq(jobsTable.quoteId, id))
+        .limit(1);
+
+      const result = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(quoteRequestsTable)
+          .set({ status })
+          .where(eq(quoteRequestsTable.id, id))
+          .returning();
+        if (!updated) return null;
+
+        let createdJob = null;
+        if (!existingJob) {
+          const jobId = `Job${Date.now().toString().slice(-6)}`;
+          const pickupAddr = updated.pickupAddress || updated.originAddress || "";
+          const dropoffAddr = updated.dropoffAddress || updated.destinationAddress || "";
+          const totalEstimate = updated.totalEstimate ?? 0;
+          const depositPaid = updated.depositAmount ?? 0;
+          const remainingBalance = totalEstimate - depositPaid;
+
+          [createdJob] = await tx
+            .insert(jobsTable)
+            .values({
+              jobId,
+              customer: updated.contactName,
+              pickupLocation: pickupAddr,
+              destination: dropoffAddr,
+              moveType: updated.moveType || "local",
+              dateTime: updated.moveDate,
+              estimatedPayout: totalEstimate,
+              specialRequirements: updated.additionalNotes || undefined,
+              jobSize: updated.moveSize || undefined,
+              status: "scheduled",
+              quoteId: id,
+              trackingToken: updated.trackingToken || undefined,
+              arrivalWindow: updated.arrivalTimeWindow || undefined,
+              originAddress: pickupAddr,
+              destinationAddress: dropoffAddr,
+              inventoryJson: updated.inventory || undefined,
+              boxCounts: updated.smallBoxes || updated.mediumBoxes
+                ? `Small: ${updated.smallBoxes ?? 0}, Medium: ${updated.mediumBoxes ?? 0}`
+                : undefined,
+              crewSize: updated.crewSize || undefined,
+              estimatedHours: updated.estimatedHours || undefined,
+              hourlyRate: updated.hourlyRate || undefined,
+              estimateSubtotal: updated.laborSubtotal || undefined,
+              finalTotal: totalEstimate || undefined,
+              depositPaid,
+              remainingBalance,
+            })
+            .returning();
+        }
+
+        return { updated, createdJob };
+      });
+
+      if (!result || !result.updated) {
+        res.status(404).json({ error: "Quote not found" });
+        return;
+      }
+
+      const { updated, createdJob } = result;
+
+      if (createdJob) {
+        logger.info({ jobId: createdJob.id, quoteId: id }, "Auto-created job from booked quote");
+
+        recordTimelineEvent({
+          jobId: createdJob.id,
+          eventType: "job_created",
+          statusLabel: "Job Booked",
+          visibleToCustomer: true,
+          notes: `Job auto-created from quote #${id} — status set to booked`,
+        }).catch(() => {});
+      }
+
+      const baseUrl = process.env.APP_BASE_URL
+        || (process.env.REPLIT_DEPLOYMENT === "1"
+          ? `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`
+          : process.env.REPLIT_DEV_DOMAIN
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : "https://teemer.com");
+      const trackingUrl = `${baseUrl}/track/${id}/${updated.trackingToken ?? ""}`;
+
+      sendBookingConfirmationEmail({
+        customerName: updated.contactName ?? "Customer",
+        email: updated.email ?? "",
+        quoteId: id,
+        moveDate: updated.moveDate ?? "TBD",
+        arrivalWindow: updated.arrivalTimeWindow ?? undefined,
+        pickupAddress: updated.pickupAddress || updated.originAddress || "",
+        dropoffAddress: updated.dropoffAddress || updated.destinationAddress || "",
+        crewSize: updated.crewSize ?? undefined,
+        estimatedHours: updated.estimatedHours ?? undefined,
+        trackingUrl,
+      }).catch((err) => logger.error({ err }, "Failed to send booking confirmation email"));
+
+      res.json(mapQuoteRow(updated));
+    } else {
+      const [updated] = await db
+        .update(quoteRequestsTable)
+        .set({ status })
+        .where(eq(quoteRequestsTable.id, id))
+        .returning();
+      if (!updated) {
+        res.status(404).json({ error: "Quote not found" });
+        return;
+      }
+      res.json(mapQuoteRow(updated));
     }
-    res.json(mapQuoteRow(updated));
   } catch (err) {
     req.log.error({ err }, "Failed to update quote status");
     res.status(500).json({ error: "Internal server error" });

@@ -779,7 +779,7 @@ export default function QuotePage() {
         };
 
     mutation.mutate(
-      { data: payload },
+      { data: payload as unknown as Parameters<typeof mutation.mutate>[0]["data"] },
       {
         onSuccess: (result) => {
           setQuoteResult(result);

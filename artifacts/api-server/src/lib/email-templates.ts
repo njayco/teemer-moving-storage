@@ -320,6 +320,102 @@ export function contractEmailHtml(data: ContractEmailData): string {
   return baseLayout(data.isAdminCopy ? "Contract Sent — Teemer Admin" : "Your Moving Contract — Teemer Moving & Storage", body);
 }
 
+export interface BookingConfirmationData {
+  customerName: string;
+  email: string;
+  quoteId: number;
+  moveDate: string;
+  arrivalWindow?: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  crewSize?: number;
+  estimatedHours?: number;
+  trackingUrl: string;
+}
+
+export function bookingConfirmationHtml(data: BookingConfirmationData): string {
+  const rows: [string, string][] = [
+    ["Quote #", String(data.quoteId)],
+    ["Status", "Booked — Confirmed"],
+    ["Move Date", data.moveDate],
+  ];
+  if (data.arrivalWindow) rows.push(["Arrival Window", data.arrivalWindow]);
+  rows.push(["Pickup", data.pickupAddress]);
+  rows.push(["Dropoff", data.dropoffAddress]);
+  if (data.crewSize) rows.push(["Crew Size", `${data.crewSize} movers`]);
+  if (data.estimatedHours) rows.push(["Est. Hours", `${data.estimatedHours} hrs`]);
+
+  const body = `
+    <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Your Move is Confirmed!</h2>
+    <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
+      Hi ${escapeHtml(data.customerName)}, great news — your move has been officially booked and confirmed! Here are your move details:
+    </p>
+    ${sectionHeading("Move Details")}
+    ${detailTable(rows)}
+    <div style="background:#f0fdf4;border-left:4px solid ${BRAND_COLOR};padding:14px 16px;border-radius:6px;margin:16px 0;">
+      <p style="margin:0;color:#166534;font-size:13px;font-weight:600;">What happens next?</p>
+      <p style="margin:4px 0 0;color:#475569;font-size:13px;">Our team will reach out closer to your move date with final logistics and crew details. You can track your move status any time using the link below.</p>
+    </div>
+    ${ctaButton("Track Your Move", data.trackingUrl)}
+    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">Questions? Call us at (516) 269-3724</p>
+  `;
+  return baseLayout("Move Confirmed — Teemer Moving & Storage", body);
+}
+
+export interface DayBeforeReminderData {
+  customerName: string;
+  email: string;
+  quoteId: number;
+  jobId: number;
+  moveDate: string;
+  arrivalWindow?: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  crewSize?: number;
+  estimatedHours?: number;
+  totalEstimate?: number;
+  depositPaid?: number;
+  remainingBalance?: number;
+  trackingUrl: string;
+}
+
+export function dayBeforeReminderHtml(data: DayBeforeReminderData): string {
+  const rows: [string, string][] = [
+    ["Move Date", data.moveDate],
+  ];
+  if (data.arrivalWindow) rows.push(["Arrival Window", data.arrivalWindow]);
+  rows.push(["Pickup", data.pickupAddress]);
+  rows.push(["Dropoff", data.dropoffAddress]);
+  if (data.crewSize) rows.push(["Crew Size", `${data.crewSize} movers`]);
+  if (data.estimatedHours) rows.push(["Est. Hours", `${data.estimatedHours} hrs`]);
+
+  const paymentRows: [string, string][] = [];
+  if (data.totalEstimate != null) paymentRows.push(["Total Estimate", formatCurrency(data.totalEstimate)]);
+  if (data.depositPaid != null) paymentRows.push(["Deposit Paid", formatCurrency(data.depositPaid)]);
+  if (data.remainingBalance != null) paymentRows.push(["Remaining Balance", formatCurrency(data.remainingBalance)]);
+
+  const body = `
+    <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Your Move is Tomorrow!</h2>
+    <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
+      Hi ${escapeHtml(data.customerName)}, this is a friendly reminder that your move is scheduled for tomorrow. Please review the details below.
+    </p>
+    ${sectionHeading("Move Details")}
+    ${detailTable(rows)}
+    ${paymentRows.length > 0 ? `${sectionHeading("Payment Summary")}${detailTable(paymentRows)}` : ""}
+    ${sectionHeading("Preparation Tips")}
+    <ul style="color:#475569;font-size:13px;line-height:1.8;padding-left:20px;margin:8px 0;">
+      <li>Ensure all items are packed and ready to go</li>
+      <li>Clear pathways and hallways for the crew</li>
+      <li>Set aside essentials (medications, valuables, documents) to keep with you</li>
+      <li>Confirm parking and building access for the moving truck</li>
+      <li>Have payment ready for any remaining balance</li>
+    </ul>
+    ${ctaButton("Track Your Move", data.trackingUrl)}
+    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">Questions? Call us at (516) 269-3724</p>
+  `;
+  return baseLayout("Move Reminder — Teemer Moving & Storage", body);
+}
+
 export interface JobCompletedData {
   customerName: string;
   quoteId: number;

@@ -158,6 +158,7 @@ A full-featured moving company web app with two distinct experiences:
 - `GET /api/jobs/:jobId/contracts/pdf` — Download contract as PDF (admin only)
 
 ### Business Rules
+- **Booking Workflow**: When admin sets quote status to "booked", a Job record is auto-created in a single transaction (quote update + job insert). Booking confirmation email is sent to the customer. If a job already exists for the quote, no duplicate is created.
 - **Mark Complete**: Job cannot be marked complete unless remaining balance is $0 or payment status is paid/paid_cash (enforced server-side)
 - **Mark Paid (Cash)**: Creates payment record + revenue_ledger entry atomically
 - **Invoice Save**: Auto-calculates subtotal from line items, computes remaining balance accounting for all prior payments
@@ -166,8 +167,9 @@ A full-featured moving company web app with two distinct experiences:
 ### Email System (Resend)
 - **Service**: `artifacts/api-server/src/lib/email-service.ts` — centralized send functions
 - **Templates**: `artifacts/api-server/src/lib/email-templates.ts` — branded HTML templates
-- **Functions**: sendDepositConfirmationEmail, sendAdminNewJobNotification, sendStatusUpdateEmail, sendTrackingLinkEmail, sendRemainingBalanceInvoiceEmail, sendPaymentReceivedEmail, sendJobCompletedEmail, sendContractEmail
-- **Automatic triggers**: Deposit confirmation + admin notification fire on Stripe webhook deposit_paid
+- **Functions**: sendDepositConfirmationEmail, sendAdminNewJobNotification, sendStatusUpdateEmail, sendTrackingLinkEmail, sendRemainingBalanceInvoiceEmail, sendPaymentReceivedEmail, sendJobCompletedEmail, sendContractEmail, sendBookingConfirmationEmail, sendDayBeforeReminderEmail
+- **Automatic triggers**: Deposit confirmation + admin notification fire on Stripe webhook deposit_paid; Booking confirmation fires when quote status set to "booked" (auto-creates job); Day-before reminder cron runs daily at 9 AM
+- **Cron**: `artifacts/api-server/src/lib/reminder-cron.ts` — daily cron job (9:00 AM) sends day-before reminder emails for jobs scheduled the next day, with deduplication via email_logs
 - **Logging**: All sends logged to email_logs table (sent/failed/skipped)
 - **Graceful fallback**: If RESEND_API_KEY is not set, emails are skipped with warning log
 - **Env vars**: RESEND_API_KEY, RESEND_FROM_EMAIL (default: noreply@teemer.com), ADMIN_NOTIFICATION_EMAIL (default: admin@teemer.com), APP_BASE_URL

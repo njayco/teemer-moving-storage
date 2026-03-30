@@ -11,6 +11,8 @@ import {
   paymentReceivedHtml,
   jobCompletedHtml,
   contractEmailHtml,
+  bookingConfirmationHtml,
+  dayBeforeReminderHtml,
   type DepositConfirmationData,
   type AdminNewJobData,
   type StatusUpdateData,
@@ -18,6 +20,8 @@ import {
   type RemainingBalanceData,
   type PaymentReceivedData,
   type JobCompletedData,
+  type BookingConfirmationData,
+  type DayBeforeReminderData,
 } from "./email-templates";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Teemer Moving <noreply@teemer.com>";
@@ -234,6 +238,31 @@ export async function sendJobCompletedEmail(
     html: jobCompletedHtml(data),
     emailType: "job_completed",
     quoteId: data.quoteId,
+  });
+}
+
+export async function sendBookingConfirmationEmail(
+  data: BookingConfirmationData
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: data.email,
+    subject: `Move Confirmed — ${data.moveDate} (Quote #${data.quoteId})`,
+    html: bookingConfirmationHtml(data),
+    emailType: "booking_confirmation",
+    quoteId: data.quoteId,
+  });
+}
+
+export async function sendDayBeforeReminderEmail(
+  data: DayBeforeReminderData
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: data.email,
+    subject: `Reminder: Your Move is Tomorrow — ${data.moveDate} (Quote #${data.quoteId})`,
+    html: dayBeforeReminderHtml(data),
+    emailType: "day_before_reminder",
+    quoteId: data.quoteId,
+    jobId: data.jobId,
   });
 }
 
