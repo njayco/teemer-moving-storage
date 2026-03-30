@@ -53,15 +53,20 @@ export function verifyToken(token: string): AuthPayload | null {
 export function setAuthCookie(res: Response, token: string) {
   res.cookie(TOKEN_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   });
 }
 
 export function clearAuthCookie(res: Response) {
-  res.clearCookie(TOKEN_COOKIE, { path: "/" });
+  res.clearCookie(TOKEN_COOKIE, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  });
 }
 
 function extractToken(req: Request): string | null {
