@@ -179,23 +179,24 @@ router.post("/quotes", async (req, res) => {
     let depositAmount: number;
     let pricingFields: Record<string, unknown>;
 
-    if (isJunkRemoval) {
-      const safeInt = (v: unknown, max = 99) => {
-        const n = Math.floor(Number(v));
-        return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0;
-      };
-      const validLoadSizes = ["small", "medium", "large", "full_truck"] as const;
-      const loadSize = validLoadSizes.includes(body.junkLoadSize as typeof validLoadSizes[number])
+    const safeInt = (v: unknown, max = 99) => {
+      const n = Math.floor(Number(v));
+      return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0;
+    };
+    const validLoadSizes = ["small", "medium", "large", "full_truck"] as const;
+    const junkFields = {
+      loadSize: validLoadSizes.includes(body.junkLoadSize as typeof validLoadSizes[number])
         ? (body.junkLoadSize as typeof validLoadSizes[number])
-        : "small";
-      const junkPricing = calculateJunkRemovalPricing({
-        loadSize,
-        stairsFlights: safeInt(body.junkStairsFlights, 10),
-        heavyItemsCount: safeInt(body.junkHeavyItemsCount, 20),
-        constructionDebris: Boolean(body.junkConstructionDebris),
-        sameDay: Boolean(body.junkSameDay),
-        hazardousItems: Boolean(body.junkHazardousItems),
-      });
+        : "small",
+      stairsFlights: safeInt(body.junkStairsFlights, 10),
+      heavyItemsCount: safeInt(body.junkHeavyItemsCount, 20),
+      constructionDebris: Boolean(body.junkConstructionDebris),
+      sameDay: Boolean(body.junkSameDay),
+      hazardousItems: Boolean(body.junkHazardousItems),
+    };
+
+    if (isJunkRemoval) {
+      const junkPricing = calculateJunkRemovalPricing(junkFields);
       totalEstimate = junkPricing.totalEstimate;
       depositAmount = junkPricing.depositAmount;
       pricingFields = {
@@ -294,12 +295,12 @@ router.post("/quotes", async (req, res) => {
         commercialSizeTier: isCommercial ? (body.commercialSizeTier || null) : null,
 
         serviceType,
-        junkLoadSize: isJunkRemoval ? (body.junkLoadSize || "small") : null,
-        junkStairsFlights: isJunkRemoval ? Number(body.junkStairsFlights ?? 0) : 0,
-        junkHeavyItemsCount: isJunkRemoval ? Number(body.junkHeavyItemsCount ?? 0) : 0,
-        junkConstructionDebris: isJunkRemoval ? Boolean(body.junkConstructionDebris) : false,
-        junkSameDay: isJunkRemoval ? Boolean(body.junkSameDay) : false,
-        junkHazardousItems: isJunkRemoval ? Boolean(body.junkHazardousItems) : false,
+        junkLoadSize: isJunkRemoval ? junkFields.loadSize : null,
+        junkStairsFlights: isJunkRemoval ? junkFields.stairsFlights : 0,
+        junkHeavyItemsCount: isJunkRemoval ? junkFields.heavyItemsCount : 0,
+        junkConstructionDebris: isJunkRemoval ? junkFields.constructionDebris : false,
+        junkSameDay: isJunkRemoval ? junkFields.sameDay : false,
+        junkHazardousItems: isJunkRemoval ? junkFields.hazardousItems : false,
 
         ...pricingFields,
 

@@ -728,7 +728,7 @@ export default function QuotePage() {
 
   const handleFinalSubmit = () => {
     const step1Data = getStep1Values();
-    const payload: Record<string, unknown> = {
+    const basePayload = {
       contactName: step1Data.contactName,
       phone: step1Data.phone,
       email: step1Data.email,
@@ -741,40 +741,45 @@ export default function QuotePage() {
       additionalNotes: step1Data.additionalNotes || undefined,
       originAddress: step1Data.pickupAddress || "",
       destinationAddress: step1Data.dropoffAddress || "",
-      moveType: "local",
-      serviceType,
+      moveType: "local" as const,
     };
 
-    if (isJunkRemoval) {
-      payload.junkLoadSize = junkLoadSize;
-      payload.junkStairsFlights = junkStairsFlights;
-      payload.junkHeavyItemsCount = junkHeavyItemsCount;
-      payload.junkConstructionDebris = junkConstructionDebris;
-      payload.junkSameDay = junkSameDay;
-      payload.junkHazardousItems = junkHazardousItems;
-    } else {
-      payload.residentialOrCommercial = isCommercial ? "commercial" : "residential";
-      payload.isCommercial = isCommercial;
-      payload.commercialBusinessType = isCommercial ? commercialBusinessType : undefined;
-      payload.commercialSizeTier = isCommercial ? commercialSizeTier : undefined;
-      payload.numberOfBedrooms = homeSize.numberOfBedrooms;
-      payload.numberOfLivingRooms = homeSize.numberOfLivingRooms;
-      payload.isFullyFurnished = homeSize.isFullyFurnished;
-      payload.hasGarage = homeSize.hasGarage;
-      payload.hasOutdoorFurniture = homeSize.hasOutdoorFurniture;
-      payload.hasStairs = homeSize.hasStairs;
-      payload.hasHeavyItems = homeSize.hasHeavyItems;
-      payload.inventory = inventory;
-      payload.pianoType = pianoType !== "none" ? pianoType : undefined;
-      payload.pianoFloor = pianoType !== "none" ? pianoFloor : undefined;
-      payload.boxesAlreadyPacked = boxesAlreadyPacked;
-      payload.needsPackingMaterials = needsPackingMaterials;
-      payload.smallBoxes = smallBoxes;
-      payload.mediumBoxes = mediumBoxes;
-    }
+    const payload = isJunkRemoval
+      ? {
+          ...basePayload,
+          serviceType: "junk_removal" as const,
+          junkLoadSize: junkLoadSize as "small" | "medium" | "large" | "full_truck",
+          junkStairsFlights: junkStairsFlights,
+          junkHeavyItemsCount: junkHeavyItemsCount,
+          junkConstructionDebris: junkConstructionDebris,
+          junkSameDay: junkSameDay,
+          junkHazardousItems: junkHazardousItems,
+        }
+      : {
+          ...basePayload,
+          serviceType: "moving" as const,
+          residentialOrCommercial: isCommercial ? "commercial" : "residential",
+          isCommercial,
+          commercialBusinessType: isCommercial ? commercialBusinessType : undefined,
+          commercialSizeTier: isCommercial ? commercialSizeTier as "small" | "medium" | "large" | "enterprise" : undefined,
+          numberOfBedrooms: homeSize.numberOfBedrooms,
+          numberOfLivingRooms: homeSize.numberOfLivingRooms,
+          isFullyFurnished: homeSize.isFullyFurnished,
+          hasGarage: homeSize.hasGarage,
+          hasOutdoorFurniture: homeSize.hasOutdoorFurniture,
+          hasStairs: homeSize.hasStairs,
+          hasHeavyItems: homeSize.hasHeavyItems,
+          inventory,
+          pianoType: pianoType !== "none" ? pianoType : undefined,
+          pianoFloor: pianoType !== "none" ? pianoFloor : undefined,
+          boxesAlreadyPacked,
+          needsPackingMaterials,
+          smallBoxes,
+          mediumBoxes,
+        };
 
     mutation.mutate(
-      { data: payload as unknown as Parameters<typeof mutation.mutate>[0]["data"] },
+      { data: payload },
       {
         onSuccess: (result) => {
           setQuoteResult(result);
