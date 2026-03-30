@@ -15,6 +15,13 @@
       "when": 1774893816026,
       "tag": "0001_add_email_tracking_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774838838275,
+      "tag": "0002_rapid_karma",
+      "breakpoints": true
     }
   ]
 }
