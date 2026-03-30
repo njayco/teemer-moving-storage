@@ -172,9 +172,6 @@ export default function CustomerPortal() {
                       <Search className="w-5 h-5 mr-2" /> Track
                     </button>
                   </form>
-                  <div className="mt-8 text-sm text-slate-400">
-                    <p>Hint: Try entering "1" or any ID to see the mock tracker</p>
-                  </div>
                 </div>
               </div>
             ) : (
