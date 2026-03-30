@@ -25,7 +25,7 @@ import {
 } from "./email-templates";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Teemer Moving <noreply@teemer.com>";
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || "admin@teemer.com";
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || "alan@teemermoving.com";
 
 function getResendClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY;
