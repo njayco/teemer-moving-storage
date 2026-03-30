@@ -290,6 +290,36 @@ export function paymentReceivedHtml(data: PaymentReceivedData): string {
   return baseLayout("Payment Received — Teemer Moving & Storage", body);
 }
 
+export interface ContractEmailData {
+  customerName: string;
+  moveDate: string;
+  signingUrl: string;
+  isAdminCopy?: boolean;
+}
+
+export function contractEmailHtml(data: ContractEmailData): string {
+  const body = `
+    <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">
+      ${data.isAdminCopy ? "Contract Sent — Admin Copy" : "Your Moving Contract is Ready"}
+    </h2>
+    <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
+      ${data.isAdminCopy
+        ? `A moving contract has been sent to <strong>${escapeHtml(data.customerName)}</strong> for their move on ${escapeHtml(data.moveDate)}. The PDF is attached for your records.`
+        : `Hi ${escapeHtml(data.customerName)}, your moving contract for the move scheduled on <strong>${escapeHtml(data.moveDate)}</strong> is attached as a PDF to this email.`
+      }
+    </p>
+    ${!data.isAdminCopy ? `
+    <div style="background:#f0fdf4;border-left:4px solid ${BRAND_COLOR};padding:14px 16px;border-radius:6px;margin:16px 0;">
+      <p style="margin:0;color:#166534;font-size:13px;font-weight:600;">You can sign your contract electronically:</p>
+      <p style="margin:4px 0 0;color:#475569;font-size:13px;">Click the button below to review the full contract and sign with your device. You may also sign a printed physical copy upon delivery.</p>
+    </div>
+    ${ctaButton("Sign Your Contract", data.signingUrl)}
+    ` : ""}
+    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:16px 0 0;">Questions? Call us at (516) 269-3724</p>
+  `;
+  return baseLayout(data.isAdminCopy ? "Contract Sent — Teemer Admin" : "Your Moving Contract — Teemer Moving & Storage", body);
+}
+
 export interface JobCompletedData {
   customerName: string;
   quoteId: number;

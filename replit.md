@@ -64,6 +64,9 @@ A full-featured moving company web app with two distinct experiences:
 - `/track` — Track your move lookup page (Job ID + email form)
 - `/track/:id/:token` — Track by direct tracking token link (from email)
 
+**Contract Signing (public):**
+- `/sign/:token` — Customer e-signature page (contract details, legal terms, canvas signature pad, agreement checkbox)
+
 **Platform:**
 - `/platform` — Platform entry
 - `/platform/customer` — Customer portal (Request Move + Track Job tabs)
@@ -109,6 +112,7 @@ A full-featured moving company web app with two distinct experiences:
 - `revenue_ledger` — Revenue tracking entries
 - `email_logs` — Email notification logs
 - `contacts` — Contact form submissions
+- `contracts` — Digital moving contracts (signingToken UUID, status: sent/signed, customerSignatureData base64 PNG, customerSignedAt, customerIpAddress)
 
 ### Authentication
 - **Method**: JWT tokens via httpOnly cookies (cookie name: `teemer_auth`, 7-day expiry)
@@ -147,6 +151,11 @@ A full-featured moving company web app with two distinct experiences:
 - `PATCH /api/invoices/:jobId` — Save/update invoice for a job (admin only, auto-calculates totals, saves to invoices table + updates job)
 - `GET /api/admin/revenue` — Revenue report with filters (from/to dates, method, status) + summary + monthly chart data
 - `GET /api/admin/revenue/export` — CSV export of payment transactions with filters
+- `POST /api/jobs/:jobId/contracts` — Generate PDF contract + send to customer and admin via email (admin only)
+- `GET /api/jobs/:jobId/contract` — Get contract record for a job (admin only)
+- `GET /api/contracts/sign/:token` — Get contract data by signing token (public, for customer signing page)
+- `POST /api/contracts/sign/:token` — Submit customer e-signature (public)
+- `GET /api/jobs/:jobId/contracts/pdf` — Download contract as PDF (admin only)
 
 ### Business Rules
 - **Mark Complete**: Job cannot be marked complete unless remaining balance is $0 or payment status is paid/paid_cash (enforced server-side)
@@ -157,7 +166,7 @@ A full-featured moving company web app with two distinct experiences:
 ### Email System (Resend)
 - **Service**: `artifacts/api-server/src/lib/email-service.ts` — centralized send functions
 - **Templates**: `artifacts/api-server/src/lib/email-templates.ts` — branded HTML templates
-- **Functions**: sendDepositConfirmationEmail, sendAdminNewJobNotification, sendStatusUpdateEmail, sendTrackingLinkEmail, sendRemainingBalanceInvoiceEmail, sendPaymentReceivedEmail, sendJobCompletedEmail
+- **Functions**: sendDepositConfirmationEmail, sendAdminNewJobNotification, sendStatusUpdateEmail, sendTrackingLinkEmail, sendRemainingBalanceInvoiceEmail, sendPaymentReceivedEmail, sendJobCompletedEmail, sendContractEmail
 - **Automatic triggers**: Deposit confirmation + admin notification fire on Stripe webhook deposit_paid
 - **Logging**: All sends logged to email_logs table (sent/failed/skipped)
 - **Graceful fallback**: If RESEND_API_KEY is not set, emails are skipped with warning log

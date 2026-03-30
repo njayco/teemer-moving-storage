@@ -754,6 +754,23 @@ function AssignCaptainModal({ jobId, currentCaptainId, onClose, onAssign }: {
   );
 }
 
+interface ContractRecord {
+  id: number;
+  jobId: number;
+  quoteId: number | null;
+  signingToken: string;
+  status: string;
+  sentAt: string | null;
+  customerSignedAt: string | null;
+  createdAt: string | null;
+}
+
+function ContractBadge({ status }: { status: string }) {
+  if (status === "signed") return <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">Signed</span>;
+  if (status === "sent") return <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">Sent</span>;
+  return <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">None</span>;
+}
+
 function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void }) {
   const { data: job, refetch } = useGetJob(jobId, { query: { queryKey: ["job-detail", jobId] } });
   const { mutateAsync: updateJob } = useUpdateJobStatus();
@@ -761,6 +778,48 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
   const [showCaptainModal, setShowCaptainModal] = useState(false);
   const [showInvoiceEditor, setShowInvoiceEditor] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [contract, setContract] = useState<ContractRecord | null | undefined>(undefined);
+  const [contractLoading, setContractLoading] = useState(false);
+
+  const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+
+  const fetchContract = useCallback(async () => {
+    if (!job) return;
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${job.jobId || jobId}/contract`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setContract(data);
+      }
+    } catch (_e) {
+      setContract(null);
+    }
+  }, [job, jobId, API_BASE]);
+
+  useEffect(() => {
+    if (job) fetchContract();
+  }, [job, fetchContract]);
+
+  const handleGenerateContract = async () => {
+    if (!confirm("Generate a moving contract and send it to the customer by email?")) return;
+    setContractLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${job?.jobId || jobId}/contracts`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to generate contract");
+        return;
+      }
+      setContract(data);
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } finally {
+      setContractLoading(false);
+    }
+  };
 
   const handleStatusChange = async (status: string) => {
     setUpdating(true);
@@ -1000,6 +1059,60 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
                   <option key={s} value={s}>{JOB_STATUS_CONFIG[s]?.label || s}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-secondary text-sm">Contract</h3>
+              {contract && <ContractBadge status={contract.status} />}
+            </div>
+            <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+              {contract === undefined && (
+                <p className="text-sm text-slate-400 text-center py-1">Loading contract…</p>
+              )}
+              {contract === null && (
+                <p className="text-sm text-slate-400">No contract on file.</p>
+              )}
+              {contract && (
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Status</span>
+                    <ContractBadge status={contract.status} />
+                  </div>
+                  {contract.sentAt && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Sent</span>
+                      <span className="text-slate-700">{new Date(contract.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    </div>
+                  )}
+                  {contract.customerSignedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Signed</span>
+                      <span className="text-green-700 font-medium">{new Date(contract.customerSignedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t border-slate-200">
+                    <a
+                      href={`${API_BASE}/jobs/${job?.jobId || jobId}/contracts/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      <FileText className="w-4 h-4" /> Download Contract PDF
+                    </a>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={handleGenerateContract}
+                disabled={contractLoading || updating || !!contract}
+                title={contract ? "A contract has already been generated for this job" : "Generate and send contract to customer"}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {contractLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 text-green-500" />}
+                {contract ? "Contract Already Sent" : "Generate & Send Contract"}
+              </button>
             </div>
           </div>
 

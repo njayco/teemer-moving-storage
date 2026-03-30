@@ -23,6 +23,7 @@ import type {
   CaptainStatusUpdateRequest,
   ContactFormRequest,
   ContactFormResponse,
+  ContractRecord,
   CreateJobEventRequest,
   CreateJobRequest,
   CreateUserRequest,
@@ -47,6 +48,9 @@ import type {
   RevenueReportResponse,
   SaveInvoiceRequest,
   SendJobInvoice200,
+  SignContract200,
+  SignContractBody,
+  SignContractResponse,
   StripeCheckoutResponse,
   TrackingLookupRequest,
   TrackingResponse,
@@ -2974,6 +2978,446 @@ export function useGetAdminStats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetAdminStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Generates a PDF contract and sends it to the customer. Admin only.
+ * @summary Generate and send a moving contract
+ */
+export const getGenerateAndSendContractUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/contracts`;
+};
+
+export const generateAndSendContract = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<ContractRecord> => {
+  return customFetch<ContractRecord>(getGenerateAndSendContractUrl(jobId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGenerateAndSendContractMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateAndSendContract>>,
+    TError,
+    { jobId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateAndSendContract>>,
+  TError,
+  { jobId: string },
+  TContext
+> => {
+  const mutationKey = ["generateAndSendContract"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateAndSendContract>>,
+    { jobId: string }
+  > = (props) => {
+    const { jobId } = props ?? {};
+
+    return generateAndSendContract(jobId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateAndSendContractMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateAndSendContract>>
+>;
+
+export type GenerateAndSendContractMutationError = ErrorType<void>;
+
+/**
+ * @summary Generate and send a moving contract
+ */
+export const useGenerateAndSendContract = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateAndSendContract>>,
+    TError,
+    { jobId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateAndSendContract>>,
+  TError,
+  { jobId: string },
+  TContext
+> => {
+  return useMutation(getGenerateAndSendContractMutationOptions(options));
+};
+
+/**
+ * Returns the contract for a job if one exists. Admin only.
+ * @summary Get contract for a job
+ */
+export const getGetJobContractUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/contract`;
+};
+
+export const getJobContract = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<ContractRecord> => {
+  return customFetch<ContractRecord>(getGetJobContractUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetJobContractQueryKey = (jobId: string) => {
+  return [`/api/jobs/${jobId}/contract`] as const;
+};
+
+export const getGetJobContractQueryOptions = <
+  TData = Awaited<ReturnType<typeof getJobContract>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getJobContract>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetJobContractQueryKey(jobId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobContract>>> = ({
+    signal,
+  }) => getJobContract(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getJobContract>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetJobContractQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getJobContract>>
+>;
+export type GetJobContractQueryError = ErrorType<void>;
+
+/**
+ * @summary Get contract for a job
+ */
+
+export function useGetJobContract<
+  TData = Awaited<ReturnType<typeof getJobContract>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getJobContract>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetJobContractQueryOptions(jobId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Public endpoint to retrieve contract data using a signing token
+ * @summary Get contract data for customer signing
+ */
+export const getGetContractForSigningUrl = (token: string) => {
+  return `/api/contracts/sign/${token}`;
+};
+
+export const getContractForSigning = async (
+  token: string,
+  options?: RequestInit,
+): Promise<SignContractResponse> => {
+  return customFetch<SignContractResponse>(getGetContractForSigningUrl(token), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetContractForSigningQueryKey = (token: string) => {
+  return [`/api/contracts/sign/${token}`] as const;
+};
+
+export const getGetContractForSigningQueryOptions = <
+  TData = Awaited<ReturnType<typeof getContractForSigning>>,
+  TError = ErrorType<void>,
+>(
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getContractForSigning>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetContractForSigningQueryKey(token);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getContractForSigning>>
+  > = ({ signal }) =>
+    getContractForSigning(token, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!token,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getContractForSigning>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetContractForSigningQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getContractForSigning>>
+>;
+export type GetContractForSigningQueryError = ErrorType<void>;
+
+/**
+ * @summary Get contract data for customer signing
+ */
+
+export function useGetContractForSigning<
+  TData = Awaited<ReturnType<typeof getContractForSigning>>,
+  TError = ErrorType<void>,
+>(
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getContractForSigning>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetContractForSigningQueryOptions(token, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Customer signs the contract using their signing token
+ * @summary Submit customer signature
+ */
+export const getSignContractUrl = (token: string) => {
+  return `/api/contracts/sign/${token}`;
+};
+
+export const signContract = async (
+  token: string,
+  signContractBody: SignContractBody,
+  options?: RequestInit,
+): Promise<SignContract200> => {
+  return customFetch<SignContract200>(getSignContractUrl(token), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(signContractBody),
+  });
+};
+
+export const getSignContractMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof signContract>>,
+    TError,
+    { token: string; data: BodyType<SignContractBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof signContract>>,
+  TError,
+  { token: string; data: BodyType<SignContractBody> },
+  TContext
+> => {
+  const mutationKey = ["signContract"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof signContract>>,
+    { token: string; data: BodyType<SignContractBody> }
+  > = (props) => {
+    const { token, data } = props ?? {};
+
+    return signContract(token, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SignContractMutationResult = NonNullable<
+  Awaited<ReturnType<typeof signContract>>
+>;
+export type SignContractMutationBody = BodyType<SignContractBody>;
+export type SignContractMutationError = ErrorType<void>;
+
+/**
+ * @summary Submit customer signature
+ */
+export const useSignContract = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof signContract>>,
+    TError,
+    { token: string; data: BodyType<SignContractBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof signContract>>,
+  TError,
+  { token: string; data: BodyType<SignContractBody> },
+  TContext
+> => {
+  return useMutation(getSignContractMutationOptions(options));
+};
+
+/**
+ * Returns the contract as a downloadable PDF file. Admin only.
+ * @summary Download contract as PDF
+ */
+export const getDownloadContractPdfUrl = (jobId: string) => {
+  return `/api/jobs/${jobId}/contracts/pdf`;
+};
+
+export const downloadContractPdf = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getDownloadContractPdfUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDownloadContractPdfQueryKey = (jobId: string) => {
+  return [`/api/jobs/${jobId}/contracts/pdf`] as const;
+};
+
+export const getDownloadContractPdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadContractPdf>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadContractPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getDownloadContractPdfQueryKey(jobId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadContractPdf>>
+  > = ({ signal }) => downloadContractPdf(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadContractPdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DownloadContractPdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadContractPdf>>
+>;
+export type DownloadContractPdfQueryError = ErrorType<void>;
+
+/**
+ * @summary Download contract as PDF
+ */
+
+export function useDownloadContractPdf<
+  TData = Awaited<ReturnType<typeof downloadContractPdf>>,
+  TError = ErrorType<void>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadContractPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDownloadContractPdfQueryOptions(jobId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

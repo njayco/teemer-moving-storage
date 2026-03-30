@@ -19,6 +19,7 @@ import GalleryPage from "@/pages/info/gallery";
 import TermsPage from "@/pages/info/terms";
 import TrackLookupPage from "@/pages/track/lookup";
 import TrackByTokenPage from "@/pages/track/token";
+import SignContractPage from "@/pages/sign";
 
 import CustomerPortal from "@/pages/platform/customer";
 import ProviderPortal from "@/pages/platform/provider";
@@ -76,6 +77,9 @@ function Router() {
       {/* Tracking */}
       <Route path="/track" component={TrackLookupPage} />
       <Route path="/track/:id/:token" component={TrackByTokenPage} />
+
+      {/* Contract Signing (public) */}
+      <Route path="/sign/:token" component={SignContractPage} />
 
       {/* Platform */}
       <Route path="/platform" component={CustomerPortal} />

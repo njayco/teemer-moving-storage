@@ -10,6 +10,7 @@ import {
   remainingBalanceInvoiceHtml,
   paymentReceivedHtml,
   jobCompletedHtml,
+  contractEmailHtml,
   type DepositConfirmationData,
   type AdminNewJobData,
   type StatusUpdateData,
@@ -37,6 +38,7 @@ async function sendEmail(params: {
   emailType: string;
   quoteId?: number | null;
   jobId?: number | null;
+  attachments?: Array<{ filename: string; content: Buffer }>;
 }): Promise<{ success: boolean; resendId?: string }> {
   const resend = getResendClient();
 
@@ -62,7 +64,10 @@ async function sendEmail(params: {
       to: params.to,
       subject: params.subject,
       html: params.html,
-    });
+      ...(params.attachments && params.attachments.length > 0
+        ? { attachments: params.attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+        : {}),
+    } as Parameters<typeof resend.emails.send>[0]);
 
     if (result.error) {
       logger.error(
@@ -182,6 +187,41 @@ export async function sendPaymentReceivedEmail(
     html: paymentReceivedHtml(data),
     emailType: "payment_received",
     quoteId: data.quoteId,
+  });
+}
+
+export async function sendContractEmail(params: {
+  to: string;
+  customerName: string;
+  moveDate: string;
+  signingUrl: string;
+  pdfBuffer: Buffer;
+  jobId?: number | null;
+  quoteId?: number | null;
+  isAdminCopy?: boolean;
+}): Promise<{ success: boolean; resendId?: string }> {
+  const subject = params.isAdminCopy
+    ? `Contract Sent — ${params.customerName} (Move: ${params.moveDate})`
+    : `Your Moving Contract — Teemer Moving & Storage`;
+
+  return sendEmail({
+    to: params.to,
+    subject,
+    html: contractEmailHtml({
+      customerName: params.customerName,
+      moveDate: params.moveDate,
+      signingUrl: params.signingUrl,
+      isAdminCopy: params.isAdminCopy,
+    }),
+    emailType: "contract",
+    jobId: params.jobId ?? null,
+    quoteId: params.quoteId ?? null,
+    attachments: [
+      {
+        filename: `Teemer-Moving-Contract.pdf`,
+        content: params.pdfBuffer,
+      },
+    ],
   });
 }
 

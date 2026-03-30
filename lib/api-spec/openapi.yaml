@@ -21,6 +21,8 @@ tags:
     description: Admin operations
   - name: captain
     description: Move captain operations
+  - name: contracts
+    description: Digital contract operations
 paths:
   /healthz:
     get:
@@ -772,6 +774,139 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminStats"
+
+  /jobs/{jobId}/contracts:
+    post:
+      operationId: generateAndSendContract
+      tags: [contracts]
+      summary: Generate and send a moving contract
+      description: Generates a PDF contract and sends it to the customer. Admin only.
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Contract generated and sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractRecord"
+        "400":
+          description: No customer email found
+        "404":
+          description: Job not found
+        "409":
+          description: Contract already exists
+
+  /jobs/{jobId}/contract:
+    get:
+      operationId: getJobContract
+      tags: [contracts]
+      summary: Get contract for a job
+      description: Returns the contract for a job if one exists. Admin only.
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contract record or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractRecord"
+        "404":
+          description: Job not found
+
+  /contracts/sign/{token}:
+    get:
+      operationId: getContractForSigning
+      tags: [contracts]
+      summary: Get contract data for customer signing
+      description: Public endpoint to retrieve contract data using a signing token
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contract data for signing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignContractResponse"
+        "404":
+          description: Contract not found
+    post:
+      operationId: signContract
+      tags: [contracts]
+      summary: Submit customer signature
+      description: Customer signs the contract using their signing token
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signatureData]
+              properties:
+                signatureData:
+                  type: string
+      responses:
+        "200":
+          description: Contract signed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signedAt:
+                    type: string
+        "400":
+          description: Missing signature data
+        "404":
+          description: Contract not found
+        "409":
+          description: Already signed
+
+  /jobs/{jobId}/contracts/pdf:
+    get:
+      operationId: downloadContractPdf
+      tags: [contracts]
+      summary: Download contract as PDF
+      description: Returns the contract as a downloadable PDF file. Admin only.
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Job not found
+
 components:
   schemas:
     HealthStatus:
@@ -1873,3 +2008,43 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RevenueEntry"
+
+    ContractRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobId:
+          type: integer
+        quoteId:
+          type: integer
+          nullable: true
+        signingToken:
+          type: string
+        status:
+          type: string
+        sentAt:
+          type: string
+          nullable: true
+        customerSignedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+
+    SignContractResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        customerSignedAt:
+          type: string
+          nullable: true
+        contractData:
+          type: object

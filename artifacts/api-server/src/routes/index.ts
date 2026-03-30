@@ -6,6 +6,7 @@ import contactRouter from "./contact";
 import authRouter from "./auth";
 import emailLogsRouter from "./email-logs";
 import trackingRouter from "./tracking";
+import contractsRouter from "./contracts";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(jobsRouter);
 router.use(contactRouter);
 router.use(emailLogsRouter);
 router.use(trackingRouter);
+router.use(contractsRouter);
 
 export default router;

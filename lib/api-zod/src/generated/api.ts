@@ -1343,3 +1343,71 @@ export const GetAdminStatsResponse = zod.object({
   depositCollected: zod.number(),
   revenuePipeline: zod.number(),
 });
+
+/**
+ * Generates a PDF contract and sends it to the customer. Admin only.
+ * @summary Generate and send a moving contract
+ */
+export const GenerateAndSendContractParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+/**
+ * Returns the contract for a job if one exists. Admin only.
+ * @summary Get contract for a job
+ */
+export const GetJobContractParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const GetJobContractResponse = zod.object({
+  id: zod.number().optional(),
+  jobId: zod.number().optional(),
+  quoteId: zod.number().nullish(),
+  signingToken: zod.string().optional(),
+  status: zod.string().optional(),
+  sentAt: zod.string().nullish(),
+  customerSignedAt: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+
+/**
+ * Public endpoint to retrieve contract data using a signing token
+ * @summary Get contract data for customer signing
+ */
+export const GetContractForSigningParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const GetContractForSigningResponse = zod.object({
+  id: zod.number().optional(),
+  status: zod.string().optional(),
+  customerSignedAt: zod.string().nullish(),
+  contractData: zod.object({}).passthrough().optional(),
+});
+
+/**
+ * Customer signs the contract using their signing token
+ * @summary Submit customer signature
+ */
+export const SignContractParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const SignContractBody = zod.object({
+  signatureData: zod.string(),
+});
+
+export const SignContractResponse = zod.object({
+  success: zod.boolean().optional(),
+  signedAt: zod.string().optional(),
+});
+
+/**
+ * Returns the contract as a downloadable PDF file. Admin only.
+ * @summary Download contract as PDF
+ */
+export const DownloadContractPdfParams = zod.object({
+  jobId: zod.coerce.string(),
+});

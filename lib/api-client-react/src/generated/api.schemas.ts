@@ -635,6 +635,27 @@ export interface RevenueReportResponse {
   entries?: RevenueEntry[];
 }
 
+export interface ContractRecord {
+  id?: number;
+  jobId?: number;
+  quoteId?: number | null;
+  signingToken?: string;
+  status?: string;
+  sentAt?: string | null;
+  customerSignedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export type SignContractResponseContractData = { [key: string]: unknown };
+
+export interface SignContractResponse {
+  id?: number;
+  status?: string;
+  customerSignedAt?: string | null;
+  contractData?: SignContractResponseContractData;
+}
+
 export type ListJobsParams = {
   /**
    * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
@@ -681,4 +702,13 @@ export type ExportRevenueCsvParams = {
 
 export type AddCaptainNoteBody = {
   notes: string;
+};
+
+export type SignContractBody = {
+  signatureData: string;
+};
+
+export type SignContract200 = {
+  success?: boolean;
+  signedAt?: string;
 };
