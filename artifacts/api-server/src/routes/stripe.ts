@@ -261,4 +261,66 @@ router.post("/stripe/verify-session", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/stripe/resend-deposit-emails", async (req: Request, res: Response) => {
+  try {
+    const { quoteId } = req.body as { quoteId?: string };
+    if (!quoteId) return res.status(400).json({ error: "quoteId required" });
+
+    const parsedQuoteId = parseInt(quoteId, 10);
+    const [quote] = await db.select().from(quoteRequestsTable)
+      .where(eq(quoteRequestsTable.id, parsedQuoteId)).limit(1);
+    if (!quote) return res.status(404).json({ error: "Quote not found" });
+
+    const depositPaid = quote.depositAmount ?? 50;
+    const totalEstimate = quote.totalEstimate ?? 0;
+    const remainingBalance = totalEstimate - depositPaid;
+    const inventoryObj = (quote.inventory as Record<string, number>) || {};
+    const inventoryItems = Object.entries(inventoryObj);
+    const inventorySummary = inventoryItems.length > 0
+      ? inventoryItems.map(([item, qty]) => `${item} (${qty})`).join(", ")
+      : "No specific items listed";
+    const boxesSummary = `Small: ${quote.smallBoxes ?? 0}, Medium: ${quote.mediumBoxes ?? 0}`;
+
+    const baseUrl = getAppBaseUrl();
+    const trackingUrl = `${baseUrl}/track/${parsedQuoteId}/${quote.trackingToken ?? ""}`;
+
+    const customerResult = await sendDepositConfirmationEmail({
+      customerName: quote.contactName ?? "Customer",
+      email: quote.email ?? "",
+      quoteId: parsedQuoteId,
+      moveDate: quote.moveDate ?? "TBD",
+      arrivalWindow: quote.arrivalTimeWindow ?? undefined,
+      pickupAddress: quote.pickupAddress || quote.originAddress || "",
+      dropoffAddress: quote.dropoffAddress || quote.destinationAddress || "",
+      secondStop: quote.secondStop ?? undefined,
+      inventorySummary,
+      boxesSummary,
+      crewSize: quote.crewSize ?? undefined,
+      estimatedHours: quote.estimatedHours ?? undefined,
+      totalEstimate,
+      depositPaid,
+      remainingBalance,
+      trackingUrl,
+    });
+
+    const adminResult = await sendAdminNewJobNotification({
+      quoteId: parsedQuoteId,
+      customerName: quote.contactName ?? "Customer",
+      customerEmail: quote.email ?? "",
+      customerPhone: quote.phone ?? "",
+      moveDate: quote.moveDate ?? "TBD",
+      pickupAddress: quote.pickupAddress || quote.originAddress || "",
+      dropoffAddress: quote.dropoffAddress || quote.destinationAddress || "",
+      totalEstimate,
+      depositPaid,
+    });
+
+    req.log.info({ quoteId: parsedQuoteId, customerResult, adminResult }, "Deposit emails resent");
+    res.json({ success: true, customerResult, adminResult });
+  } catch (err) {
+    req.log.error({ err }, "Failed to resend deposit emails");
+    res.status(500).json({ error: "Failed to resend emails" });
+  }
+});
+
 export default router;
