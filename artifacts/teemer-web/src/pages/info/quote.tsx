@@ -297,6 +297,12 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
               <span className="font-semibold text-slate-800">{fmt(q.materialsSubtotal)}</span>
             </div>
           )}
+          {(q.pianoSurcharge ?? 0) > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Piano Moving Fee</span>
+              <span className="font-semibold text-slate-800">{fmt(q.pianoSurcharge)}</span>
+            </div>
+          )}
           <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between">
             <span className="font-bold text-slate-800">Estimated Total</span>
             <span className="font-bold text-xl text-primary">{fmt(q.totalEstimate)}</span>
@@ -422,6 +428,10 @@ export default function QuotePage() {
     hasHeavyItems: false,
   });
 
+  // Piano moving state
+  const [pianoType, setPianoType] = useState<"none" | "upright" | "grand">("none");
+  const [pianoFloor, setPianoFloor] = useState<"ground" | "stairs">("ground");
+
   // Step 3: Inventory state
   const [inventory, setInventory] = useState<Record<string, number>>({});
   const [customItem, setCustomItem] = useState("");
@@ -514,6 +524,9 @@ export default function QuotePage() {
       hasHeavyItems: homeSize.hasHeavyItems,
       // Inventory
       inventory,
+      // Piano
+      pianoType: pianoType !== "none" ? pianoType : undefined,
+      pianoFloor: pianoType !== "none" ? pianoFloor : undefined,
       // Boxes
       boxesAlreadyPacked,
       needsPackingMaterials,
@@ -805,8 +818,61 @@ export default function QuotePage() {
                             checked={homeSize.hasHeavyItems}
                             onChange={(v) => setHomeSize((h) => ({ ...h, hasHeavyItems: v }))}
                             label="Heavy / Bulky Items"
-                            description="Piano, safe, pool table, large appliances"
+                            description="Safe, pool table, large appliances"
                           />
+                        </div>
+
+                        {/* Piano question */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-4">
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm mb-1">Moving a Piano?</p>
+                            <p className="text-xs text-slate-500">Piano moves require specialized handling — flat surcharge applies.</p>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {([
+                              { value: "none" as const, label: "No Piano" },
+                              { value: "upright" as const, label: "Upright" },
+                              { value: "grand" as const, label: "Grand" },
+                            ]).map(({ value, label }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => setPianoType(value)}
+                                className={`py-3 px-3 rounded-xl text-sm font-semibold border-2 transition-all ${
+                                  pianoType === value
+                                    ? "border-primary bg-green-50 text-primary shadow-sm"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                          {pianoType !== "none" && (
+                            <div>
+                              <p className="text-xs font-medium text-slate-600 mb-2">Floor access for the piano:</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {([
+                                  { value: "ground" as const, label: "Ground Level", price: pianoType === "upright" ? "$350" : "$800" },
+                                  { value: "stairs" as const, label: "Stairs", price: pianoType === "upright" ? "$500" : "$800" },
+                                ]).map(({ value, label, price }) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setPianoFloor(value)}
+                                    className={`py-3 px-3 rounded-xl text-sm font-semibold border-2 transition-all ${
+                                      pianoFloor === value
+                                        ? "border-primary bg-green-50 text-primary shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                    }`}
+                                  >
+                                    {label}
+                                    <span className="block text-xs font-normal mt-0.5 opacity-70">{price} surcharge</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Live crew preview */}

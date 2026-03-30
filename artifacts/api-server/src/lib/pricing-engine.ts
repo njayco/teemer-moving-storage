@@ -10,6 +10,8 @@ export interface PricingInput {
   smallBoxes: number;
   mediumBoxes: number;
   needsPackingMaterials: boolean;
+  pianoType?: "none" | "upright" | "grand";
+  pianoFloor?: "ground" | "stairs";
 }
 
 export interface PricingResult {
@@ -18,6 +20,7 @@ export interface PricingResult {
   estimatedHours: number;
   laborSubtotal: number;
   materialsSubtotal: number;
+  pianoSurcharge: number;
   totalEstimate: number;
   depositAmount: number;
   breakdown: {
@@ -61,6 +64,18 @@ const HEAVY_ITEM_NAMES = new Set([
   "oven / stove", "dishwasher", "generator", "snow blower",
   "lawn mower", "safe", "piano", "pool table",
 ]);
+
+function detectPianoFromInventory(inventory: Record<string, number>): "none" | "upright" | "grand" {
+  for (const [item, qty] of Object.entries(inventory)) {
+    if (qty > 0) {
+      const lower = item.toLowerCase();
+      if (lower.includes("piano") && lower.includes("grand")) return "grand";
+      if (lower.includes("piano") && lower.includes("upright")) return "upright";
+      if (lower === "piano") return "upright";
+    }
+  }
+  return "none";
+}
 
 function heavyInventoryCount(inventory: Record<string, number>): number {
   let count = 0;
@@ -120,11 +135,18 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const smallBoxCost = (input.smallBoxes ?? 0) * 3.5;
   const mediumBoxCost = (input.mediumBoxes ?? 0) * 6.5;
 
-  // All rate inputs (hourly rates, box prices, tape) are defined with full cent precision.
-  // Do not round breakdown fields — preserve cents throughout.
+  let pianoSurcharge = 0;
+  const pianoType = input.pianoType ?? detectPianoFromInventory(input.inventory ?? {});
+  const pianoOnStairs = input.pianoFloor === "stairs" || (input.pianoFloor == null && input.hasStairs);
+  if (pianoType === "upright") {
+    pianoSurcharge = pianoOnStairs ? 500 : 350;
+  } else if (pianoType === "grand") {
+    pianoSurcharge = 800;
+  }
+
   const laborSubtotal = hourlyRate * hours;
   const materialsSubtotal = stretchWrapCost + tapeCost + smallBoxCost + mediumBoxCost;
-  const totalEstimate = laborSubtotal + materialsSubtotal;
+  const totalEstimate = laborSubtotal + materialsSubtotal + pianoSurcharge;
   const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5 * 100) / 100;
 
   return {
@@ -133,6 +155,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     estimatedHours: Math.round(hours * 2) / 2,
     laborSubtotal,
     materialsSubtotal: Math.round(materialsSubtotal * 100) / 100,
+    pianoSurcharge,
     totalEstimate: Math.round(totalEstimate * 100) / 100,
     depositAmount,
     breakdown: {

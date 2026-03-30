@@ -113,6 +113,8 @@ export const SubmitQuoteRequestBody = zod.object({
   hasOutdoorFurniture: zod.boolean().optional(),
   hasStairs: zod.boolean().optional(),
   hasHeavyItems: zod.boolean().optional(),
+  pianoType: zod.enum(["none", "upright", "grand"]).optional(),
+  pianoFloor: zod.enum(["ground", "stairs"]).optional(),
   inventory: zod
     .record(zod.string(), zod.number())
     .optional()
@@ -140,6 +142,7 @@ export const ListQuoteRequestsResponseItem = zod.object({
   estimatedHours: zod.number().optional(),
   laborSubtotal: zod.number().optional(),
   materialsSubtotal: zod.number().optional(),
+  pianoSurcharge: zod.number().optional(),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
@@ -168,6 +171,8 @@ export const ListQuoteRequestsResponseItem = zod.object({
       hasOutdoorFurniture: zod.boolean().optional(),
       hasStairs: zod.boolean().optional(),
       hasHeavyItems: zod.boolean().optional(),
+      pianoType: zod.enum(["none", "upright", "grand"]).optional(),
+      pianoFloor: zod.enum(["ground", "stairs"]).optional(),
       inventory: zod
         .record(zod.string(), zod.number())
         .optional()
@@ -203,6 +208,7 @@ export const GetQuoteRequestResponse = zod.object({
   estimatedHours: zod.number().optional(),
   laborSubtotal: zod.number().optional(),
   materialsSubtotal: zod.number().optional(),
+  pianoSurcharge: zod.number().optional(),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
@@ -231,6 +237,8 @@ export const GetQuoteRequestResponse = zod.object({
       hasOutdoorFurniture: zod.boolean().optional(),
       hasStairs: zod.boolean().optional(),
       hasHeavyItems: zod.boolean().optional(),
+      pianoType: zod.enum(["none", "upright", "grand"]).optional(),
+      pianoFloor: zod.enum(["ground", "stairs"]).optional(),
       inventory: zod
         .record(zod.string(), zod.number())
         .optional()
@@ -309,6 +317,7 @@ export const UpdateQuoteStatusResponse = zod.object({
   estimatedHours: zod.number().optional(),
   laborSubtotal: zod.number().optional(),
   materialsSubtotal: zod.number().optional(),
+  pianoSurcharge: zod.number().optional(),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
@@ -337,6 +346,8 @@ export const UpdateQuoteStatusResponse = zod.object({
       hasOutdoorFurniture: zod.boolean().optional(),
       hasStairs: zod.boolean().optional(),
       hasHeavyItems: zod.boolean().optional(),
+      pianoType: zod.enum(["none", "upright", "grand"]).optional(),
+      pianoFloor: zod.enum(["ground", "stairs"]).optional(),
       inventory: zod
         .record(zod.string(), zod.number())
         .optional()

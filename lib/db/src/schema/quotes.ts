@@ -56,6 +56,7 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   estimatedHours: real("estimated_hours"),
   laborSubtotal: real("labor_subtotal"),
   materialsSubtotal: real("materials_subtotal"),
+  pianoSurcharge: real("piano_surcharge").default(0),
   depositAmount: real("deposit_amount"),
   totalEstimate: real("total_estimate"),
 
@@ -83,6 +84,7 @@ export const insertQuoteRequestSchema = createInsertSchema(quoteRequestsTable).o
   estimatedHours: true,
   laborSubtotal: true,
   materialsSubtotal: true,
+  pianoSurcharge: true,
   depositAmount: true,
   totalEstimate: true,
 });

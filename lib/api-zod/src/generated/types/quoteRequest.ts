@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InventoryMap } from "./inventoryMap";
+import type { QuoteRequestPianoFloor } from "./quoteRequestPianoFloor";
+import type { QuoteRequestPianoType } from "./quoteRequestPianoType";
 
 export interface QuoteRequest {
   contactName: string;
@@ -42,6 +44,8 @@ export interface QuoteRequest {
   hasOutdoorFurniture?: boolean;
   hasStairs?: boolean;
   hasHeavyItems?: boolean;
+  pianoType?: QuoteRequestPianoType;
+  pianoFloor?: QuoteRequestPianoFloor;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;

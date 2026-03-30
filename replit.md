@@ -152,6 +152,7 @@ A full-featured moving company web app with two distinct experiences:
 - **Mark Complete**: Job cannot be marked complete unless remaining balance is $0 or payment status is paid/paid_cash (enforced server-side)
 - **Mark Paid (Cash)**: Creates payment record + revenue_ledger entry atomically
 - **Invoice Save**: Auto-calculates subtotal from line items, computes remaining balance accounting for all prior payments
+- **Piano Surcharge**: Flat fee added to quote total — Upright ground $350, Upright stairs $500, Grand $800. Auto-detected from inventory or explicit pianoType/pianoFloor fields. Shown as "Piano Moving Fee" line item in quote results.
 
 ### Email System (Resend)
 - **Service**: `artifacts/api-server/src/lib/email-service.ts` — centralized send functions

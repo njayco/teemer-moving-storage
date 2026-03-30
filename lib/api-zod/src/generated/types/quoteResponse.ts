@@ -18,6 +18,7 @@ export interface QuoteResponse {
   estimatedHours?: number;
   laborSubtotal?: number;
   materialsSubtotal?: number;
+  pianoSurcharge?: number;
   totalEstimate?: number;
   depositAmount?: number;
   estimatedPriceLow?: number;

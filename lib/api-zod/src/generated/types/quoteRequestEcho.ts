@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InventoryMap } from "./inventoryMap";
+import type { QuoteRequestEchoPianoFloor } from "./quoteRequestEchoPianoFloor";
+import type { QuoteRequestEchoPianoType } from "./quoteRequestEchoPianoType";
 
 /**
  * Echo of the quote request fields as stored
@@ -33,6 +35,8 @@ export interface QuoteRequestEcho {
   hasOutdoorFurniture?: boolean;
   hasStairs?: boolean;
   hasHeavyItems?: boolean;
+  pianoType?: QuoteRequestEchoPianoType;
+  pianoFloor?: QuoteRequestEchoPianoFloor;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;

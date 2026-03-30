@@ -861,6 +861,13 @@ components:
           type: boolean
         hasHeavyItems:
           type: boolean
+        # Piano
+        pianoType:
+          type: string
+          enum: [none, upright, grand]
+        pianoFloor:
+          type: string
+          enum: [ground, stairs]
         # Inventory
         inventory:
           $ref: "#/components/schemas/InventoryMap"
@@ -903,6 +910,8 @@ components:
         laborSubtotal:
           type: number
         materialsSubtotal:
+          type: number
+        pianoSurcharge:
           type: number
         totalEstimate:
           type: number
@@ -970,6 +979,12 @@ components:
           type: boolean
         hasHeavyItems:
           type: boolean
+        pianoType:
+          type: string
+          enum: [none, upright, grand]
+        pianoFloor:
+          type: string
+          enum: [ground, stairs]
         inventory:
           $ref: "#/components/schemas/InventoryMap"
         boxesAlreadyPacked:

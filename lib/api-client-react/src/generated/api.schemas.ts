@@ -16,6 +16,23 @@ export interface InventoryMap {
   [key: string]: number;
 }
 
+export type QuoteRequestPianoType =
+  (typeof QuoteRequestPianoType)[keyof typeof QuoteRequestPianoType];
+
+export const QuoteRequestPianoType = {
+  none: "none",
+  upright: "upright",
+  grand: "grand",
+} as const;
+
+export type QuoteRequestPianoFloor =
+  (typeof QuoteRequestPianoFloor)[keyof typeof QuoteRequestPianoFloor];
+
+export const QuoteRequestPianoFloor = {
+  ground: "ground",
+  stairs: "stairs",
+} as const;
+
 export interface QuoteRequest {
   contactName: string;
   phone: string;
@@ -51,6 +68,8 @@ export interface QuoteRequest {
   hasOutdoorFurniture?: boolean;
   hasStairs?: boolean;
   hasHeavyItems?: boolean;
+  pianoType?: QuoteRequestPianoType;
+  pianoFloor?: QuoteRequestPianoFloor;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;
@@ -68,6 +87,23 @@ export const QuoteResponseStatus = {
   quote_requested: "quote_requested",
   deposit_paid: "deposit_paid",
   booked: "booked",
+} as const;
+
+export type QuoteRequestEchoPianoType =
+  (typeof QuoteRequestEchoPianoType)[keyof typeof QuoteRequestEchoPianoType];
+
+export const QuoteRequestEchoPianoType = {
+  none: "none",
+  upright: "upright",
+  grand: "grand",
+} as const;
+
+export type QuoteRequestEchoPianoFloor =
+  (typeof QuoteRequestEchoPianoFloor)[keyof typeof QuoteRequestEchoPianoFloor];
+
+export const QuoteRequestEchoPianoFloor = {
+  ground: "ground",
+  stairs: "stairs",
 } as const;
 
 /**
@@ -96,6 +132,8 @@ export interface QuoteRequestEcho {
   hasOutdoorFurniture?: boolean;
   hasStairs?: boolean;
   hasHeavyItems?: boolean;
+  pianoType?: QuoteRequestEchoPianoType;
+  pianoFloor?: QuoteRequestEchoPianoFloor;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;
@@ -113,6 +151,7 @@ export interface QuoteResponse {
   estimatedHours?: number;
   laborSubtotal?: number;
   materialsSubtotal?: number;
+  pianoSurcharge?: number;
   totalEstimate?: number;
   depositAmount?: number;
   estimatedPriceLow?: number;

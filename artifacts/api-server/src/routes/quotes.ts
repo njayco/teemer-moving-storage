@@ -23,6 +23,7 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
     estimatedHours: q.estimatedHours,
     laborSubtotal: q.laborSubtotal,
     materialsSubtotal: q.materialsSubtotal,
+    pianoSurcharge: q.pianoSurcharge ?? 0,
     totalEstimate: q.totalEstimate,
     depositAmount: q.depositAmount,
     // Legacy compat
@@ -160,6 +161,8 @@ router.post("/quotes", async (req, res) => {
       smallBoxes: Number(body.smallBoxes ?? 0),
       mediumBoxes: Number(body.mediumBoxes ?? 0),
       needsPackingMaterials: Boolean(body.needsPackingMaterials),
+      pianoType: body.pianoType || undefined,
+      pianoFloor: body.pianoFloor || undefined,
     });
 
     // Determine addresses — support both old and new field names
@@ -218,6 +221,7 @@ router.post("/quotes", async (req, res) => {
         estimatedHours: pricing.estimatedHours,
         laborSubtotal: pricing.laborSubtotal,
         materialsSubtotal: pricing.materialsSubtotal,
+        pianoSurcharge: pricing.pianoSurcharge,
         totalEstimate: pricing.totalEstimate,
         depositAmount: pricing.depositAmount,
 
