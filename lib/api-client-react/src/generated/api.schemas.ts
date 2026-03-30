@@ -33,6 +33,19 @@ export const QuoteRequestPianoFloor = {
   stairs: "stairs",
 } as const;
 
+/**
+ * small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft)
+ */
+export type QuoteRequestCommercialSizeTier =
+  (typeof QuoteRequestCommercialSizeTier)[keyof typeof QuoteRequestCommercialSizeTier];
+
+export const QuoteRequestCommercialSizeTier = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+  enterprise: "enterprise",
+} as const;
+
 export interface QuoteRequest {
   contactName: string;
   phone: string;
@@ -70,6 +83,12 @@ export interface QuoteRequest {
   hasHeavyItems?: boolean;
   pianoType?: QuoteRequestPianoType;
   pianoFloor?: QuoteRequestPianoFloor;
+  /** true if this is a commercial move */
+  isCommercial?: boolean;
+  /** e.g. Office, Retail Store, Art Gallery, Warehouse, Restaurant/Café, Medical Office, Hotel/Hospitality, Other */
+  commercialBusinessType?: string;
+  /** small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft) */
+  commercialSizeTier?: QuoteRequestCommercialSizeTier;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;
@@ -106,6 +125,16 @@ export const QuoteRequestEchoPianoFloor = {
   stairs: "stairs",
 } as const;
 
+export type QuoteRequestEchoCommercialSizeTier =
+  (typeof QuoteRequestEchoCommercialSizeTier)[keyof typeof QuoteRequestEchoCommercialSizeTier];
+
+export const QuoteRequestEchoCommercialSizeTier = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+  enterprise: "enterprise",
+} as const;
+
 /**
  * Echo of the quote request fields as stored
  */
@@ -134,6 +163,9 @@ export interface QuoteRequestEcho {
   hasHeavyItems?: boolean;
   pianoType?: QuoteRequestEchoPianoType;
   pianoFloor?: QuoteRequestEchoPianoFloor;
+  isCommercial?: boolean;
+  commercialBusinessType?: string;
+  commercialSizeTier?: QuoteRequestEchoCommercialSizeTier;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;
@@ -152,6 +184,8 @@ export interface QuoteResponse {
   laborSubtotal?: number;
   materialsSubtotal?: number;
   pianoSurcharge?: number;
+  /** Amount added above residential estimate for commercial moves */
+  commercialAdjustment?: number;
   totalEstimate?: number;
   depositAmount?: number;
   estimatedPriceLow?: number;

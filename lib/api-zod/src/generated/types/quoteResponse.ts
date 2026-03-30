@@ -19,6 +19,8 @@ export interface QuoteResponse {
   laborSubtotal?: number;
   materialsSubtotal?: number;
   pianoSurcharge?: number;
+  /** Amount added above residential estimate for commercial moves */
+  commercialAdjustment?: number;
   totalEstimate?: number;
   depositAmount?: number;
   estimatedPriceLow?: number;

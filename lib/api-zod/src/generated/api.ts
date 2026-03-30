@@ -115,6 +115,22 @@ export const SubmitQuoteRequestBody = zod.object({
   hasHeavyItems: zod.boolean().optional(),
   pianoType: zod.enum(["none", "upright", "grand"]).optional(),
   pianoFloor: zod.enum(["ground", "stairs"]).optional(),
+  isCommercial: zod
+    .boolean()
+    .optional()
+    .describe("true if this is a commercial move"),
+  commercialBusinessType: zod
+    .string()
+    .optional()
+    .describe(
+      "e.g. Office, Retail Store, Art Gallery, Warehouse, Restaurant\/Café, Medical Office, Hotel\/Hospitality, Other",
+    ),
+  commercialSizeTier: zod
+    .enum(["small", "medium", "large", "enterprise"])
+    .optional()
+    .describe(
+      "small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft)",
+    ),
   inventory: zod
     .record(zod.string(), zod.number())
     .optional()
@@ -143,6 +159,10 @@ export const ListQuoteRequestsResponseItem = zod.object({
   laborSubtotal: zod.number().optional(),
   materialsSubtotal: zod.number().optional(),
   pianoSurcharge: zod.number().optional(),
+  commercialAdjustment: zod
+    .number()
+    .optional()
+    .describe("Amount added above residential estimate for commercial moves"),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
@@ -173,6 +193,11 @@ export const ListQuoteRequestsResponseItem = zod.object({
       hasHeavyItems: zod.boolean().optional(),
       pianoType: zod.enum(["none", "upright", "grand"]).optional(),
       pianoFloor: zod.enum(["ground", "stairs"]).optional(),
+      isCommercial: zod.boolean().optional(),
+      commercialBusinessType: zod.string().optional(),
+      commercialSizeTier: zod
+        .enum(["small", "medium", "large", "enterprise"])
+        .optional(),
       inventory: zod
         .record(zod.string(), zod.number())
         .optional()
@@ -209,6 +234,10 @@ export const GetQuoteRequestResponse = zod.object({
   laborSubtotal: zod.number().optional(),
   materialsSubtotal: zod.number().optional(),
   pianoSurcharge: zod.number().optional(),
+  commercialAdjustment: zod
+    .number()
+    .optional()
+    .describe("Amount added above residential estimate for commercial moves"),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
@@ -239,6 +268,11 @@ export const GetQuoteRequestResponse = zod.object({
       hasHeavyItems: zod.boolean().optional(),
       pianoType: zod.enum(["none", "upright", "grand"]).optional(),
       pianoFloor: zod.enum(["ground", "stairs"]).optional(),
+      isCommercial: zod.boolean().optional(),
+      commercialBusinessType: zod.string().optional(),
+      commercialSizeTier: zod
+        .enum(["small", "medium", "large", "enterprise"])
+        .optional(),
       inventory: zod
         .record(zod.string(), zod.number())
         .optional()
@@ -318,6 +352,10 @@ export const UpdateQuoteStatusResponse = zod.object({
   laborSubtotal: zod.number().optional(),
   materialsSubtotal: zod.number().optional(),
   pianoSurcharge: zod.number().optional(),
+  commercialAdjustment: zod
+    .number()
+    .optional()
+    .describe("Amount added above residential estimate for commercial moves"),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
@@ -348,6 +386,11 @@ export const UpdateQuoteStatusResponse = zod.object({
       hasHeavyItems: zod.boolean().optional(),
       pianoType: zod.enum(["none", "upright", "grand"]).optional(),
       pianoFloor: zod.enum(["ground", "stairs"]).optional(),
+      isCommercial: zod.boolean().optional(),
+      commercialBusinessType: zod.string().optional(),
+      commercialSizeTier: zod
+        .enum(["small", "medium", "large", "enterprise"])
+        .optional(),
       inventory: zod
         .record(zod.string(), zod.number())
         .optional()

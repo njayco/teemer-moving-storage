@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InventoryMap } from "./inventoryMap";
+import type { QuoteRequestCommercialSizeTier } from "./quoteRequestCommercialSizeTier";
 import type { QuoteRequestPianoFloor } from "./quoteRequestPianoFloor";
 import type { QuoteRequestPianoType } from "./quoteRequestPianoType";
 
@@ -46,6 +47,12 @@ export interface QuoteRequest {
   hasHeavyItems?: boolean;
   pianoType?: QuoteRequestPianoType;
   pianoFloor?: QuoteRequestPianoFloor;
+  /** true if this is a commercial move */
+  isCommercial?: boolean;
+  /** e.g. Office, Retail Store, Art Gallery, Warehouse, Restaurant/Café, Medical Office, Hotel/Hospitality, Other */
+  commercialBusinessType?: string;
+  /** small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft) */
+  commercialSizeTier?: QuoteRequestCommercialSizeTier;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;

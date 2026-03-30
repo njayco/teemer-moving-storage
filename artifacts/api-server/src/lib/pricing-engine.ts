@@ -12,6 +12,10 @@ export interface PricingInput {
   needsPackingMaterials: boolean;
   pianoType?: "none" | "upright" | "grand";
   pianoFloor?: "ground" | "stairs";
+  // Commercial fields
+  isCommercial?: boolean;
+  commercialBusinessType?: string;
+  commercialSizeTier?: "small" | "medium" | "large" | "enterprise";
 }
 
 export interface PricingResult {
@@ -21,6 +25,7 @@ export interface PricingResult {
   laborSubtotal: number;
   materialsSubtotal: number;
   pianoSurcharge: number;
+  commercialAdjustment: number;
   totalEstimate: number;
   depositAmount: number;
   breakdown: {
@@ -30,6 +35,14 @@ export interface PricingResult {
     mediumBoxCost: number;
   };
 }
+
+// Commercial tier minimums
+const COMMERCIAL_TIER_MINIMUMS: Record<string, number> = {
+  small: 1000,      // <500 sqft
+  medium: 3000,     // 500–1,000 sqft
+  large: 6000,      // 1,000–2,500 sqft
+  enterprise: 10000, // 2,500+ sqft
+};
 
 // Business rule: bedrooms + living rooms together determine crew/rate/base hours.
 // Spec examples all use "N bedrooms + 1 living room" as the canonical tier definition.
@@ -146,7 +159,22 @@ export function calculatePricing(input: PricingInput): PricingResult {
 
   const laborSubtotal = hourlyRate * hours;
   const materialsSubtotal = stretchWrapCost + tapeCost + smallBoxCost + mediumBoxCost;
-  const totalEstimate = laborSubtotal + materialsSubtotal + pianoSurcharge;
+  const residentialTotal = laborSubtotal + materialsSubtotal + pianoSurcharge;
+
+  // Commercial pricing: MAX(2x residential baseline, tier minimum)
+  let commercialAdjustment = 0;
+  let totalEstimate = residentialTotal;
+
+  if (input.isCommercial) {
+    const tierKey = input.commercialSizeTier ?? "small";
+    const tierMinimum = COMMERCIAL_TIER_MINIMUMS[tierKey] ?? COMMERCIAL_TIER_MINIMUMS.small;
+    const doubledResidential = residentialTotal * 2;
+    const commercialTotal = Math.max(doubledResidential, tierMinimum);
+    commercialAdjustment = Math.max(0, commercialTotal - residentialTotal);
+    totalEstimate = commercialTotal;
+  }
+
+  totalEstimate = Math.round(totalEstimate * 100) / 100;
   const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5 * 100) / 100;
 
   return {
@@ -156,7 +184,8 @@ export function calculatePricing(input: PricingInput): PricingResult {
     laborSubtotal,
     materialsSubtotal: Math.round(materialsSubtotal * 100) / 100,
     pianoSurcharge,
-    totalEstimate: Math.round(totalEstimate * 100) / 100,
+    commercialAdjustment: Math.round(commercialAdjustment * 100) / 100,
+    totalEstimate,
     depositAmount,
     breakdown: {
       stretchWrapCost,

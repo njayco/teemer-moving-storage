@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 import {
   CheckCircle2, Loader2, ArrowRight, ArrowLeft, Minus, Plus,
   Sparkles, Users, Clock, DollarSign, Calendar, Package,
-  ChevronDown, ChevronUp, AlertCircle, Home, Truck,
+  ChevronDown, ChevronUp, AlertCircle, Home, Truck, Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -203,18 +203,85 @@ function InventoryRow({
 }
 
 
-const STEP_LABELS = ["Move Details", "Home Size", "Inventory", "Box Estimate"];
+const COMMERCIAL_INVENTORY_CATEGORIES = [
+  {
+    name: "Office Equipment",
+    items: [
+      "Office Desk", "Executive Desk", "Office Chair", "Ergonomic Chair",
+      "Conference Table", "Filing Cabinet", "Bookcase / Shelving",
+      "Computer / Monitor Setup", "Server / Network Rack", "Printer / Copier",
+      "Reception Desk", "Cubicle / Workstation Panel",
+    ],
+  },
+  {
+    name: "Retail & Display",
+    items: [
+      "Display Case / Showcase", "Clothing Rack", "Shelving Unit (heavy)",
+      "Point-of-Sale Counter", "Mannequin", "Shop Fixtures", "Storage Cabinet",
+    ],
+  },
+  {
+    name: "Art & Fragile Items",
+    items: [
+      "Large Artwork / Painting", "Sculpture / Installation",
+      "Display Pedestal", "Framed Mirror (large)", "Glass Display Case",
+    ],
+  },
+  {
+    name: "Industrial & Storage",
+    items: [
+      "Pallet Racking Unit", "Heavy Shelving System", "Workbench",
+      "Industrial Equipment (misc.)", "Storage Container", "Safe / Vault",
+    ],
+  },
+  {
+    name: "Hospitality & Restaurant",
+    items: [
+      "Restaurant Table", "Restaurant Chair / Barstool", "Bar Equipment",
+      "Commercial Refrigerator", "Commercial Oven / Range",
+      "Booth Seating Unit", "Hotel Bed Frame", "Hotel Dresser / Armoire",
+    ],
+  },
+  {
+    name: "Medical & Specialty",
+    items: [
+      "Exam Table", "Medical Cabinet", "Lab Equipment (misc.)",
+      "Waiting Room Chair", "Reception Counter", "Medical Shelving",
+    ],
+  },
+];
 
-function ProgressBar({ currentStep }: { currentStep: number }) {
+const COMMERCIAL_BUSINESS_TYPES = [
+  "Office",
+  "Retail Store",
+  "Art Gallery",
+  "Warehouse",
+  "Restaurant / Café",
+  "Medical Office",
+  "Hotel / Hospitality",
+  "Other",
+];
+
+const COMMERCIAL_SIZE_TIERS = [
+  { value: "small" as const, label: "Small", sqft: "Under 500 sq ft", min: "$1,000", example: "Small office, studio" },
+  { value: "medium" as const, label: "Medium", sqft: "500–1,000 sq ft", min: "$3,000", example: "Mid-size office, boutique" },
+  { value: "large" as const, label: "Large", sqft: "1,000–2,500 sq ft", min: "$6,000", example: "Full floor, restaurant" },
+  { value: "enterprise" as const, label: "Enterprise", sqft: "2,500+ sq ft", min: "$10,000", example: "Warehouse, large office" },
+];
+
+const STEP_LABELS_RESIDENTIAL = ["Move Details", "Home Size", "Inventory", "Box Estimate"];
+const STEP_LABELS_COMMERCIAL = ["Move Details", "Business Details", "Inventory", "Box Estimate"];
+
+function ProgressBar({ currentStep, stepLabels }: { currentStep: number; stepLabels: string[] }) {
   return (
     <div className="mb-10">
       <div className="flex justify-between items-start relative">
         <div className="absolute left-0 top-5 w-full h-0.5 bg-slate-100" />
         <div
           className="absolute left-0 top-5 h-0.5 bg-primary transition-all duration-500"
-          style={{ width: `${((currentStep - 1) / (STEP_LABELS.length - 1)) * 100}%` }}
+          style={{ width: `${((currentStep - 1) / (stepLabels.length - 1)) * 100}%` }}
         />
-        {STEP_LABELS.map((label, i) => {
+        {stepLabels.map((label, i) => {
           const stepNum = i + 1;
           const isDone = currentStep > stepNum;
           const isActive = currentStep === stepNum;
@@ -247,6 +314,7 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
   result: QuoteResponse; moveDate: string; onReserve: () => void;
 }) {
   const q = result;
+  const isCommercialResult = (q.commercialAdjustment ?? 0) > 0 || q.quoteRequest?.isCommercial;
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -260,6 +328,11 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
         </div>
         <h2 className="text-2xl font-bold text-slate-800 mb-1">Your Estimate Is Ready!</h2>
         <p className="text-slate-500 text-sm">Review your quote below. No obligation — lock it in with a small deposit.</p>
+        {isCommercialResult && (
+          <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 rounded-full px-4 py-1.5 text-sm font-semibold mt-3">
+            <Building2 className="w-4 h-4" /> Commercial Move Rate Applied
+          </div>
+        )}
       </div>
 
       {/* Crew + Rate summary bar */}
@@ -301,6 +374,14 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
             <div className="flex justify-between text-sm">
               <span className="text-slate-600">Piano Moving Fee</span>
               <span className="font-semibold text-slate-800">{fmt(q.pianoSurcharge)}</span>
+            </div>
+          )}
+          {(q.commercialAdjustment ?? 0) > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-blue-500" /> Commercial Rate Adjustment
+              </span>
+              <span className="font-semibold text-slate-800">{fmt(q.commercialAdjustment)}</span>
             </div>
           )}
           <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between">
@@ -428,6 +509,11 @@ export default function QuotePage() {
     hasHeavyItems: false,
   });
 
+  // Move type: residential or commercial
+  const [isCommercial, setIsCommercial] = useState(false);
+  const [commercialBusinessType, setCommercialBusinessType] = useState<string>("Office");
+  const [commercialSizeTier, setCommercialSizeTier] = useState<"small" | "medium" | "large" | "enterprise">("small");
+
   // Piano moving state
   const [pianoType, setPianoType] = useState<"none" | "upright" | "grand">("none");
   const [pianoFloor, setPianoFloor] = useState<"ground" | "stairs">("ground");
@@ -513,7 +599,11 @@ export default function QuotePage() {
       originAddress: step1Data.pickupAddress,
       destinationAddress: step1Data.dropoffAddress,
       moveType: "local",
-      residentialOrCommercial: "residential",
+      residentialOrCommercial: isCommercial ? "commercial" : "residential",
+      // Commercial
+      isCommercial,
+      commercialBusinessType: isCommercial ? commercialBusinessType : undefined,
+      commercialSizeTier: isCommercial ? commercialSizeTier : undefined,
       // Home size
       numberOfBedrooms: homeSize.numberOfBedrooms,
       numberOfLivingRooms: homeSize.numberOfLivingRooms,
@@ -617,7 +707,10 @@ export default function QuotePage() {
               />
             ) : (
               <>
-                <ProgressBar currentStep={step} />
+                <ProgressBar
+                currentStep={step}
+                stepLabels={isCommercial ? STEP_LABELS_COMMERCIAL : STEP_LABELS_RESIDENTIAL}
+              />
 
                 <AnimatePresence mode="wait">
 
@@ -631,6 +724,42 @@ export default function QuotePage() {
                     >
                       <StepHeader step={1} title="Move Details" />
                       <div className="space-y-6">
+
+                        {/* Residential / Commercial Toggle */}
+                        <div>
+                          <label className={labelCls()}>Move Type</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setIsCommercial(false)}
+                              className={`flex items-center justify-center gap-3 py-4 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
+                                !isCommercial
+                                  ? "border-primary bg-green-50 text-primary shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              }`}
+                            >
+                              <Home className="w-5 h-5" />
+                              Residential
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsCommercial(true)}
+                              className={`flex items-center justify-center gap-3 py-4 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
+                                isCommercial
+                                  ? "border-primary bg-green-50 text-primary shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              }`}
+                            >
+                              <Building2 className="w-5 h-5" />
+                              Commercial
+                            </button>
+                          </div>
+                          {isCommercial && (
+                            <p className="text-xs text-primary font-medium mt-2 flex items-center gap-1">
+                              <Building2 className="w-3.5 h-3.5" /> Commercial pricing applies — minimums start at $1,000
+                            </p>
+                          )}
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                           <div>
@@ -743,14 +872,110 @@ export default function QuotePage() {
                             onClick={nextFromStep1}
                             className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20"
                           >
-                            Next: Home Size <ArrowRight className="w-5 h-5" />
+                            {isCommercial ? "Next: Business Details" : "Next: Home Size"} <ArrowRight className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
                     </motion.div>
                   )}
 
-                  {step === 2 && (
+                  {step === 2 && isCommercial && (
+                    <motion.div
+                      key="step2commercial"
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -30 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <StepHeader step={2} title="Business Details" />
+                      <div className="space-y-6">
+
+                        {/* Business Type */}
+                        <div>
+                          <label className={labelCls()}>Type of Business</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {COMMERCIAL_BUSINESS_TYPES.map((type) => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setCommercialBusinessType(type)}
+                                className={`py-3 px-3 rounded-xl text-xs font-semibold border-2 transition-all text-center ${
+                                  commercialBusinessType === type
+                                    ? "border-primary bg-green-50 text-primary shadow-sm"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                }`}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Size Tier */}
+                        <div>
+                          <label className={labelCls()}>Space / Office Size</label>
+                          <p className="text-xs text-slate-500 mb-3">Select the size that best describes your space.</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {COMMERCIAL_SIZE_TIERS.map((tier) => (
+                              <button
+                                key={tier.value}
+                                type="button"
+                                onClick={() => setCommercialSizeTier(tier.value)}
+                                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                                  commercialSizeTier === tier.value
+                                    ? "border-primary bg-green-50 shadow-sm"
+                                    : "border-slate-200 bg-white hover:border-slate-300"
+                                }`}
+                              >
+                                <span className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                  commercialSizeTier === tier.value ? "border-primary bg-primary" : "border-slate-300"
+                                }`}>
+                                  {commercialSizeTier === tier.value && <span className="w-2 h-2 rounded-full bg-white" />}
+                                </span>
+                                <span>
+                                  <span className={`font-bold text-sm ${commercialSizeTier === tier.value ? "text-primary" : "text-slate-700"}`}>
+                                    {tier.label}
+                                  </span>
+                                  <span className="block text-xs text-slate-500 mt-0.5">{tier.sqft}</span>
+                                  <span className="block text-xs text-slate-400 mt-0.5">{tier.example}</span>
+                                  <span className={`block text-xs font-semibold mt-1 ${commercialSizeTier === tier.value ? "text-primary" : "text-slate-600"}`}>
+                                    From {tier.min}
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Commercial info box */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-semibold text-blue-900 text-sm mb-1">Commercial Move Pricing</p>
+                              <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                                <li>Rates are 2× residential baseline or the tier minimum, whichever is greater.</li>
+                                <li>COI (Certificate of Insurance) available upon request.</li>
+                                <li>After-hours and weekend moves available for businesses.</li>
+                                <li>Call us to discuss large or complex commercial moves.</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between pt-2">
+                          <button type="button" onClick={() => goToStep(1)} className="flex items-center gap-2 text-slate-500 font-semibold px-4 py-3 hover:bg-slate-100 rounded-xl transition-colors">
+                            <ArrowLeft className="w-4 h-4" /> Back
+                          </button>
+                          <button type="button" onClick={() => goToStep(3)} className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
+                            Next: Inventory <ArrowRight className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 2 && !isCommercial && (
                     <motion.div
                       key="step2"
                       initial={{ opacity: 0, x: 30 }}
@@ -930,7 +1155,7 @@ export default function QuotePage() {
                       )}
 
                       <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1 rounded-xl">
-                        {INVENTORY_CATEGORIES.map((cat) => {
+                        {(isCommercial ? COMMERCIAL_INVENTORY_CATEGORIES : INVENTORY_CATEGORIES).map((cat) => {
                           const isOpen = expandedCategories[cat.name] ?? false;
                           const catTotal = cat.items.reduce((s, item) => s + (inventory[item] ?? 0), 0);
                           return (

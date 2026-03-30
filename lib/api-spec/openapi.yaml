@@ -868,6 +868,17 @@ components:
         pianoFloor:
           type: string
           enum: [ground, stairs]
+        # Commercial
+        isCommercial:
+          type: boolean
+          description: "true if this is a commercial move"
+        commercialBusinessType:
+          type: string
+          description: "e.g. Office, Retail Store, Art Gallery, Warehouse, Restaurant/Café, Medical Office, Hotel/Hospitality, Other"
+        commercialSizeTier:
+          type: string
+          enum: [small, medium, large, enterprise]
+          description: "small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft)"
         # Inventory
         inventory:
           $ref: "#/components/schemas/InventoryMap"
@@ -913,6 +924,9 @@ components:
           type: number
         pianoSurcharge:
           type: number
+        commercialAdjustment:
+          type: number
+          description: "Amount added above residential estimate for commercial moves"
         totalEstimate:
           type: number
         depositAmount:
@@ -985,6 +999,13 @@ components:
         pianoFloor:
           type: string
           enum: [ground, stairs]
+        isCommercial:
+          type: boolean
+        commercialBusinessType:
+          type: string
+        commercialSizeTier:
+          type: string
+          enum: [small, medium, large, enterprise]
         inventory:
           $ref: "#/components/schemas/InventoryMap"
         boxesAlreadyPacked:

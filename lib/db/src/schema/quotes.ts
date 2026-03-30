@@ -50,6 +50,10 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   // Storage choice
   storageUnitChoice: text("storage_unit_choice"),
 
+  // Commercial moving fields
+  commercialBusinessType: text("commercial_business_type"),
+  commercialSizeTier: text("commercial_size_tier"),
+
   // Calculated pricing
   crewSize: integer("crew_size"),
   hourlyRate: real("hourly_rate"),
@@ -57,6 +61,7 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   laborSubtotal: real("labor_subtotal"),
   materialsSubtotal: real("materials_subtotal"),
   pianoSurcharge: real("piano_surcharge").default(0),
+  commercialAdjustment: real("commercial_adjustment").default(0),
   depositAmount: real("deposit_amount"),
   totalEstimate: real("total_estimate"),
 
@@ -85,6 +90,7 @@ export const insertQuoteRequestSchema = createInsertSchema(quoteRequestsTable).o
   laborSubtotal: true,
   materialsSubtotal: true,
   pianoSurcharge: true,
+  commercialAdjustment: true,
   depositAmount: true,
   totalEstimate: true,
 });

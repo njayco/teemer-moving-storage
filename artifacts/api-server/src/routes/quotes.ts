@@ -24,6 +24,7 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
     laborSubtotal: q.laborSubtotal,
     materialsSubtotal: q.materialsSubtotal,
     pianoSurcharge: q.pianoSurcharge ?? 0,
+    commercialAdjustment: q.commercialAdjustment ?? 0,
     totalEstimate: q.totalEstimate,
     depositAmount: q.depositAmount,
     // Legacy compat
@@ -68,6 +69,10 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
       needsPackingMaterials: q.needsPackingMaterials ?? false,
       smallBoxes: q.smallBoxes ?? 0,
       mediumBoxes: q.mediumBoxes ?? 0,
+      // Commercial
+      isCommercial: q.residentialOrCommercial === "commercial" || !!(q.commercialBusinessType || q.commercialSizeTier),
+      commercialBusinessType: q.commercialBusinessType || undefined,
+      commercialSizeTier: q.commercialSizeTier || undefined,
     },
   };
 }
@@ -149,6 +154,7 @@ router.post("/quotes", async (req, res) => {
     const body = req.body;
 
     // Run the exact pricing engine
+    const isCommercial = Boolean(body.isCommercial) || body.residentialOrCommercial === "commercial";
     const pricing = calculatePricing({
       numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
       numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),
@@ -163,6 +169,9 @@ router.post("/quotes", async (req, res) => {
       needsPackingMaterials: Boolean(body.needsPackingMaterials),
       pianoType: body.pianoType || undefined,
       pianoFloor: body.pianoFloor || undefined,
+      isCommercial,
+      commercialBusinessType: body.commercialBusinessType || undefined,
+      commercialSizeTier: body.commercialSizeTier || undefined,
     });
 
     // Determine addresses — support both old and new field names
@@ -189,7 +198,7 @@ router.post("/quotes", async (req, res) => {
 
         // Legacy fields (mirror new ones)
         moveType: body.moveType || "local",
-        residentialOrCommercial: body.residentialOrCommercial || "residential",
+        residentialOrCommercial: isCommercial ? "commercial" : (body.residentialOrCommercial || "residential"),
         originAddress: pickupAddress,
         destinationAddress: dropoffAddress,
         moveSize: body.moveSize || null,
@@ -215,6 +224,10 @@ router.post("/quotes", async (req, res) => {
         smallBoxes: Number(body.smallBoxes ?? 0),
         mediumBoxes: Number(body.mediumBoxes ?? 0),
 
+        // Commercial fields
+        commercialBusinessType: body.commercialBusinessType || null,
+        commercialSizeTier: body.commercialSizeTier || null,
+
         // Pricing result
         crewSize: pricing.crewSize,
         hourlyRate: pricing.hourlyRate,
@@ -222,6 +235,7 @@ router.post("/quotes", async (req, res) => {
         laborSubtotal: pricing.laborSubtotal,
         materialsSubtotal: pricing.materialsSubtotal,
         pianoSurcharge: pricing.pianoSurcharge,
+        commercialAdjustment: pricing.commercialAdjustment,
         totalEstimate: pricing.totalEstimate,
         depositAmount: pricing.depositAmount,
 

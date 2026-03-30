@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InventoryMap } from "./inventoryMap";
+import type { QuoteRequestEchoCommercialSizeTier } from "./quoteRequestEchoCommercialSizeTier";
 import type { QuoteRequestEchoPianoFloor } from "./quoteRequestEchoPianoFloor";
 import type { QuoteRequestEchoPianoType } from "./quoteRequestEchoPianoType";
 
@@ -37,6 +38,9 @@ export interface QuoteRequestEcho {
   hasHeavyItems?: boolean;
   pianoType?: QuoteRequestEchoPianoType;
   pianoFloor?: QuoteRequestEchoPianoFloor;
+  isCommercial?: boolean;
+  commercialBusinessType?: string;
+  commercialSizeTier?: QuoteRequestEchoCommercialSizeTier;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;
