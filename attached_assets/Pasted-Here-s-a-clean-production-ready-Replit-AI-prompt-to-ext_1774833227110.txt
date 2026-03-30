@@ -1,0 +1,195 @@
+Here’s a **clean, production-ready Replit AI prompt** to extend your Teemer Moving platform with **commercial moving logic, pricing rules, and UI flows**:
+
+---
+
+## 🧠 Replit Prompt: Add Commercial Moving Option (Teemer Moving & Storage)
+
+**Prompt:**
+
+Build and integrate a **Commercial Moving option** into the existing Teemer Moving & Storage web application (Next.js + Tailwind + backend logic already in place).
+
+---
+
+## 🚀 Feature Overview
+
+Add a toggle at the beginning of the quote flow:
+
+* **Move Type Selection**
+
+  * Residential (default)
+  * Commercial 🏢
+
+---
+
+## 🧾 Commercial Moving Logic
+
+### 1. Pricing Rule (Core Logic)
+
+If **Commercial Moving is selected**:
+
+* All calculated residential pricing (labor, hours, items, etc.) should be:
+
+  ```
+  commercialPrice = residentialPrice * 2
+  ```
+
+* HOWEVER, override with **minimum base pricing tiers** below:
+
+---
+
+## 💼 Commercial Pricing Tiers (Override Baselines)
+
+Use selected business type + size to determine base estimate:
+
+### Office Moves
+
+* Small Office (<500 sq ft): $1,000 – $3,000
+* Medium Office (500–1,000 sq ft): $3,000 – $6,000
+* Large Office (1,000–2,500 sq ft): $6,000 – $10,000
+* Enterprise (Hotels / Corporate HQ): $10,000 – $30,000
+
+👉 Final price = **MAX(computed residential × 2, selected tier minimum)**
+
+---
+
+## 🏢 Business Type Selection (UI)
+
+If user selects **Commercial**, show additional options:
+
+### Business Type Dropdown:
+
+* Office
+* Retail Store
+* Art Gallery / Art Store 🎨
+* Warehouse
+* Restaurant / Café
+* Medical Office
+* Hotel / Hospitality
+* Other
+
+---
+
+## 📦 Commercial Inventory Options
+
+Expand item selection with commercial-specific assets:
+
+### Add New Categories:
+
+**Office Equipment**
+
+* Desks
+* Office Chairs
+* Conference Tables
+* Filing Cabinets
+* Cubicles
+
+**Retail**
+
+* Display Shelves
+* Clothing Racks
+* Cash Registers / POS Systems
+* Inventory Boxes
+
+**Art / Fragile**
+
+* Paintings
+* Sculptures
+* Glass Displays
+* Custom Crating Required (checkbox)
+
+**Industrial / Storage**
+
+* Pallets
+* Machinery (light/heavy toggle)
+* Storage racks
+
+---
+
+## 🧮 Estimation Enhancements
+
+* Use OpenAI (existing integration) to:
+
+  * Estimate number of boxes (small/medium/large)
+  * Estimate complexity (adds multiplier like 1.1x–1.5x for fragile/heavy items)
+
+---
+
+## ⚙️ Backend Logic
+
+Update quote calculation function:
+
+```ts
+function calculateQuote(data) {
+  const residentialPrice = baseCalculation(data);
+
+  if (data.moveType === "commercial") {
+    const doubled = residentialPrice * 2;
+    const tierMinimum = getCommercialTierMinimum(data);
+
+    return Math.max(doubled, tierMinimum);
+  }
+
+  return residentialPrice;
+}
+```
+
+---
+
+## 💳 Deposit Logic (Reuse Existing)
+
+* Under $1,000 → $50 deposit
+* Over $1,000 → 50% deposit
+
+---
+
+## 📊 Admin Dashboard Updates
+
+* Add filter:
+
+  * Residential / Commercial
+* Show:
+
+  * Business Type
+  * Square Footage Tier
+  * Final Adjusted Price
+* Track total **Commercial Revenue separately**
+
+---
+
+## 👨‍💼 UX Flow
+
+1. User selects:
+
+   * Residential OR Commercial
+2. If Commercial:
+
+   * Select business type
+   * Select office size tier
+   * Add commercial inventory
+3. System:
+
+   * Calculates residential baseline
+   * Applies 2x multiplier
+   * Compares with tier minimum
+   * Returns final quote instantly
+4. User:
+
+   * Books job with deposit
+   * Receives confirmation email
+
+---
+
+## 🎯 Goal
+
+Create a seamless **“Uber for Moving” experience** that supports:
+
+* Residential moves
+* Commercial logistics
+* High-ticket enterprise jobs
+
+---
+
+If you want next, I can:
+👉 Design the **UI screen (Tesla/BMW style)** for commercial booking
+👉 Add **AI-powered dynamic pricing optimization**
+👉 Or connect this directly into your **dispatch + live tracking system**
