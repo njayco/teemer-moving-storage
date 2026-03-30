@@ -330,7 +330,7 @@ export default function SignContractPage() {
 
           <LegalBlock
             title="DAMAGES"
-            body="Although our moving staff will be as careful as possible, from time to time damages may occur. If a damage is caused by our staff, at our discretion, we will repair the item or compensate for its depreciated value. Any fragile articles that are not packed and unpacked by Mover will only be moved at the owner's risk. Because the mechanical condition of electronics and appliances is unknown, we only assume responsibility for items which are mishandled or receive visible damage by our staff. We are not responsible for unprotected flooring. Mover assumes no responsibility for money, jewelry, or other valuables; please make sure these items are safely put away before our crew arrives."
+            body="Although our moving staff will be as careful as possible, from time to time damages may occur. If a damage is caused by our staff, at our discretion, we will repair the item or compensate for its depreciated value. Any fragile articles that are not packed and unpacked by Mover will only be moved at the owner's risk. Because the mechanical condition of electronics and appliances is unknown, we only assume responsibility for items which are mishandled or receive visible damage by our staff. We are not responsible for unprotected flooring. If due to an inherent weakness in a piece of furniture (i.e. defect, prior repair, unstable construction) a damage occurs, you understand that we will not be liable for any damage(s) to that piece. Mover is only responsible for items in their immediate care. Mover assumes no responsibility for money, jewelry, or other valuables; please make sure these items are safely put away before our crew arrives. Mover will not be responsible for claims not specified on this contract. Please inspect all goods prior to the crew arriving."
           />
           <LegalBlock
             title="TERMS"
@@ -338,15 +338,15 @@ export default function SignContractPage() {
           />
           <LegalBlock
             title="CONFIDENTIALITY"
-            body="Mover, and its employees or representatives will not at any time or in any manner, either directly or indirectly, use for the personal benefit of Client, or divulge, disclose, or communicate in any manner, any information that is proprietary to Client. This provision will continue to be effective after the termination of this Contract."
+            body="Mover, and its employees or representatives will not at any time or in any manner, either directly or indirectly, use for the personal benefit of Client, or divulge, disclose, or communicate in any manner, any information that is proprietary to Client. Mover and its employees or representatives will protect such information and treat it as strictly confidential. This provision will continue to be effective after the termination of this Contract."
           />
           <LegalBlock
             title="INDEMNIFICATION"
-            body="The client agrees to indemnify and hold harmless the moving company, its employees, and agents from any and all claims, damages, or liabilities arising from the client's own negligence, actions, or omissions. The moving company shall not be liable for any loss or damage unless it is directly caused by the moving company's gross negligence or willful misconduct."
+            body="The client agrees to indemnify and hold harmless the moving company, its employees, and agents from any and all claims, damages, or liabilities arising from the client's own negligence, actions, or omissions. This includes, but is not limited to, damages resulting from the client's failure to properly prepare items for transport, providing inaccurate information, or interfering with the moving process. Furthermore, the client agrees to indemnify the moving company for damages caused by circumstances beyond the moving company's reasonable control, such as acts of nature, civil unrest, or defects in the client's property that are not discoverable by reasonable inspection. The moving company shall not be liable for any loss or damage unless it is directly caused by the moving company's gross negligence or willful misconduct."
           />
           <LegalBlock
             title="PAYMENT"
-            body="Payment can be made by Cash, Check or PayPal. Online payments will be charged a 5% processing fee. If the price exceeds $1,000, half payment is required before a move is booked. Weekend moves will be charged a fee of 5%. Interest of 5% per year applies to overdue amounts."
+            body="Payment for the services listed under this contract can be made by any of the following options: Cash, Check or PayPal. Online payments will be charged a 5% processing fee. If any invoice is not paid when due, interest will be added to and payable on all overdue amounts at 5% per year, or the maximum percentage allowed under applicable laws, whichever is less. If the price exceeds the amount of $1,000, half payment is required before a move is booked. Weekend moves will be charged a fee of 5%."
           />
           <LegalBlock
             title="CANCELLATIONS"
@@ -354,7 +354,7 @@ export default function SignContractPage() {
           />
           <LegalBlock
             title="WARRANTY"
-            body="Mover shall provide its services and meet its obligations under this Contract in a timely and workmanlike manner, using knowledge and recommendations which meet generally acceptable standards in Mover's community and region."
+            body="Mover shall provide its services and meet its obligations under this Contract in a timely and workmanlike manner, using knowledge and recommendations for performing the services which meet generally acceptable standards in Mover's community and region, and will provide a standard of care equal to, or superior to, care used by movers similar to Mover on similar projects."
           />
         </div>
 

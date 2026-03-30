@@ -2029,6 +2029,9 @@ components:
         customerSignedAt:
           type: string
           nullable: true
+        customerSignatureData:
+          type: string
+          nullable: true
         createdAt:
           type: string
           nullable: true

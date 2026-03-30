@@ -643,6 +643,7 @@ export interface ContractRecord {
   status?: string;
   sentAt?: string | null;
   customerSignedAt?: string | null;
+  customerSignatureData?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

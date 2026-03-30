@@ -1368,6 +1368,7 @@ export const GetJobContractResponse = zod.object({
   status: zod.string().optional(),
   sentAt: zod.string().nullish(),
   customerSignedAt: zod.string().nullish(),
+  customerSignatureData: zod.string().nullish(),
   createdAt: zod.string().nullish(),
   updatedAt: zod.string().nullish(),
 });
