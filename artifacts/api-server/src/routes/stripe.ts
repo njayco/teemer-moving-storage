@@ -175,4 +175,56 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/verify-session", async (req: Request, res: Response) => {
+  try {
+    const { sessionId, quoteId } = req.body as { sessionId?: string; quoteId?: string };
+    if (!sessionId || !quoteId) {
+      return res.status(400).json({ error: "sessionId and quoteId are required" });
+    }
+
+    const parsedQuoteId = parseInt(quoteId, 10);
+    if (isNaN(parsedQuoteId)) {
+      return res.status(400).json({ error: "Invalid quoteId" });
+    }
+
+    const [quote] = await db.select().from(quoteRequestsTable)
+      .where(eq(quoteRequestsTable.id, parsedQuoteId)).limit(1);
+
+    if (quote?.status === "deposit_paid" || quote?.status === "booked") {
+      return res.json({ verified: true, status: quote.status });
+    }
+
+    const { getUncachableStripeClient } = await import("../lib/stripe-client.js");
+    const stripe = await getUncachableStripeClient();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === "paid" && session.metadata?.quoteId === quoteId) {
+      const trackingToken = crypto.randomUUID();
+      const [updatedQuote] = await db.update(quoteRequestsTable)
+        .set({ status: "deposit_paid", trackingToken })
+        .where(
+          and(
+            eq(quoteRequestsTable.id, parsedQuoteId),
+            notInArray(quoteRequestsTable.status, ["deposit_paid", "booked"])
+          )
+        )
+        .returning();
+
+      if (updatedQuote) {
+        req.log.info({ quoteId: parsedQuoteId }, "Payment verified via session fallback, quote updated");
+        return res.json({ verified: true, status: "deposit_paid" });
+      }
+
+      const [currentQuote] = await db.select().from(quoteRequestsTable)
+        .where(eq(quoteRequestsTable.id, parsedQuoteId)).limit(1);
+      return res.json({ verified: true, status: currentQuote?.status ?? "deposit_paid" });
+    }
+
+    return res.json({ verified: false, status: quote?.status ?? "pending" });
+  } catch (err) {
+    req.log.error({ err }, "Session verification failed");
+    return res.status(500).json({ error: "Verification failed" });
+  }
+});
+
 export default router;

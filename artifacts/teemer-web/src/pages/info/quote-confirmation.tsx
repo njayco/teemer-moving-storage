@@ -1,13 +1,21 @@
 import { InfoLayout } from "@/components/layout/info-layout";
-import { CheckCircle2, Calendar, Phone, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Calendar, Phone, ArrowRight, Loader2 } from "lucide-react";
 import { useSearch } from "wouter";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
 import { Link } from "wouter";
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 export default function QuoteConfirmationPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const quoteId = params.get("quoteId") ?? "";
+  const sessionId = params.get("session_id") ?? "";
+  const queryClient = useQueryClient();
+  const verifyAttempted = useRef(false);
+  const pollCount = useRef(0);
 
   const { data: quote, isLoading } = useGetQuoteRequest(quoteId, {
     query: {
@@ -15,12 +23,39 @@ export default function QuoteConfirmationPage() {
       queryKey: ["quote", quoteId],
       refetchInterval: (query) => {
         const status = query.state.data?.status;
-        return status === "deposit_paid" ? false : 3000;
+        if (status === "deposit_paid" || status === "booked") return false;
+        pollCount.current++;
+        return 3000;
       },
     },
   });
 
-  const isPaid = quote?.status === "deposit_paid";
+  useEffect(() => {
+    if (!sessionId || !quoteId || verifyAttempted.current) return;
+    if (quote?.status === "deposit_paid" || quote?.status === "booked") return;
+
+    const timer = setTimeout(async () => {
+      if (verifyAttempted.current) return;
+      verifyAttempted.current = true;
+      try {
+        const res = await fetch(`${API_BASE}api/stripe/verify-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, quoteId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verified) {
+            queryClient.invalidateQueries({ queryKey: ["quote", quoteId] });
+          }
+        }
+      } catch {}
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [sessionId, quoteId, quote?.status, queryClient]);
+
+  const isPaid = quote?.status === "deposit_paid" || quote?.status === "booked";
   const moveDate = quote?.quoteRequest?.moveDate;
   const customerName = quote?.quoteRequest?.contactName;
   const totalEstimate = quote?.totalEstimate;
