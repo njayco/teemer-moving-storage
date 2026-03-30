@@ -19,6 +19,7 @@
     ]
   },
   "dependencies": {
+    "@replit/connectors-sdk": "^0.3.0",
     "@swc/helpers": "^0.5.20"
   }
 }
