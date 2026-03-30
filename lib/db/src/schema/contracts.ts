@@ -1,8 +1,9 @@
 import { pgTable, text, serial, timestamp, integer, json } from "drizzle-orm/pg-core";
+import { jobsTable } from "./jobs";
 
 export const contractsTable = pgTable("contracts", {
   id: serial("id").primaryKey(),
-  jobId: integer("job_id").notNull(),
+  jobId: integer("job_id").notNull().references(() => jobsTable.id),
   quoteId: integer("quote_id"),
   signingToken: text("signing_token").notNull().unique(),
   status: text("status").notNull().default("sent"),

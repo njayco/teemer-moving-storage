@@ -243,6 +243,7 @@ function formatContract(c: typeof contractsTable.$inferSelect) {
     status: c.status,
     sentAt: c.sentAt?.toISOString() ?? null,
     customerSignedAt: c.customerSignedAt?.toISOString() ?? null,
+    customerSignatureData: c.customerSignatureData ?? null,
     createdAt: c.createdAt?.toISOString() ?? null,
     updatedAt: c.updatedAt?.toISOString() ?? null,
   };

@@ -762,6 +762,7 @@ interface ContractRecord {
   status: string;
   sentAt: string | null;
   customerSignedAt: string | null;
+  customerSignatureData: string | null;
   createdAt: string | null;
 }
 
@@ -1075,7 +1076,7 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
                 <p className="text-sm text-slate-400">No contract on file.</p>
               )}
               {contract && (
-                <div className="space-y-1 text-sm">
+                <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Status</span>
                     <ContractBadge status={contract.status} />
@@ -1090,6 +1091,18 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
                     <div className="flex justify-between">
                       <span className="text-slate-500">Signed</span>
                       <span className="text-green-700 font-medium">{new Date(contract.customerSignedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                    </div>
+                  )}
+                  {contract.status === "signed" && contract.customerSignatureData && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <p className="text-xs text-slate-400 font-medium mb-1">Customer Signature</p>
+                      <div className="bg-white border border-slate-200 rounded-lg p-2">
+                        <img
+                          src={contract.customerSignatureData}
+                          alt="Customer signature"
+                          className="max-h-16 max-w-full object-contain"
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="pt-2 border-t border-slate-200">
