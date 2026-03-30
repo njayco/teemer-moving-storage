@@ -466,9 +466,24 @@ function QuoteDetailPanel({ quote, onClose }: { quote: QuoteResponse; onClose: (
 
           <div className="space-y-3">
             <h4 className="font-semibold text-slate-700 text-sm border-b pb-1">
-              {qr.isCommercial ? "Business & Inventory" : "Home & Inventory"}
+              {qr.serviceType === "junk_removal" ? "Junk Removal Details" : qr.isCommercial ? "Business & Inventory" : "Home & Inventory"}
             </h4>
-            {qr.isCommercial ? (
+            {qr.serviceType === "junk_removal" ? (
+              <div className="space-y-2 text-sm text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-xs font-medium capitalize">
+                    {(qr.junkLoadSize ?? "").replace(/_/g, " ")} load
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 text-xs">
+                  {(qr.junkStairsFlights ?? 0) > 0 && <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">Stairs: {qr.junkStairsFlights} flight(s)</span>}
+                  {(qr.junkHeavyItemsCount ?? 0) > 0 && <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">Heavy items: {qr.junkHeavyItemsCount}</span>}
+                  {qr.junkConstructionDebris && <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">Construction debris</span>}
+                  {qr.junkSameDay && <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">Same-day</span>}
+                  {qr.junkHazardousItems && <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full">Hazardous</span>}
+                </div>
+              </div>
+            ) : qr.isCommercial ? (
               <div className="space-y-1.5 text-sm text-slate-600">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-3.5 h-3.5 text-blue-500" />
@@ -488,27 +503,31 @@ function QuoteDetailPanel({ quote, onClose }: { quote: QuoteResponse; onClose: (
                 <span>{qr.numberOfBedrooms ?? 1} bed · {qr.numberOfLivingRooms ?? 1} living · {qr.isFullyFurnished ? "Fully furnished" : "Partially furnished"}</span>
               </div>
             )}
-            <div className="flex flex-wrap gap-1 text-xs">
-              {qr.hasGarage && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Garage</span>}
-              {qr.hasOutdoorFurniture && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Outdoor furn.</span>}
-              {qr.hasStairs && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Stairs</span>}
-              {qr.hasHeavyItems && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Heavy items</span>}
-              {qr.storageNeeded && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Storage: {qr.storageUnitChoice || "needed"}</span>}
-            </div>
-            {inventoryEntries.length > 0 && (
-              <div className="text-sm">
-                <div className="text-xs text-slate-400 font-medium mb-1">Inventory</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                  {inventoryEntries.map(([item, qty]) => (
-                    <div key={item} className="text-slate-600">{item}: <span className="font-medium">{qty}</span></div>
-                  ))}
+            {qr.serviceType !== "junk_removal" && (
+              <>
+                <div className="flex flex-wrap gap-1 text-xs">
+                  {qr.hasGarage && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Garage</span>}
+                  {qr.hasOutdoorFurniture && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Outdoor furn.</span>}
+                  {qr.hasStairs && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Stairs</span>}
+                  {qr.hasHeavyItems && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Heavy items</span>}
+                  {qr.storageNeeded && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Storage: {qr.storageUnitChoice || "needed"}</span>}
                 </div>
-              </div>
+                {inventoryEntries.length > 0 && (
+                  <div className="text-sm">
+                    <div className="text-xs text-slate-400 font-medium mb-1">Inventory</div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      {inventoryEntries.map(([item, qty]) => (
+                        <div key={item} className="text-slate-600">{item}: <span className="font-medium">{qty}</span></div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Boxes className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Boxes: {qr.smallBoxes ?? 0} small · {qr.mediumBoxes ?? 0} medium</span>
+                </div>
+              </>
             )}
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <Boxes className="w-3.5 h-3.5 text-slate-400" />
-              <span>Boxes: {qr.smallBoxes ?? 0} small · {qr.mediumBoxes ?? 0} medium</span>
-            </div>
             {qr.additionalNotes && (
               <div className="text-xs text-slate-500 italic bg-slate-100 rounded p-2">"{qr.additionalNotes}"</div>
             )}
@@ -516,6 +535,28 @@ function QuoteDetailPanel({ quote, onClose }: { quote: QuoteResponse; onClose: (
 
           <div className="space-y-3">
             <h4 className="font-semibold text-slate-700 text-sm border-b pb-1">Pricing Breakdown</h4>
+            {qr.serviceType === "junk_removal" ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-slate-600">
+                  <span>Base Price</span>
+                  <span className="font-medium">${(quote.junkBasePrice ?? 0).toFixed(2)}</span>
+                </div>
+                {(quote.junkAddonsTotal ?? 0) > 0 && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Add-ons</span>
+                    <span className="font-medium">${(quote.junkAddonsTotal ?? 0).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-slate-800 border-t pt-2">
+                  <span>Total estimate</span>
+                  <span>${(quote.totalEstimate ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-orange-600 font-semibold">
+                  <span>Deposit</span>
+                  <span>${(quote.depositAmount ?? 0).toFixed(2)}</span>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-600">
                 <span>Crew</span>
@@ -548,6 +589,7 @@ function QuoteDetailPanel({ quote, onClose }: { quote: QuoteResponse; onClose: (
                 <span>${(quote.depositAmount ?? 0).toFixed(2)}</span>
               </div>
             </div>
+            )}
           </div>
         </div>
         <div className="mt-3 flex justify-end">
@@ -564,7 +606,7 @@ function QuotesTab() {
   const { data: quotes = [], refetch } = useListQuoteRequests();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [moveTypeFilter, setMoveTypeFilter] = useState<"all" | "residential" | "commercial">("all");
+  const [moveTypeFilter, setMoveTypeFilter] = useState<"all" | "residential" | "commercial" | "junk_removal">("all");
   const { mutateAsync: updateStatus } = useUpdateQuoteStatus();
   const qc = useQueryClient();
 
@@ -581,7 +623,10 @@ function QuotesTab() {
 
   const filteredQuotes = quotes.filter((q) => {
     if (moveTypeFilter === "all") return true;
+    if (moveTypeFilter === "junk_removal") return q.quoteRequest?.serviceType === "junk_removal";
     const isCommercial = q.quoteRequest?.isCommercial || q.quoteRequest?.residentialOrCommercial === "commercial";
+    const isJunk = q.quoteRequest?.serviceType === "junk_removal";
+    if (isJunk) return false;
     return moveTypeFilter === "commercial" ? isCommercial : !isCommercial;
   });
 
@@ -593,19 +638,19 @@ function QuotesTab() {
           <p className="text-sm text-slate-400 mt-0.5">{filteredQuotes.length} of {quotes.length} shown</p>
         </div>
         <div className="flex items-center gap-2">
-          {(["all", "residential", "commercial"] as const).map((f) => (
+          {(["all", "residential", "commercial", "junk_removal"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setMoveTypeFilter(f)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                 moveTypeFilter === f
-                  ? "bg-primary text-white border-primary"
+                  ? (f === "junk_removal" ? "bg-orange-500 text-white border-orange-500" : "bg-primary text-white border-primary")
                   : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
               }`}
             >
               {f === "commercial" && <Building2 className="w-3.5 h-3.5" />}
               {f === "residential" && <Home className="w-3.5 h-3.5" />}
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === "junk_removal" ? "Junk" : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
@@ -629,6 +674,7 @@ function QuotesTab() {
               const qr = quote.quoteRequest!;
               const isExpanded = expandedId === quote.id;
               const isCommercialQuote = qr.isCommercial || qr.residentialOrCommercial === "commercial";
+              const isJunkQuote = qr.serviceType === "junk_removal";
               return (
                 <React.Fragment key={quote.id}>
                   <tr
@@ -641,11 +687,15 @@ function QuotesTab() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-secondary flex items-center gap-1.5">
                         {qr.contactName || "—"}
-                        {isCommercialQuote && <Building2 className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" title="Commercial move" />}
+                        {isJunkQuote && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-medium">Junk</span>}
+                        {isCommercialQuote && !isJunkQuote && <Building2 className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
                       </div>
                       <div className="text-xs text-slate-400">{qr.phone} · {qr.email}</div>
-                      {isCommercialQuote && qr.commercialBusinessType && (
+                      {isCommercialQuote && !isJunkQuote && qr.commercialBusinessType && (
                         <div className="text-xs text-blue-600 mt-0.5">{qr.commercialBusinessType}</div>
+                      )}
+                      {isJunkQuote && qr.junkLoadSize && (
+                        <div className="text-xs text-orange-600 mt-0.5 capitalize">{(qr.junkLoadSize ?? "").replace(/_/g, " ")} load</div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
@@ -654,12 +704,14 @@ function QuotesTab() {
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-center text-slate-600">
-                      {isCommercialQuote
+                      {isJunkQuote
+                        ? <span className="text-xs bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded capitalize">{(qr.junkLoadSize ?? "").replace(/_/g, " ")}</span>
+                        : isCommercialQuote
                         ? <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded capitalize">{qr.commercialSizeTier || "comm."}</span>
                         : (qr.numberOfBedrooms ?? "—")}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {quote.crewSize ? `${quote.crewSize} × ~${quote.estimatedHours}h` : "—"}
+                      {isJunkQuote ? <span className="text-xs text-slate-400">N/A</span> : quote.crewSize ? `${quote.crewSize} × ~${quote.estimatedHours}h` : "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-secondary">
                       {quote.totalEstimate != null ? `$${quote.totalEstimate.toLocaleString()}` : "—"}

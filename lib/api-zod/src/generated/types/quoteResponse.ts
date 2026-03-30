@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { QuoteRequestEcho } from "./quoteRequestEcho";
+import type { QuoteResponseJunkLoadSize } from "./quoteResponseJunkLoadSize";
+import type { QuoteResponseServiceType } from "./quoteResponseServiceType";
 import type { QuoteResponseStatus } from "./quoteResponseStatus";
 
 export interface QuoteResponse {
@@ -23,6 +25,16 @@ export interface QuoteResponse {
   commercialAdjustment?: number;
   totalEstimate?: number;
   depositAmount?: number;
+  /** Service type: moving or junk_removal */
+  serviceType?: QuoteResponseServiceType;
+  junkLoadSize?: QuoteResponseJunkLoadSize;
+  junkStairsFlights?: number;
+  junkHeavyItemsCount?: number;
+  junkConstructionDebris?: boolean;
+  junkSameDay?: boolean;
+  junkHazardousItems?: boolean;
+  junkBasePrice?: number;
+  junkAddonsTotal?: number;
   estimatedPriceLow?: number;
   estimatedPriceHigh?: number;
   quoteRequest: QuoteRequestEcho;

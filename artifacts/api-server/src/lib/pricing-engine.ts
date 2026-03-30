@@ -100,6 +100,72 @@ function heavyInventoryCount(inventory: Record<string, number>): number {
   return count;
 }
 
+export interface JunkRemovalInput {
+  loadSize: "small" | "medium" | "large" | "full_truck";
+  stairsFlights: number;
+  heavyItemsCount: number;
+  constructionDebris: boolean;
+  sameDay: boolean;
+  hazardousItems: boolean;
+}
+
+export interface JunkRemovalResult {
+  basePrice: number;
+  stairsSurcharge: number;
+  heavyItemsSurcharge: number;
+  debrisSurcharge: number;
+  sameDaySurcharge: number;
+  hazardSurcharge: number;
+  addonsTotal: number;
+  totalEstimate: number;
+  depositAmount: number;
+  loadSizeLabel: string;
+}
+
+const JUNK_LOAD_PRICES: Record<string, number> = {
+  small: 200,
+  medium: 375,
+  large: 575,
+  full_truck: 750,
+};
+
+const JUNK_LOAD_LABELS: Record<string, string> = {
+  small: "Small Load",
+  medium: "Medium Load",
+  large: "Large Load",
+  full_truck: "Full Truck",
+};
+
+const JUNK_MINIMUM = 175;
+
+export function calculateJunkRemovalPricing(input: JunkRemovalInput): JunkRemovalResult {
+  const basePrice = JUNK_LOAD_PRICES[input.loadSize] ?? JUNK_LOAD_PRICES.small;
+
+  const stairsSurcharge = Math.max(0, input.stairsFlights) * 50;
+  const heavyItemsSurcharge = Math.max(0, input.heavyItemsCount) * 62.50;
+  const debrisSurcharge = input.constructionDebris ? 125 : 0;
+  const sameDaySurcharge = input.sameDay ? 50 : 0;
+  const hazardSurcharge = input.hazardousItems ? 125 : 0;
+
+  const addonsTotal = Math.round((stairsSurcharge + heavyItemsSurcharge + debrisSurcharge + sameDaySurcharge + hazardSurcharge) * 100) / 100;
+  const rawTotal = basePrice + addonsTotal;
+  const totalEstimate = Math.round(Math.max(JUNK_MINIMUM, rawTotal) * 100) / 100;
+  const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5 * 100) / 100;
+
+  return {
+    basePrice,
+    stairsSurcharge,
+    heavyItemsSurcharge,
+    debrisSurcharge,
+    sameDaySurcharge,
+    hazardSurcharge,
+    addonsTotal,
+    totalEstimate,
+    depositAmount,
+    loadSizeLabel: JUNK_LOAD_LABELS[input.loadSize] ?? "Small Load",
+  };
+}
+
 export function calculatePricing(input: PricingInput): PricingResult {
   const bedrooms = Math.max(0, Math.round(input.numberOfBedrooms));
   const livingRooms = Math.max(0, Math.round(input.numberOfLivingRooms));

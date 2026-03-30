@@ -46,6 +46,30 @@ export const QuoteRequestCommercialSizeTier = {
   enterprise: "enterprise",
 } as const;
 
+/**
+ * Service type: moving (default) or junk_removal
+ */
+export type QuoteRequestServiceType =
+  (typeof QuoteRequestServiceType)[keyof typeof QuoteRequestServiceType];
+
+export const QuoteRequestServiceType = {
+  moving: "moving",
+  junk_removal: "junk_removal",
+} as const;
+
+/**
+ * Junk removal load size
+ */
+export type QuoteRequestJunkLoadSize =
+  (typeof QuoteRequestJunkLoadSize)[keyof typeof QuoteRequestJunkLoadSize];
+
+export const QuoteRequestJunkLoadSize = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+  full_truck: "full_truck",
+} as const;
+
 export interface QuoteRequest {
   contactName: string;
   phone: string;
@@ -89,6 +113,20 @@ export interface QuoteRequest {
   commercialBusinessType?: string;
   /** small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft) */
   commercialSizeTier?: QuoteRequestCommercialSizeTier;
+  /** Service type: moving (default) or junk_removal */
+  serviceType?: QuoteRequestServiceType;
+  /** Junk removal load size */
+  junkLoadSize?: QuoteRequestJunkLoadSize;
+  /** Number of flights of stairs for junk removal */
+  junkStairsFlights?: number;
+  /** Number of heavy items (appliances, couches) for junk removal */
+  junkHeavyItemsCount?: number;
+  /** Whether junk includes construction debris */
+  junkConstructionDebris?: boolean;
+  /** Whether same-day junk removal service is requested */
+  junkSameDay?: boolean;
+  /** Whether junk includes hazardous items (paint, chemicals) */
+  junkHazardousItems?: boolean;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;
@@ -106,6 +144,27 @@ export const QuoteResponseStatus = {
   quote_requested: "quote_requested",
   deposit_paid: "deposit_paid",
   booked: "booked",
+} as const;
+
+/**
+ * Service type: moving or junk_removal
+ */
+export type QuoteResponseServiceType =
+  (typeof QuoteResponseServiceType)[keyof typeof QuoteResponseServiceType];
+
+export const QuoteResponseServiceType = {
+  moving: "moving",
+  junk_removal: "junk_removal",
+} as const;
+
+export type QuoteResponseJunkLoadSize =
+  (typeof QuoteResponseJunkLoadSize)[keyof typeof QuoteResponseJunkLoadSize];
+
+export const QuoteResponseJunkLoadSize = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+  full_truck: "full_truck",
 } as const;
 
 export type QuoteRequestEchoPianoType =
@@ -133,6 +192,24 @@ export const QuoteRequestEchoCommercialSizeTier = {
   medium: "medium",
   large: "large",
   enterprise: "enterprise",
+} as const;
+
+export type QuoteRequestEchoServiceType =
+  (typeof QuoteRequestEchoServiceType)[keyof typeof QuoteRequestEchoServiceType];
+
+export const QuoteRequestEchoServiceType = {
+  moving: "moving",
+  junk_removal: "junk_removal",
+} as const;
+
+export type QuoteRequestEchoJunkLoadSize =
+  (typeof QuoteRequestEchoJunkLoadSize)[keyof typeof QuoteRequestEchoJunkLoadSize];
+
+export const QuoteRequestEchoJunkLoadSize = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+  full_truck: "full_truck",
 } as const;
 
 /**
@@ -171,6 +248,17 @@ export interface QuoteRequestEcho {
   needsPackingMaterials?: boolean;
   smallBoxes?: number;
   mediumBoxes?: number;
+  serviceType?: QuoteRequestEchoServiceType;
+  junkLoadSize?: QuoteRequestEchoJunkLoadSize;
+  junkStairsFlights?: number;
+  junkHeavyItemsCount?: number;
+  junkConstructionDebris?: boolean;
+  junkSameDay?: boolean;
+  junkHazardousItems?: boolean;
+  moveSize?: string;
+  numberOfRooms?: number;
+  packingHelpNeeded?: string;
+  specialItems?: string;
 }
 
 export interface QuoteResponse {
@@ -188,6 +276,16 @@ export interface QuoteResponse {
   commercialAdjustment?: number;
   totalEstimate?: number;
   depositAmount?: number;
+  /** Service type: moving or junk_removal */
+  serviceType?: QuoteResponseServiceType;
+  junkLoadSize?: QuoteResponseJunkLoadSize;
+  junkStairsFlights?: number;
+  junkHeavyItemsCount?: number;
+  junkConstructionDebris?: boolean;
+  junkSameDay?: boolean;
+  junkHazardousItems?: boolean;
+  junkBasePrice?: number;
+  junkAddonsTotal?: number;
   estimatedPriceLow?: number;
   estimatedPriceHigh?: number;
   quoteRequest: QuoteRequestEcho;

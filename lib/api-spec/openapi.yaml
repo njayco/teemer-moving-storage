@@ -1016,6 +1016,31 @@ components:
           type: string
           enum: [small, medium, large, enterprise]
           description: "small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft)"
+        # Service type
+        serviceType:
+          type: string
+          enum: [moving, junk_removal]
+          description: "Service type: moving (default) or junk_removal"
+        # Junk removal fields
+        junkLoadSize:
+          type: string
+          enum: [small, medium, large, full_truck]
+          description: "Junk removal load size"
+        junkStairsFlights:
+          type: integer
+          description: "Number of flights of stairs for junk removal"
+        junkHeavyItemsCount:
+          type: integer
+          description: "Number of heavy items (appliances, couches) for junk removal"
+        junkConstructionDebris:
+          type: boolean
+          description: "Whether junk includes construction debris"
+        junkSameDay:
+          type: boolean
+          description: "Whether same-day junk removal service is requested"
+        junkHazardousItems:
+          type: boolean
+          description: "Whether junk includes hazardous items (paint, chemicals)"
         # Inventory
         inventory:
           $ref: "#/components/schemas/InventoryMap"
@@ -1067,6 +1092,27 @@ components:
         totalEstimate:
           type: number
         depositAmount:
+          type: number
+        serviceType:
+          type: string
+          enum: [moving, junk_removal]
+          description: "Service type: moving or junk_removal"
+        junkLoadSize:
+          type: string
+          enum: [small, medium, large, full_truck]
+        junkStairsFlights:
+          type: integer
+        junkHeavyItemsCount:
+          type: integer
+        junkConstructionDebris:
+          type: boolean
+        junkSameDay:
+          type: boolean
+        junkHazardousItems:
+          type: boolean
+        junkBasePrice:
+          type: number
+        junkAddonsTotal:
           type: number
         # Legacy compat
         estimatedPriceLow:
@@ -1153,6 +1199,30 @@ components:
           type: integer
         mediumBoxes:
           type: integer
+        serviceType:
+          type: string
+          enum: [moving, junk_removal]
+        junkLoadSize:
+          type: string
+          enum: [small, medium, large, full_truck]
+        junkStairsFlights:
+          type: integer
+        junkHeavyItemsCount:
+          type: integer
+        junkConstructionDebris:
+          type: boolean
+        junkSameDay:
+          type: boolean
+        junkHazardousItems:
+          type: boolean
+        moveSize:
+          type: string
+        numberOfRooms:
+          type: integer
+        packingHelpNeeded:
+          type: string
+        specialItems:
+          type: string
 
     EstimateBoxesRequest:
       type: object

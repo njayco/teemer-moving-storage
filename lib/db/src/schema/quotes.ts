@@ -54,6 +54,19 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   commercialBusinessType: text("commercial_business_type"),
   commercialSizeTier: text("commercial_size_tier"),
 
+  // Service type: "moving" (default) or "junk_removal"
+  serviceType: text("service_type").default("moving"),
+
+  // Junk removal fields
+  junkLoadSize: text("junk_load_size"),
+  junkStairsFlights: integer("junk_stairs_flights").default(0),
+  junkHeavyItemsCount: integer("junk_heavy_items_count").default(0),
+  junkConstructionDebris: boolean("junk_construction_debris").default(false),
+  junkSameDay: boolean("junk_same_day").default(false),
+  junkHazardousItems: boolean("junk_hazardous_items").default(false),
+  junkBasePrice: real("junk_base_price"),
+  junkAddonsTotal: real("junk_addons_total"),
+
   // Calculated pricing
   crewSize: integer("crew_size"),
   hourlyRate: real("hourly_rate"),
@@ -93,6 +106,8 @@ export const insertQuoteRequestSchema = createInsertSchema(quoteRequestsTable).o
   commercialAdjustment: true,
   depositAmount: true,
   totalEstimate: true,
+  junkBasePrice: true,
+  junkAddonsTotal: true,
 });
 
 export type InsertQuoteRequest = z.infer<typeof insertQuoteRequestSchema>;

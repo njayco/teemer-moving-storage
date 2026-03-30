@@ -7,8 +7,10 @@
  */
 import type { InventoryMap } from "./inventoryMap";
 import type { QuoteRequestCommercialSizeTier } from "./quoteRequestCommercialSizeTier";
+import type { QuoteRequestJunkLoadSize } from "./quoteRequestJunkLoadSize";
 import type { QuoteRequestPianoFloor } from "./quoteRequestPianoFloor";
 import type { QuoteRequestPianoType } from "./quoteRequestPianoType";
+import type { QuoteRequestServiceType } from "./quoteRequestServiceType";
 
 export interface QuoteRequest {
   contactName: string;
@@ -53,6 +55,20 @@ export interface QuoteRequest {
   commercialBusinessType?: string;
   /** small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft) */
   commercialSizeTier?: QuoteRequestCommercialSizeTier;
+  /** Service type: moving (default) or junk_removal */
+  serviceType?: QuoteRequestServiceType;
+  /** Junk removal load size */
+  junkLoadSize?: QuoteRequestJunkLoadSize;
+  /** Number of flights of stairs for junk removal */
+  junkStairsFlights?: number;
+  /** Number of heavy items (appliances, couches) for junk removal */
+  junkHeavyItemsCount?: number;
+  /** Whether junk includes construction debris */
+  junkConstructionDebris?: boolean;
+  /** Whether same-day junk removal service is requested */
+  junkSameDay?: boolean;
+  /** Whether junk includes hazardous items (paint, chemicals) */
+  junkHazardousItems?: boolean;
   inventory?: InventoryMap;
   boxesAlreadyPacked?: number;
   needsPackingMaterials?: boolean;

@@ -10,6 +10,7 @@ import {
   CheckCircle2, Loader2, ArrowRight, ArrowLeft, Minus, Plus,
   Sparkles, Users, Clock, DollarSign, Calendar, Package,
   ChevronDown, ChevronUp, AlertCircle, Home, Truck, Building2,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -271,6 +272,24 @@ const COMMERCIAL_SIZE_TIERS = [
 
 const STEP_LABELS_RESIDENTIAL = ["Move Details", "Home Size", "Inventory", "Box Estimate"];
 const STEP_LABELS_COMMERCIAL = ["Move Details", "Business Details", "Inventory", "Box Estimate"];
+const STEP_LABELS_JUNK = ["Details", "Load & Add-ons"];
+
+type ServiceType = "moving" | "junk_removal";
+
+const JUNK_LOAD_SIZES = [
+  { value: "small" as const, label: "Small Load", range: "$150 – $250", description: "A few items, single room cleanout", icon: "📦" },
+  { value: "medium" as const, label: "Medium Load", range: "$300 – $450", description: "Multiple rooms, garage cleanout", icon: "🚛" },
+  { value: "large" as const, label: "Large Load", range: "$450 – $700", description: "Full apartment, large basement", icon: "🏠" },
+  { value: "full_truck" as const, label: "Full Truck", range: "$600 – $900+", description: "Whole house, estate cleanout", icon: "🚚" },
+] as const;
+
+const JUNK_ADDONS = [
+  { key: "stairs", label: "Stairs", description: "+$50 per flight", perUnit: true, unitLabel: "flights" },
+  { key: "heavy", label: "Heavy Items", description: "+$62.50 each (appliances, couches)", perUnit: true, unitLabel: "items" },
+  { key: "debris", label: "Construction Debris", description: "+$125 (dump fees)", perUnit: false },
+  { key: "sameDay", label: "Same-Day Service", description: "+$50", perUnit: false },
+  { key: "hazard", label: "Hazardous Items", description: "+$125 (paint, chemicals, etc.)", perUnit: false },
+] as const;
 
 function ProgressBar({ currentStep, stepLabels }: { currentStep: number; stepLabels: string[] }) {
   return (
@@ -315,6 +334,10 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
 }) {
   const q = result;
   const isCommercialResult = (q.commercialAdjustment ?? 0) > 0 || q.quoteRequest?.isCommercial;
+  const isJunkResult = q.quoteRequest?.serviceType === "junk_removal";
+  const junkBase = q.junkBasePrice;
+  const junkAddons = q.junkAddonsTotal;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -323,98 +346,186 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
       className="space-y-8"
     >
       <div className="text-center pb-6 border-b border-slate-100">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-8 h-8 text-primary" />
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isJunkResult ? "bg-orange-100" : "bg-green-100"}`}>
+          {isJunkResult ? <Trash2 className="w-8 h-8 text-orange-500" /> : <CheckCircle2 className="w-8 h-8 text-primary" />}
         </div>
         <h2 className="text-2xl font-bold text-slate-800 mb-1">Your Estimate Is Ready!</h2>
         <p className="text-slate-500 text-sm">Review your quote below. No obligation — lock it in with a small deposit.</p>
-        {isCommercialResult && (
+        {isJunkResult && (
+          <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 rounded-full px-4 py-1.5 text-sm font-semibold mt-3">
+            <Trash2 className="w-4 h-4" /> Junk Removal Service
+          </div>
+        )}
+        {isCommercialResult && !isJunkResult && (
           <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 rounded-full px-4 py-1.5 text-sm font-semibold mt-3">
             <Building2 className="w-4 h-4" /> Commercial Move Rate Applied
           </div>
         )}
       </div>
 
-      {/* Crew + Rate summary bar */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { icon: <Users className="w-5 h-5 text-primary" />, label: "Crew Size", value: q.crewSize ? `${q.crewSize} Movers` : "—" },
-          { icon: <Clock className="w-5 h-5 text-primary" />, label: "Est. Hours", value: q.estimatedHours ? `${q.estimatedHours} hrs` : "—" },
-          { icon: <DollarSign className="w-5 h-5 text-primary" />, label: "Hourly Rate", value: q.hourlyRate ? `$${q.hourlyRate}/hr` : "—" },
-        ].map(({ icon, label, value }) => (
-          <div key={label} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
-            <div className="flex justify-center mb-2">{icon}</div>
-            <p className="text-xs text-slate-500 font-medium mb-0.5">{label}</p>
-            <p className="font-bold text-slate-800 text-sm">{value}</p>
+      {isJunkResult ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { icon: <Trash2 className="w-5 h-5 text-orange-500" />, label: "Load Size", value: (q.quoteRequest?.junkLoadSize ?? "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "—" },
+              { icon: <DollarSign className="w-5 h-5 text-orange-500" />, label: "Total Estimate", value: fmt(q.totalEstimate) },
+            ].map(({ icon, label, value }) => (
+              <div key={label} className="bg-orange-50 rounded-xl p-4 text-center border border-orange-100">
+                <div className="flex justify-center mb-2">{icon}</div>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">{label}</p>
+                <p className="font-bold text-slate-800 text-sm">{value}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Price breakdown */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-800 flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-primary" /> Price Breakdown
-          </h3>
-        </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">
-              Labor ({q.crewSize} movers × ${q.hourlyRate}/hr × {q.estimatedHours} hrs)
-            </span>
-            <span className="font-semibold text-slate-800">{fmt(q.laborSubtotal)}</span>
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-orange-50 px-6 py-4 border-b border-orange-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-orange-500" /> Price Breakdown
+              </h3>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Base Price ({(q.quoteRequest?.junkLoadSize ?? "").replace(/_/g, " ")} load)</span>
+                <span className="font-semibold text-slate-800">{fmt(junkBase)}</span>
+              </div>
+              {(junkAddons ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Add-ons Total</span>
+                  <span className="font-semibold text-slate-800">{fmt(junkAddons)}</span>
+                </div>
+              )}
+              {(q.quoteRequest?.junkStairsFlights ?? 0) > 0 && (
+                <div className="flex justify-between text-xs text-slate-500 pl-4">
+                  <span>Stairs ({q.quoteRequest?.junkStairsFlights} flight{(q.quoteRequest?.junkStairsFlights ?? 0) > 1 ? "s" : ""})</span>
+                  <span>{fmt((q.quoteRequest?.junkStairsFlights ?? 0) * 50)}</span>
+                </div>
+              )}
+              {(q.quoteRequest?.junkHeavyItemsCount ?? 0) > 0 && (
+                <div className="flex justify-between text-xs text-slate-500 pl-4">
+                  <span>Heavy Items ({q.quoteRequest?.junkHeavyItemsCount})</span>
+                  <span>{fmt((q.quoteRequest?.junkHeavyItemsCount ?? 0) * 62.5)}</span>
+                </div>
+              )}
+              {q.quoteRequest?.junkConstructionDebris && (
+                <div className="flex justify-between text-xs text-slate-500 pl-4">
+                  <span>Construction Debris</span>
+                  <span>$125.00</span>
+                </div>
+              )}
+              {q.quoteRequest?.junkSameDay && (
+                <div className="flex justify-between text-xs text-slate-500 pl-4">
+                  <span>Same-Day Service</span>
+                  <span>$50.00</span>
+                </div>
+              )}
+              {q.quoteRequest?.junkHazardousItems && (
+                <div className="flex justify-between text-xs text-slate-500 pl-4">
+                  <span>Hazardous Items</span>
+                  <span>$125.00</span>
+                </div>
+              )}
+              <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between">
+                <span className="font-bold text-slate-800">Estimated Total</span>
+                <span className="font-bold text-xl text-orange-600">{fmt(q.totalEstimate)}</span>
+              </div>
+            </div>
+            <div className="bg-orange-500/5 px-6 py-4 border-t border-orange-500/10">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-bold text-slate-800">Deposit Due Today</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {(q.totalEstimate ?? 0) < 1000
+                      ? "Flat $50 deposit to reserve"
+                      : "50% deposit required to reserve"}
+                  </p>
+                </div>
+                <span className="font-bold text-2xl text-orange-600">{fmt(q.depositAmount)}</span>
+              </div>
+            </div>
           </div>
-          {(q.materialsSubtotal ?? 0) > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Packing Materials</span>
-              <span className="font-semibold text-slate-800">{fmt(q.materialsSubtotal)}</span>
-            </div>
-          )}
-          {(q.pianoSurcharge ?? 0) > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Piano Moving Fee</span>
-              <span className="font-semibold text-slate-800">{fmt(q.pianoSurcharge)}</span>
-            </div>
-          )}
-          {(q.commercialAdjustment ?? 0) > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-blue-500" /> Commercial Rate Adjustment
-              </span>
-              <span className="font-semibold text-slate-800">{fmt(q.commercialAdjustment)}</span>
-            </div>
-          )}
-          {isCommercialResult && (
-            <div className="text-xs text-slate-400 bg-blue-50 rounded-lg px-3 py-2 mt-1">
-              Commercial pricing uses the greater of 2× the residential baseline or the space-size minimum (Small $1k · Medium $3k · Large $6k · Enterprise $10k).
-            </div>
-          )}
-          <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between">
-            <span className="font-bold text-slate-800">Estimated Total</span>
-            <span className="font-bold text-xl text-primary">{fmt(q.totalEstimate)}</span>
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { icon: <Users className="w-5 h-5 text-primary" />, label: "Crew Size", value: q.crewSize ? `${q.crewSize} Movers` : "—" },
+              { icon: <Clock className="w-5 h-5 text-primary" />, label: "Est. Hours", value: q.estimatedHours ? `${q.estimatedHours} hrs` : "—" },
+              { icon: <DollarSign className="w-5 h-5 text-primary" />, label: "Hourly Rate", value: q.hourlyRate ? `$${q.hourlyRate}/hr` : "—" },
+            ].map(({ icon, label, value }) => (
+              <div key={label} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
+                <div className="flex justify-center mb-2">{icon}</div>
+                <p className="text-xs text-slate-500 font-medium mb-0.5">{label}</p>
+                <p className="font-bold text-slate-800 text-sm">{value}</p>
+              </div>
+            ))}
           </div>
-        </div>
-        <div className="bg-primary/5 px-6 py-4 border-t border-primary/10">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-bold text-slate-800">Deposit Due Today</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {(q.totalEstimate ?? 0) < 1000
-                  ? "Flat $50 deposit to reserve your move"
-                  : "50% deposit required to reserve your move"}
-              </p>
-            </div>
-            <span className="font-bold text-2xl text-primary">{fmt(q.depositAmount)}</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Move date */}
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" /> Price Breakdown
+              </h3>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">
+                  Labor ({q.crewSize} movers × ${q.hourlyRate}/hr × {q.estimatedHours} hrs)
+                </span>
+                <span className="font-semibold text-slate-800">{fmt(q.laborSubtotal)}</span>
+              </div>
+              {(q.materialsSubtotal ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Packing Materials</span>
+                  <span className="font-semibold text-slate-800">{fmt(q.materialsSubtotal)}</span>
+                </div>
+              )}
+              {(q.pianoSurcharge ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Piano Moving Fee</span>
+                  <span className="font-semibold text-slate-800">{fmt(q.pianoSurcharge)}</span>
+                </div>
+              )}
+              {(q.commercialAdjustment ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-blue-500" /> Commercial Rate Adjustment
+                  </span>
+                  <span className="font-semibold text-slate-800">{fmt(q.commercialAdjustment)}</span>
+                </div>
+              )}
+              {isCommercialResult && (
+                <div className="text-xs text-slate-400 bg-blue-50 rounded-lg px-3 py-2 mt-1">
+                  Commercial pricing uses the greater of 2× the residential baseline or the space-size minimum (Small $1k · Medium $3k · Large $6k · Enterprise $10k).
+                </div>
+              )}
+              <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between">
+                <span className="font-bold text-slate-800">Estimated Total</span>
+                <span className="font-bold text-xl text-primary">{fmt(q.totalEstimate)}</span>
+              </div>
+            </div>
+            <div className="bg-primary/5 px-6 py-4 border-t border-primary/10">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-bold text-slate-800">Deposit Due Today</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {(q.totalEstimate ?? 0) < 1000
+                      ? "Flat $50 deposit to reserve your move"
+                      : "50% deposit required to reserve your move"}
+                  </p>
+                </div>
+                <span className="font-bold text-2xl text-primary">{fmt(q.depositAmount)}</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {moveDate && (
         <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
           <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
           <div>
-            <p className="text-xs text-slate-500 font-medium">Your Move Date</p>
+            <p className="text-xs text-slate-500 font-medium">{isJunkResult ? "Service Date" : "Your Move Date"}</p>
             <p className="font-bold text-slate-800">
               {new Date(moveDate + "T12:00:00").toLocaleDateString("en-US", {
                 weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -424,7 +535,6 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
         </div>
       )}
 
-      {/* What's included */}
       <div className="rounded-2xl border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -432,14 +542,20 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
           </h3>
         </div>
         <ul className="px-6 py-4 space-y-2.5">
-          {[
+          {(isJunkResult ? [
+            "Professional licensed & insured crew",
+            "All loading and hauling included",
+            "Eco-friendly disposal — we recycle & donate when possible",
+            "Same-day service available",
+            "No hidden fees — price includes disposal costs",
+          ] : [
             "Professional licensed & insured crew",
             "Stretch wrap for all furniture pieces",
             "Moving blankets and pad protection",
             "Full disassembly & reassembly of furniture",
             "Wardrobe boxes (complimentary use on move day)",
             "Gas, tolls, and truck fee included",
-          ].map((item) => (
+          ]).map((item) => (
             <li key={item} className="flex items-start gap-3 text-sm text-slate-700">
               <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
               {item}
@@ -448,30 +564,41 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
         </ul>
       </div>
 
-      {/* Important Notes */}
       <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold text-amber-900 text-sm mb-1">Important Notes</p>
             <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-              <li>This is an estimate — final price is based on actual time used.</li>
-              <li>Minimum charge applies (see crew size above).</li>
-              <li>Stairs, long carries, or parking issues may affect time.</li>
-              <li>10% discount available for Seniors & Veterans.</li>
+              {isJunkResult ? (
+                <>
+                  <li>This is an estimate — final price may vary based on actual volume.</li>
+                  <li>Minimum charge: $175 per job.</li>
+                  <li>Hazardous materials may incur additional fees.</li>
+                  <li>10% discount available for Seniors & Veterans.</li>
+                </>
+              ) : (
+                <>
+                  <li>This is an estimate — final price is based on actual time used.</li>
+                  <li>Minimum charge applies (see crew size above).</li>
+                  <li>Stairs, long carries, or parking issues may affect time.</li>
+                  <li>10% discount available for Seniors & Veterans.</li>
+                </>
+              )}
             </ul>
           </div>
         </div>
       </div>
 
-      {/* CTA */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <button
           type="button"
           onClick={onReserve}
-          className="flex-1 bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
+          className={`flex-1 text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
+            isJunkResult ? "bg-orange-500 hover:bg-orange-600 shadow-orange-500/30" : "bg-primary hover:bg-primary/90 shadow-primary/30"
+          }`}
         >
-          Reserve My Move <ArrowRight className="w-5 h-5" />
+          {isJunkResult ? "Reserve Junk Removal" : "Reserve My Move"} <ArrowRight className="w-5 h-5" />
         </button>
         <a
           href="tel:+15162693724"
@@ -514,10 +641,22 @@ export default function QuotePage() {
     hasHeavyItems: false,
   });
 
-  // Move type: residential or commercial
+  // Service type
+  const [serviceType, setServiceType] = useState<ServiceType>("moving");
+  const isJunkRemoval = serviceType === "junk_removal";
+
+  // Move type: residential or commercial (for moving only)
   const [isCommercial, setIsCommercial] = useState(false);
   const [commercialBusinessType, setCommercialBusinessType] = useState<string>("Office");
   const [commercialSizeTier, setCommercialSizeTier] = useState<"small" | "medium" | "large" | "enterprise">("small");
+
+  // Junk removal state
+  const [junkLoadSize, setJunkLoadSize] = useState<"small" | "medium" | "large" | "full_truck">("small");
+  const [junkStairsFlights, setJunkStairsFlights] = useState(0);
+  const [junkHeavyItemsCount, setJunkHeavyItemsCount] = useState(0);
+  const [junkConstructionDebris, setJunkConstructionDebris] = useState(false);
+  const [junkSameDay, setJunkSameDay] = useState(false);
+  const [junkHazardousItems, setJunkHazardousItems] = useState(false);
 
   // Piano moving state
   const [pianoType, setPianoType] = useState<"none" | "upright" | "grand">("none");
@@ -549,10 +688,11 @@ export default function QuotePage() {
   };
 
   const nextFromStep1 = async () => {
-    const valid = await triggerStep1([
-      "contactName", "phone", "email", "moveDate",
-      "pickupAddress", "dropoffAddress",
-    ]);
+    const fieldsToValidate: (keyof Step1Values)[] = ["contactName", "phone", "email", "moveDate"];
+    if (!isJunkRemoval) {
+      fieldsToValidate.push("pickupAddress", "dropoffAddress");
+    }
+    const valid = await triggerStep1(fieldsToValidate);
     if (valid) goToStep(2);
   };
 
@@ -588,49 +728,53 @@ export default function QuotePage() {
 
   const handleFinalSubmit = () => {
     const step1Data = getStep1Values();
-    const payload = {
-      // Contact & move details
+    const payload: Record<string, unknown> = {
       contactName: step1Data.contactName,
       phone: step1Data.phone,
       email: step1Data.email,
       moveDate: step1Data.moveDate,
       arrivalTimeWindow: step1Data.arrivalTimeWindow || undefined,
-      pickupAddress: step1Data.pickupAddress,
-      dropoffAddress: step1Data.dropoffAddress,
+      pickupAddress: step1Data.pickupAddress || "",
+      dropoffAddress: step1Data.dropoffAddress || "",
       secondStop: step1Data.secondStop || undefined,
       storageNeeded: step1Data.storageNeeded,
       additionalNotes: step1Data.additionalNotes || undefined,
-      // Legacy compat fields
-      originAddress: step1Data.pickupAddress,
-      destinationAddress: step1Data.dropoffAddress,
+      originAddress: step1Data.pickupAddress || "",
+      destinationAddress: step1Data.dropoffAddress || "",
       moveType: "local",
-      residentialOrCommercial: isCommercial ? "commercial" : "residential",
-      // Commercial
-      isCommercial,
-      commercialBusinessType: isCommercial ? commercialBusinessType : undefined,
-      commercialSizeTier: isCommercial ? commercialSizeTier : undefined,
-      // Home size
-      numberOfBedrooms: homeSize.numberOfBedrooms,
-      numberOfLivingRooms: homeSize.numberOfLivingRooms,
-      isFullyFurnished: homeSize.isFullyFurnished,
-      hasGarage: homeSize.hasGarage,
-      hasOutdoorFurniture: homeSize.hasOutdoorFurniture,
-      hasStairs: homeSize.hasStairs,
-      hasHeavyItems: homeSize.hasHeavyItems,
-      // Inventory
-      inventory,
-      // Piano
-      pianoType: pianoType !== "none" ? pianoType : undefined,
-      pianoFloor: pianoType !== "none" ? pianoFloor : undefined,
-      // Boxes
-      boxesAlreadyPacked,
-      needsPackingMaterials,
-      smallBoxes,
-      mediumBoxes,
+      serviceType,
     };
 
+    if (isJunkRemoval) {
+      payload.junkLoadSize = junkLoadSize;
+      payload.junkStairsFlights = junkStairsFlights;
+      payload.junkHeavyItemsCount = junkHeavyItemsCount;
+      payload.junkConstructionDebris = junkConstructionDebris;
+      payload.junkSameDay = junkSameDay;
+      payload.junkHazardousItems = junkHazardousItems;
+    } else {
+      payload.residentialOrCommercial = isCommercial ? "commercial" : "residential";
+      payload.isCommercial = isCommercial;
+      payload.commercialBusinessType = isCommercial ? commercialBusinessType : undefined;
+      payload.commercialSizeTier = isCommercial ? commercialSizeTier : undefined;
+      payload.numberOfBedrooms = homeSize.numberOfBedrooms;
+      payload.numberOfLivingRooms = homeSize.numberOfLivingRooms;
+      payload.isFullyFurnished = homeSize.isFullyFurnished;
+      payload.hasGarage = homeSize.hasGarage;
+      payload.hasOutdoorFurniture = homeSize.hasOutdoorFurniture;
+      payload.hasStairs = homeSize.hasStairs;
+      payload.hasHeavyItems = homeSize.hasHeavyItems;
+      payload.inventory = inventory;
+      payload.pianoType = pianoType !== "none" ? pianoType : undefined;
+      payload.pianoFloor = pianoType !== "none" ? pianoFloor : undefined;
+      payload.boxesAlreadyPacked = boxesAlreadyPacked;
+      payload.needsPackingMaterials = needsPackingMaterials;
+      payload.smallBoxes = smallBoxes;
+      payload.mediumBoxes = mediumBoxes;
+    }
+
     mutation.mutate(
-      { data: payload },
+      { data: payload as unknown as Parameters<typeof mutation.mutate>[0]["data"] },
       {
         onSuccess: (result) => {
           setQuoteResult(result);
@@ -696,10 +840,12 @@ export default function QuotePage() {
               <Sparkles className="w-4 h-4" /> Free Instant Estimate
             </div>
             <h1 className="text-4xl font-bold font-display text-slate-900 mb-3">
-              Get Your Moving Quote
+              {isJunkRemoval ? "Get Your Junk Removal Quote" : "Get Your Moving Quote"}
             </h1>
             <p className="text-slate-500 text-lg">
-              Answer a few questions and get an exact price — takes under 3 minutes.
+              {isJunkRemoval
+                ? "Select your load size and add-ons — get an instant price."
+                : "Answer a few questions and get an exact price — takes under 3 minutes."}
             </p>
           </div>
 
@@ -714,7 +860,7 @@ export default function QuotePage() {
               <>
                 <ProgressBar
                 currentStep={step}
-                stepLabels={isCommercial ? STEP_LABELS_COMMERCIAL : STEP_LABELS_RESIDENTIAL}
+                stepLabels={isJunkRemoval ? STEP_LABELS_JUNK : isCommercial ? STEP_LABELS_COMMERCIAL : STEP_LABELS_RESIDENTIAL}
               />
 
                 <AnimatePresence mode="wait">
@@ -727,41 +873,58 @@ export default function QuotePage() {
                       exit={{ opacity: 0, x: -30 }}
                       transition={{ duration: 0.25 }}
                     >
-                      <StepHeader step={1} title="Move Details" />
+                      <StepHeader step={1} title={isJunkRemoval ? "Junk Removal Details" : "Move Details"} />
                       <div className="space-y-6">
 
-                        {/* Residential / Commercial Toggle */}
+                        {/* Service Type Selector */}
                         <div>
-                          <label className={labelCls()}>Move Type</label>
-                          <div className="grid grid-cols-2 gap-3">
+                          <label className={labelCls()}>Service Type</label>
+                          <div className="grid grid-cols-3 gap-3">
                             <button
                               type="button"
-                              onClick={() => setIsCommercial(false)}
-                              className={`flex items-center justify-center gap-3 py-4 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
-                                !isCommercial
+                              onClick={() => { setServiceType("moving"); setIsCommercial(false); }}
+                              className={`flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                                !isJunkRemoval && !isCommercial
                                   ? "border-primary bg-green-50 text-primary shadow-sm"
                                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                               }`}
                             >
                               <Home className="w-5 h-5" />
-                              Residential
+                              <span>Residential</span>
                             </button>
                             <button
                               type="button"
-                              onClick={() => setIsCommercial(true)}
-                              className={`flex items-center justify-center gap-3 py-4 px-4 rounded-xl border-2 font-semibold text-sm transition-all ${
-                                isCommercial
+                              onClick={() => { setServiceType("moving"); setIsCommercial(true); }}
+                              className={`flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                                !isJunkRemoval && isCommercial
                                   ? "border-primary bg-green-50 text-primary shadow-sm"
                                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                               }`}
                             >
                               <Building2 className="w-5 h-5" />
-                              Commercial
+                              <span>Commercial</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setServiceType("junk_removal"); setIsCommercial(false); }}
+                              className={`flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                                isJunkRemoval
+                                  ? "border-orange-500 bg-orange-50 text-orange-600 shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              }`}
+                            >
+                              <Trash2 className="w-5 h-5" />
+                              <span>Junk Removal</span>
                             </button>
                           </div>
-                          {isCommercial && (
+                          {!isJunkRemoval && isCommercial && (
                             <p className="text-xs text-primary font-medium mt-2 flex items-center gap-1">
                               <Building2 className="w-3.5 h-3.5" /> Commercial pricing applies — minimums start at $1,000
+                            </p>
+                          )}
+                          {isJunkRemoval && (
+                            <p className="text-xs text-orange-600 font-medium mt-2 flex items-center gap-1">
+                              <Trash2 className="w-3.5 h-3.5" /> Minimum job price: $175 — select load size on the next step
                             </p>
                           )}
                         </div>
@@ -821,43 +984,60 @@ export default function QuotePage() {
                           </div>
                         </div>
 
-                        <div>
-                          <label className={labelCls()}>Pickup Address</label>
-                          <input
-                            {...register("pickupAddress")}
-                            placeholder="123 Ocean Ave, Long Beach, NY 11561"
-                            className={inputCls(!!step1Errors.pickupAddress)}
-                          />
-                          {step1Errors.pickupAddress && <p className="text-red-500 text-xs mt-1.5">{step1Errors.pickupAddress.message}</p>}
-                        </div>
+                        {!isJunkRemoval && (
+                          <>
+                            <div>
+                              <label className={labelCls()}>Pickup Address</label>
+                              <input
+                                {...register("pickupAddress")}
+                                placeholder="123 Ocean Ave, Long Beach, NY 11561"
+                                className={inputCls(!!step1Errors.pickupAddress)}
+                              />
+                              {step1Errors.pickupAddress && <p className="text-red-500 text-xs mt-1.5">{step1Errors.pickupAddress.message}</p>}
+                            </div>
 
-                        <div>
-                          <label className={labelCls()}>Drop-off Address</label>
-                          <input
-                            {...register("dropoffAddress")}
-                            placeholder="456 Park Ave, Brooklyn, NY 11201"
-                            className={inputCls(!!step1Errors.dropoffAddress)}
-                          />
-                          {step1Errors.dropoffAddress && <p className="text-red-500 text-xs mt-1.5">{step1Errors.dropoffAddress.message}</p>}
-                        </div>
+                            <div>
+                              <label className={labelCls()}>Drop-off Address</label>
+                              <input
+                                {...register("dropoffAddress")}
+                                placeholder="456 Park Ave, Brooklyn, NY 11201"
+                                className={inputCls(!!step1Errors.dropoffAddress)}
+                              />
+                              {step1Errors.dropoffAddress && <p className="text-red-500 text-xs mt-1.5">{step1Errors.dropoffAddress.message}</p>}
+                            </div>
 
-                        <div>
-                          <label className={labelCls()}>
-                            Second Stop <span className="text-slate-400 font-normal">(optional)</span>
-                          </label>
-                          <input
-                            {...register("secondStop")}
-                            placeholder="e.g. Storage unit on the way"
-                            className={inputCls()}
-                          />
-                        </div>
+                            <div>
+                              <label className={labelCls()}>
+                                Second Stop <span className="text-slate-400 font-normal">(optional)</span>
+                              </label>
+                              <input
+                                {...register("secondStop")}
+                                placeholder="e.g. Storage unit on the way"
+                                className={inputCls()}
+                              />
+                            </div>
 
-                        <ToggleCard
-                          checked={watchStep1("storageNeeded") ?? false}
-                          onChange={(v) => setStep1Value("storageNeeded", v)}
-                          label="I may need temporary storage"
-                          description="We offer secure climate-controlled units starting at $150/month"
-                        />
+                            <ToggleCard
+                              checked={watchStep1("storageNeeded") ?? false}
+                              onChange={(v) => setStep1Value("storageNeeded", v)}
+                              label="I may need temporary storage"
+                              description="We offer secure climate-controlled units starting at $150/month"
+                            />
+                          </>
+                        )}
+
+                        {isJunkRemoval && (
+                          <div>
+                            <label className={labelCls()}>
+                              Pickup Address <span className="text-slate-400 font-normal">(where to pick up junk)</span>
+                            </label>
+                            <input
+                              {...register("pickupAddress")}
+                              placeholder="123 Ocean Ave, Long Beach, NY 11561"
+                              className={inputCls()}
+                            />
+                          </div>
+                        )}
 
                         <div>
                           <label className={labelCls()}>
@@ -877,14 +1057,145 @@ export default function QuotePage() {
                             onClick={nextFromStep1}
                             className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20"
                           >
-                            {isCommercial ? "Next: Business Details" : "Next: Home Size"} <ArrowRight className="w-5 h-5" />
+                            {isJunkRemoval ? "Next: Load Size" : isCommercial ? "Next: Business Details" : "Next: Home Size"} <ArrowRight className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
                     </motion.div>
                   )}
 
-                  {step === 2 && isCommercial && (
+                  {step === 2 && isJunkRemoval && (
+                    <motion.div
+                      key="step2junk"
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -30 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <StepHeader step={2} title="Load Size & Add-ons" />
+                      <div className="space-y-6">
+
+                        <div>
+                          <label className={labelCls()}>How much junk do you have?</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {JUNK_LOAD_SIZES.map((size) => (
+                              <button
+                                key={size.value}
+                                type="button"
+                                onClick={() => setJunkLoadSize(size.value)}
+                                className={`flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                                  junkLoadSize === size.value
+                                    ? "border-orange-500 bg-orange-50 shadow-sm"
+                                    : "border-slate-200 bg-white hover:border-slate-300"
+                                }`}
+                              >
+                                <span className="text-2xl">{size.icon}</span>
+                                <span className={`font-bold text-sm ${junkLoadSize === size.value ? "text-orange-600" : "text-slate-700"}`}>
+                                  {size.label}
+                                </span>
+                                <span className="text-xs text-slate-500">{size.description}</span>
+                                <span className={`text-xs font-semibold mt-1 ${junkLoadSize === size.value ? "text-orange-600" : "text-slate-600"}`}>
+                                  {size.range}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className={labelCls()}>Add-ons</label>
+                          <div className="space-y-3">
+                            {JUNK_ADDONS.map((addon) => (
+                              <div
+                                key={addon.key}
+                                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                                  addon.key === "stairs" ? (junkStairsFlights > 0 ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white") :
+                                  addon.key === "heavy" ? (junkHeavyItemsCount > 0 ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white") :
+                                  addon.key === "debris" ? (junkConstructionDebris ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white") :
+                                  addon.key === "sameDay" ? (junkSameDay ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white") :
+                                  addon.key === "hazard" ? (junkHazardousItems ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white") :
+                                  "border-slate-200 bg-white"
+                                }`}
+                              >
+                                <div>
+                                  <p className="font-semibold text-sm text-slate-800">{addon.label}</p>
+                                  <p className="text-xs text-slate-500">{addon.description}</p>
+                                </div>
+                                {addon.perUnit ? (
+                                  <CounterButton
+                                    value={addon.key === "stairs" ? junkStairsFlights : junkHeavyItemsCount}
+                                    onChange={addon.key === "stairs" ? setJunkStairsFlights : setJunkHeavyItemsCount}
+                                    max={addon.key === "stairs" ? 10 : 20}
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (addon.key === "debris") setJunkConstructionDebris((v) => !v);
+                                      if (addon.key === "sameDay") setJunkSameDay((v) => !v);
+                                      if (addon.key === "hazard") setJunkHazardousItems((v) => !v);
+                                    }}
+                                    className={`w-12 h-7 rounded-full transition-colors relative ${
+                                      (addon.key === "debris" && junkConstructionDebris) ||
+                                      (addon.key === "sameDay" && junkSameDay) ||
+                                      (addon.key === "hazard" && junkHazardousItems)
+                                        ? "bg-orange-500"
+                                        : "bg-slate-300"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                                        (addon.key === "debris" && junkConstructionDebris) ||
+                                        (addon.key === "sameDay" && junkSameDay) ||
+                                        (addon.key === "hazard" && junkHazardousItems)
+                                          ? "translate-x-5"
+                                          : "translate-x-0.5"
+                                      }`}
+                                    />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <Trash2 className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-semibold text-orange-900 text-sm mb-1">Junk Removal Info</p>
+                              <ul className="text-xs text-orange-800 space-y-1 list-disc list-inside">
+                                <li>Minimum job price: $175</li>
+                                <li>We handle all loading, hauling, and disposal</li>
+                                <li>Eco-friendly disposal — we recycle & donate when possible</li>
+                                <li>Flat $50 deposit for jobs under $1,000; 50% for $1,000+</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between pt-2">
+                          <button type="button" onClick={() => goToStep(1)} className="flex items-center gap-2 text-slate-500 font-semibold px-4 py-3 hover:bg-slate-100 rounded-xl transition-colors">
+                            <ArrowLeft className="w-4 h-4" /> Back
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleFinalSubmit}
+                            disabled={mutation.isPending}
+                            className="bg-orange-500 text-white px-8 py-4 rounded-xl font-bold hover:bg-orange-600 flex items-center gap-2 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-60"
+                          >
+                            {mutation.isPending ? (
+                              <><Loader2 className="w-5 h-5 animate-spin" /> Calculating...</>
+                            ) : (
+                              <>Get My Junk Removal Quote <ArrowRight className="w-5 h-5" /></>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 2 && !isJunkRemoval && isCommercial && !isJunkRemoval && (
                     <motion.div
                       key="step2commercial"
                       initial={{ opacity: 0, x: 30 }}
@@ -980,7 +1291,7 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {step === 2 && !isCommercial && (
+                  {step === 2 && !isJunkRemoval && !isCommercial && (
                     <motion.div
                       key="step2"
                       initial={{ opacity: 0, x: 30 }}
@@ -1138,7 +1449,7 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {step === 3 && (
+                  {step === 3 && !isJunkRemoval && (
                     <motion.div
                       key="step3"
                       initial={{ opacity: 0, x: 30 }}
@@ -1232,7 +1543,7 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {step === 4 && (
+                  {step === 4 && !isJunkRemoval && (
                     <motion.div
                       key="step4"
                       initial={{ opacity: 0, x: 30 }}

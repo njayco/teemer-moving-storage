@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { quoteRequestsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { calculatePricing } from "../lib/pricing-engine.js";
+import { calculatePricing, calculateJunkRemovalPricing } from "../lib/pricing-engine.js";
 import { recordTimelineEvent } from "../lib/timeline";
 import OpenAI from "openai";
 
@@ -73,7 +73,24 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
       isCommercial: q.residentialOrCommercial === "commercial" || !!(q.commercialBusinessType || q.commercialSizeTier),
       commercialBusinessType: q.commercialBusinessType || undefined,
       commercialSizeTier: q.commercialSizeTier || undefined,
+      // Service type + junk removal echo
+      serviceType: q.serviceType || "moving",
+      junkLoadSize: q.junkLoadSize || undefined,
+      junkStairsFlights: q.junkStairsFlights ?? undefined,
+      junkHeavyItemsCount: q.junkHeavyItemsCount ?? undefined,
+      junkConstructionDebris: q.junkConstructionDebris ?? undefined,
+      junkSameDay: q.junkSameDay ?? undefined,
+      junkHazardousItems: q.junkHazardousItems ?? undefined,
     },
+    serviceType: q.serviceType || "moving",
+    junkLoadSize: q.junkLoadSize || undefined,
+    junkStairsFlights: q.junkStairsFlights ?? 0,
+    junkHeavyItemsCount: q.junkHeavyItemsCount ?? 0,
+    junkConstructionDebris: q.junkConstructionDebris ?? false,
+    junkSameDay: q.junkSameDay ?? false,
+    junkHazardousItems: q.junkHazardousItems ?? false,
+    junkBasePrice: q.junkBasePrice ?? undefined,
+    junkAddonsTotal: q.junkAddonsTotal ?? undefined,
   };
 }
 
@@ -152,83 +169,71 @@ router.patch("/quotes/:id/status", async (req, res) => {
 router.post("/quotes", async (req, res) => {
   try {
     const body = req.body;
+    const serviceType = body.serviceType === "junk_removal" ? "junk_removal" : "moving";
+    const isJunkRemoval = serviceType === "junk_removal";
 
-    // Run the exact pricing engine
-    const isCommercial = Boolean(body.isCommercial) || body.residentialOrCommercial === "commercial";
-    const pricing = calculatePricing({
-      numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
-      numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),
-      hasGarage: Boolean(body.hasGarage),
-      hasOutdoorFurniture: Boolean(body.hasOutdoorFurniture),
-      hasStairs: Boolean(body.hasStairs),
-      hasHeavyItems: Boolean(body.hasHeavyItems),
-      isFullyFurnished: body.isFullyFurnished !== false,
-      inventory: (body.inventory as Record<string, number>) || {},
-      smallBoxes: Number(body.smallBoxes ?? 0),
-      mediumBoxes: Number(body.mediumBoxes ?? 0),
-      needsPackingMaterials: Boolean(body.needsPackingMaterials),
-      pianoType: body.pianoType || undefined,
-      pianoFloor: body.pianoFloor || undefined,
-      isCommercial,
-      commercialBusinessType: body.commercialBusinessType || undefined,
-      commercialSizeTier: body.commercialSizeTier || undefined,
-    });
-
-    // Determine addresses — support both old and new field names
     const pickupAddress = body.pickupAddress || body.originAddress || "";
     const dropoffAddress = body.dropoffAddress || body.destinationAddress || "";
 
-    const [quote] = await db
-      .insert(quoteRequestsTable)
-      .values({
-        // Contact
-        contactName: body.contactName,
-        phone: body.phone,
-        email: body.email,
+    let totalEstimate: number;
+    let depositAmount: number;
+    let pricingFields: Record<string, unknown>;
 
-        // Move details
-        moveDate: body.moveDate,
-        arrivalTimeWindow: body.arrivalTimeWindow || null,
-        pickupAddress,
-        dropoffAddress,
-        secondStop: body.secondStop || null,
-        storageNeeded: Boolean(body.storageNeeded),
-        storageUnitChoice: body.storageUnitChoice || null,
-        additionalNotes: body.additionalNotes || null,
-
-        // Legacy fields (mirror new ones)
-        moveType: body.moveType || "local",
-        residentialOrCommercial: isCommercial ? "commercial" : (body.residentialOrCommercial || "residential"),
-        originAddress: pickupAddress,
-        destinationAddress: dropoffAddress,
-        moveSize: body.moveSize || null,
-        numberOfRooms: body.numberOfRooms || null,
-        packingHelpNeeded: body.packingHelpNeeded || "none",
-        specialItems: body.specialItems || null,
-
-        // Home size
+    if (isJunkRemoval) {
+      const safeInt = (v: unknown, max = 99) => {
+        const n = Math.floor(Number(v));
+        return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0;
+      };
+      const validLoadSizes = ["small", "medium", "large", "full_truck"] as const;
+      const loadSize = validLoadSizes.includes(body.junkLoadSize as typeof validLoadSizes[number])
+        ? (body.junkLoadSize as typeof validLoadSizes[number])
+        : "small";
+      const junkPricing = calculateJunkRemovalPricing({
+        loadSize,
+        stairsFlights: safeInt(body.junkStairsFlights, 10),
+        heavyItemsCount: safeInt(body.junkHeavyItemsCount, 20),
+        constructionDebris: Boolean(body.junkConstructionDebris),
+        sameDay: Boolean(body.junkSameDay),
+        hazardousItems: Boolean(body.junkHazardousItems),
+      });
+      totalEstimate = junkPricing.totalEstimate;
+      depositAmount = junkPricing.depositAmount;
+      pricingFields = {
+        crewSize: null,
+        hourlyRate: null,
+        estimatedHours: null,
+        laborSubtotal: null,
+        materialsSubtotal: null,
+        pianoSurcharge: 0,
+        commercialAdjustment: 0,
+        totalEstimate: junkPricing.totalEstimate,
+        depositAmount: junkPricing.depositAmount,
+        junkBasePrice: junkPricing.basePrice,
+        junkAddonsTotal: junkPricing.addonsTotal,
+      };
+    } else {
+      const isCommercial = Boolean(body.isCommercial) || body.residentialOrCommercial === "commercial";
+      const pricing = calculatePricing({
         numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
         numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),
-        isFullyFurnished: body.isFullyFurnished !== false,
         hasGarage: Boolean(body.hasGarage),
         hasOutdoorFurniture: Boolean(body.hasOutdoorFurniture),
         hasStairs: Boolean(body.hasStairs),
         hasHeavyItems: Boolean(body.hasHeavyItems),
-
-        // Inventory
-        inventory: body.inventory || {},
-
-        // Boxes
-        boxesAlreadyPacked: Number(body.boxesAlreadyPacked ?? 0),
-        needsPackingMaterials: Boolean(body.needsPackingMaterials),
+        isFullyFurnished: body.isFullyFurnished !== false,
+        inventory: (body.inventory as Record<string, number>) || {},
         smallBoxes: Number(body.smallBoxes ?? 0),
         mediumBoxes: Number(body.mediumBoxes ?? 0),
-
-        // Commercial fields (explicitly null when not a commercial move)
-        commercialBusinessType: isCommercial ? (body.commercialBusinessType || null) : null,
-        commercialSizeTier: isCommercial ? (body.commercialSizeTier || null) : null,
-
-        // Pricing result
+        needsPackingMaterials: Boolean(body.needsPackingMaterials),
+        pianoType: body.pianoType || undefined,
+        pianoFloor: body.pianoFloor || undefined,
+        isCommercial,
+        commercialBusinessType: body.commercialBusinessType || undefined,
+        commercialSizeTier: body.commercialSizeTier || undefined,
+      });
+      totalEstimate = pricing.totalEstimate;
+      depositAmount = pricing.depositAmount;
+      pricingFields = {
         crewSize: pricing.crewSize,
         hourlyRate: pricing.hourlyRate,
         estimatedHours: pricing.estimatedHours,
@@ -238,13 +243,71 @@ router.post("/quotes", async (req, res) => {
         commercialAdjustment: pricing.commercialAdjustment,
         totalEstimate: pricing.totalEstimate,
         depositAmount: pricing.depositAmount,
+        junkBasePrice: null,
+        junkAddonsTotal: null,
+      };
+    }
 
-        // Legacy compat
-        estimatedPriceLow: pricing.totalEstimate,
-        estimatedPriceHigh: pricing.totalEstimate,
+    const isCommercial = !isJunkRemoval && (Boolean(body.isCommercial) || body.residentialOrCommercial === "commercial");
+
+    const [quote] = await db
+      .insert(quoteRequestsTable)
+      .values({
+        contactName: body.contactName,
+        phone: body.phone,
+        email: body.email,
+
+        moveDate: body.moveDate,
+        arrivalTimeWindow: body.arrivalTimeWindow || null,
+        pickupAddress,
+        dropoffAddress,
+        secondStop: body.secondStop || null,
+        storageNeeded: Boolean(body.storageNeeded),
+        storageUnitChoice: body.storageUnitChoice || null,
+        additionalNotes: body.additionalNotes || null,
+
+        moveType: body.moveType || "local",
+        residentialOrCommercial: isCommercial ? "commercial" : (body.residentialOrCommercial || "residential"),
+        originAddress: pickupAddress,
+        destinationAddress: dropoffAddress,
+        moveSize: body.moveSize || null,
+        numberOfRooms: body.numberOfRooms || null,
+        packingHelpNeeded: body.packingHelpNeeded || "none",
+        specialItems: body.specialItems || null,
+
+        numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
+        numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),
+        isFullyFurnished: body.isFullyFurnished !== false,
+        hasGarage: Boolean(body.hasGarage),
+        hasOutdoorFurniture: Boolean(body.hasOutdoorFurniture),
+        hasStairs: Boolean(body.hasStairs),
+        hasHeavyItems: Boolean(body.hasHeavyItems),
+
+        inventory: body.inventory || {},
+
+        boxesAlreadyPacked: Number(body.boxesAlreadyPacked ?? 0),
+        needsPackingMaterials: Boolean(body.needsPackingMaterials),
+        smallBoxes: Number(body.smallBoxes ?? 0),
+        mediumBoxes: Number(body.mediumBoxes ?? 0),
+
+        commercialBusinessType: isCommercial ? (body.commercialBusinessType || null) : null,
+        commercialSizeTier: isCommercial ? (body.commercialSizeTier || null) : null,
+
+        serviceType,
+        junkLoadSize: isJunkRemoval ? (body.junkLoadSize || "small") : null,
+        junkStairsFlights: isJunkRemoval ? Number(body.junkStairsFlights ?? 0) : 0,
+        junkHeavyItemsCount: isJunkRemoval ? Number(body.junkHeavyItemsCount ?? 0) : 0,
+        junkConstructionDebris: isJunkRemoval ? Boolean(body.junkConstructionDebris) : false,
+        junkSameDay: isJunkRemoval ? Boolean(body.junkSameDay) : false,
+        junkHazardousItems: isJunkRemoval ? Boolean(body.junkHazardousItems) : false,
+
+        ...pricingFields,
+
+        estimatedPriceLow: totalEstimate,
+        estimatedPriceHigh: totalEstimate,
 
         status: "quote_requested",
-      })
+      } as typeof quoteRequestsTable.$inferInsert)
       .returning();
 
     recordTimelineEvent({
@@ -252,7 +315,7 @@ router.post("/quotes", async (req, res) => {
       eventType: "quote_created",
       statusLabel: "Quote Requested",
       visibleToCustomer: true,
-      notes: `Quote #${quote.id} created for ${quote.contactName}`,
+      notes: `${isJunkRemoval ? "Junk Removal" : "Moving"} Quote #${quote.id} created for ${quote.contactName}`,
     }).catch(() => {});
 
     res.status(201).json(mapQuoteRow(quote));

@@ -131,6 +131,34 @@ export const SubmitQuoteRequestBody = zod.object({
     .describe(
       "small (<500 sqft), medium (500-1000 sqft), large (1000-2500 sqft), enterprise (2500+ sqft)",
     ),
+  serviceType: zod
+    .enum(["moving", "junk_removal"])
+    .optional()
+    .describe("Service type: moving (default) or junk_removal"),
+  junkLoadSize: zod
+    .enum(["small", "medium", "large", "full_truck"])
+    .optional()
+    .describe("Junk removal load size"),
+  junkStairsFlights: zod
+    .number()
+    .optional()
+    .describe("Number of flights of stairs for junk removal"),
+  junkHeavyItemsCount: zod
+    .number()
+    .optional()
+    .describe("Number of heavy items (appliances, couches) for junk removal"),
+  junkConstructionDebris: zod
+    .boolean()
+    .optional()
+    .describe("Whether junk includes construction debris"),
+  junkSameDay: zod
+    .boolean()
+    .optional()
+    .describe("Whether same-day junk removal service is requested"),
+  junkHazardousItems: zod
+    .boolean()
+    .optional()
+    .describe("Whether junk includes hazardous items (paint, chemicals)"),
   inventory: zod
     .record(zod.string(), zod.number())
     .optional()
@@ -165,6 +193,18 @@ export const ListQuoteRequestsResponseItem = zod.object({
     .describe("Amount added above residential estimate for commercial moves"),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
+  serviceType: zod
+    .enum(["moving", "junk_removal"])
+    .optional()
+    .describe("Service type: moving or junk_removal"),
+  junkLoadSize: zod.enum(["small", "medium", "large", "full_truck"]).optional(),
+  junkStairsFlights: zod.number().optional(),
+  junkHeavyItemsCount: zod.number().optional(),
+  junkConstructionDebris: zod.boolean().optional(),
+  junkSameDay: zod.boolean().optional(),
+  junkHazardousItems: zod.boolean().optional(),
+  junkBasePrice: zod.number().optional(),
+  junkAddonsTotal: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
   estimatedPriceHigh: zod.number().optional(),
   quoteRequest: zod
@@ -208,6 +248,19 @@ export const ListQuoteRequestsResponseItem = zod.object({
       needsPackingMaterials: zod.boolean().optional(),
       smallBoxes: zod.number().optional(),
       mediumBoxes: zod.number().optional(),
+      serviceType: zod.enum(["moving", "junk_removal"]).optional(),
+      junkLoadSize: zod
+        .enum(["small", "medium", "large", "full_truck"])
+        .optional(),
+      junkStairsFlights: zod.number().optional(),
+      junkHeavyItemsCount: zod.number().optional(),
+      junkConstructionDebris: zod.boolean().optional(),
+      junkSameDay: zod.boolean().optional(),
+      junkHazardousItems: zod.boolean().optional(),
+      moveSize: zod.string().optional(),
+      numberOfRooms: zod.number().optional(),
+      packingHelpNeeded: zod.string().optional(),
+      specialItems: zod.string().optional(),
     })
     .describe("Echo of the quote request fields as stored"),
 });
@@ -240,6 +293,18 @@ export const GetQuoteRequestResponse = zod.object({
     .describe("Amount added above residential estimate for commercial moves"),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
+  serviceType: zod
+    .enum(["moving", "junk_removal"])
+    .optional()
+    .describe("Service type: moving or junk_removal"),
+  junkLoadSize: zod.enum(["small", "medium", "large", "full_truck"]).optional(),
+  junkStairsFlights: zod.number().optional(),
+  junkHeavyItemsCount: zod.number().optional(),
+  junkConstructionDebris: zod.boolean().optional(),
+  junkSameDay: zod.boolean().optional(),
+  junkHazardousItems: zod.boolean().optional(),
+  junkBasePrice: zod.number().optional(),
+  junkAddonsTotal: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
   estimatedPriceHigh: zod.number().optional(),
   quoteRequest: zod
@@ -283,6 +348,19 @@ export const GetQuoteRequestResponse = zod.object({
       needsPackingMaterials: zod.boolean().optional(),
       smallBoxes: zod.number().optional(),
       mediumBoxes: zod.number().optional(),
+      serviceType: zod.enum(["moving", "junk_removal"]).optional(),
+      junkLoadSize: zod
+        .enum(["small", "medium", "large", "full_truck"])
+        .optional(),
+      junkStairsFlights: zod.number().optional(),
+      junkHeavyItemsCount: zod.number().optional(),
+      junkConstructionDebris: zod.boolean().optional(),
+      junkSameDay: zod.boolean().optional(),
+      junkHazardousItems: zod.boolean().optional(),
+      moveSize: zod.string().optional(),
+      numberOfRooms: zod.number().optional(),
+      packingHelpNeeded: zod.string().optional(),
+      specialItems: zod.string().optional(),
     })
     .describe("Echo of the quote request fields as stored"),
 });
@@ -358,6 +436,18 @@ export const UpdateQuoteStatusResponse = zod.object({
     .describe("Amount added above residential estimate for commercial moves"),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
+  serviceType: zod
+    .enum(["moving", "junk_removal"])
+    .optional()
+    .describe("Service type: moving or junk_removal"),
+  junkLoadSize: zod.enum(["small", "medium", "large", "full_truck"]).optional(),
+  junkStairsFlights: zod.number().optional(),
+  junkHeavyItemsCount: zod.number().optional(),
+  junkConstructionDebris: zod.boolean().optional(),
+  junkSameDay: zod.boolean().optional(),
+  junkHazardousItems: zod.boolean().optional(),
+  junkBasePrice: zod.number().optional(),
+  junkAddonsTotal: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
   estimatedPriceHigh: zod.number().optional(),
   quoteRequest: zod
@@ -401,6 +491,19 @@ export const UpdateQuoteStatusResponse = zod.object({
       needsPackingMaterials: zod.boolean().optional(),
       smallBoxes: zod.number().optional(),
       mediumBoxes: zod.number().optional(),
+      serviceType: zod.enum(["moving", "junk_removal"]).optional(),
+      junkLoadSize: zod
+        .enum(["small", "medium", "large", "full_truck"])
+        .optional(),
+      junkStairsFlights: zod.number().optional(),
+      junkHeavyItemsCount: zod.number().optional(),
+      junkConstructionDebris: zod.boolean().optional(),
+      junkSameDay: zod.boolean().optional(),
+      junkHazardousItems: zod.boolean().optional(),
+      moveSize: zod.string().optional(),
+      numberOfRooms: zod.number().optional(),
+      packingHelpNeeded: zod.string().optional(),
+      specialItems: zod.string().optional(),
     })
     .describe("Echo of the quote request fields as stored"),
 });

@@ -7,8 +7,10 @@
  */
 import type { InventoryMap } from "./inventoryMap";
 import type { QuoteRequestEchoCommercialSizeTier } from "./quoteRequestEchoCommercialSizeTier";
+import type { QuoteRequestEchoJunkLoadSize } from "./quoteRequestEchoJunkLoadSize";
 import type { QuoteRequestEchoPianoFloor } from "./quoteRequestEchoPianoFloor";
 import type { QuoteRequestEchoPianoType } from "./quoteRequestEchoPianoType";
+import type { QuoteRequestEchoServiceType } from "./quoteRequestEchoServiceType";
 
 /**
  * Echo of the quote request fields as stored
@@ -46,4 +48,15 @@ export interface QuoteRequestEcho {
   needsPackingMaterials?: boolean;
   smallBoxes?: number;
   mediumBoxes?: number;
+  serviceType?: QuoteRequestEchoServiceType;
+  junkLoadSize?: QuoteRequestEchoJunkLoadSize;
+  junkStairsFlights?: number;
+  junkHeavyItemsCount?: number;
+  junkConstructionDebris?: boolean;
+  junkSameDay?: boolean;
+  junkHazardousItems?: boolean;
+  moveSize?: string;
+  numberOfRooms?: number;
+  packingHelpNeeded?: string;
+  specialItems?: string;
 }
