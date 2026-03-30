@@ -1200,7 +1200,7 @@ export default function QuotePage() {
                     </motion.div>
                   )}
 
-                  {step === 2 && !isJunkRemoval && isCommercial && !isJunkRemoval && (
+                  {step === 2 && !isJunkRemoval && isCommercial && (
                     <motion.div
                       key="step2commercial"
                       initial={{ opacity: 0, x: 30 }}
