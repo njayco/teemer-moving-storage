@@ -1353,25 +1353,28 @@ export const GenerateAndSendContractParams = zod.object({
 });
 
 /**
- * Returns the contract for a job if one exists. Admin only.
+ * Returns the contract for a job if one exists, or null. Admin only.
  * @summary Get contract for a job
  */
 export const GetJobContractParams = zod.object({
   jobId: zod.coerce.string(),
 });
 
-export const GetJobContractResponse = zod.object({
-  id: zod.number().optional(),
-  jobId: zod.number().optional(),
-  quoteId: zod.number().nullish(),
-  signingToken: zod.string().optional(),
-  status: zod.string().optional(),
-  sentAt: zod.string().nullish(),
-  customerSignedAt: zod.string().nullish(),
-  customerSignatureData: zod.string().nullish(),
-  createdAt: zod.string().nullish(),
-  updatedAt: zod.string().nullish(),
-});
+export const GetJobContractResponse = zod.union([
+  zod.object({
+    id: zod.number().optional(),
+    jobId: zod.number().optional(),
+    quoteId: zod.number().nullish(),
+    signingToken: zod.string().optional(),
+    status: zod.string().optional(),
+    sentAt: zod.string().nullish(),
+    customerSignedAt: zod.string().nullish(),
+    customerSignatureData: zod.string().nullish(),
+    createdAt: zod.string().nullish(),
+    updatedAt: zod.string().nullish(),
+  }),
+  zod.null(),
+]);
 
 /**
  * Public endpoint to retrieve contract data using a signing token

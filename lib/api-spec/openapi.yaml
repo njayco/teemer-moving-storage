@@ -806,7 +806,7 @@ paths:
       operationId: getJobContract
       tags: [contracts]
       summary: Get contract for a job
-      description: Returns the contract for a job if one exists. Admin only.
+      description: Returns the contract for a job if one exists, or null. Admin only.
       parameters:
         - in: path
           name: jobId
@@ -819,7 +819,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ContractRecord"
+                oneOf:
+                  - $ref: "#/components/schemas/ContractRecord"
+                  - type: "null"
         "404":
           description: Job not found
 

@@ -3072,7 +3072,7 @@ export const useGenerateAndSendContract = <
 };
 
 /**
- * Returns the contract for a job if one exists. Admin only.
+ * Returns the contract for a job if one exists, or null. Admin only.
  * @summary Get contract for a job
  */
 export const getGetJobContractUrl = (jobId: string) => {
@@ -3082,8 +3082,8 @@ export const getGetJobContractUrl = (jobId: string) => {
 export const getJobContract = async (
   jobId: string,
   options?: RequestInit,
-): Promise<ContractRecord> => {
-  return customFetch<ContractRecord>(getGetJobContractUrl(jobId), {
+): Promise<ContractRecord | null> => {
+  return customFetch<ContractRecord | null>(getGetJobContractUrl(jobId), {
     ...options,
     method: "GET",
   });

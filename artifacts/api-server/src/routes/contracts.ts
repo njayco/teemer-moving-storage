@@ -156,6 +156,15 @@ router.post("/contracts/sign/:token", async (req, res) => {
       return res.status(400).json({ error: "signatureData is required" });
     }
 
+    if (!signatureData.startsWith("data:image/png;base64,")) {
+      return res.status(400).json({ error: "signatureData must be a base64-encoded PNG data URL" });
+    }
+
+    const MAX_SIGNATURE_SIZE = 500_000;
+    if (signatureData.length > MAX_SIGNATURE_SIZE) {
+      return res.status(400).json({ error: "signatureData exceeds maximum allowed size" });
+    }
+
     const [contract] = await db.select().from(contractsTable).where(eq(contractsTable.signingToken, token)).limit(1);
     if (!contract) return res.status(404).json({ error: "Contract not found or link is invalid" });
 
