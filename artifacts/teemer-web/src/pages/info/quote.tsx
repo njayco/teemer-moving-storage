@@ -384,6 +384,11 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
               <span className="font-semibold text-slate-800">{fmt(q.commercialAdjustment)}</span>
             </div>
           )}
+          {isCommercialResult && (
+            <div className="text-xs text-slate-400 bg-blue-50 rounded-lg px-3 py-2 mt-1">
+              Commercial pricing uses the greater of 2× the residential baseline or the space-size minimum (Small $1k · Medium $3k · Large $6k · Enterprise $10k).
+            </div>
+          )}
           <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between">
             <span className="font-bold text-slate-800">Estimated Total</span>
             <span className="font-bold text-xl text-primary">{fmt(q.totalEstimate)}</span>
