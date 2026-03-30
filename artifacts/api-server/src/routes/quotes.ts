@@ -224,9 +224,9 @@ router.post("/quotes", async (req, res) => {
         smallBoxes: Number(body.smallBoxes ?? 0),
         mediumBoxes: Number(body.mediumBoxes ?? 0),
 
-        // Commercial fields
-        commercialBusinessType: body.commercialBusinessType || null,
-        commercialSizeTier: body.commercialSizeTier || null,
+        // Commercial fields (explicitly null when not a commercial move)
+        commercialBusinessType: isCommercial ? (body.commercialBusinessType || null) : null,
+        commercialSizeTier: isCommercial ? (body.commercialSizeTier || null) : null,
 
         // Pricing result
         crewSize: pricing.crewSize,
