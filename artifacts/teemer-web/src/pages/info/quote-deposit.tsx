@@ -136,6 +136,20 @@ export default function QuoteDepositPage() {
                 </label>
               </div>
 
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl leading-none mt-0.5">🎖️</span>
+                  <div>
+                    <p className="font-semibold text-green-900 text-sm">Senior & Veteran Discount</p>
+                    <p className="text-sm text-green-800 mt-1">
+                      If you qualify, enter coupon code{" "}
+                      <span className="font-bold tracking-wider bg-green-100 px-1.5 py-0.5 rounded border border-green-300">SANDV10</span>
+                      {" "}on the next payment page to receive 10% off your deposit.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <button
                   type="button"

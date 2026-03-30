@@ -34,8 +34,11 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
               Mon-Fri 7AM-6PM
             </span>
           </div>
-          <div className="flex items-center font-semibold text-primary">
-            <span className="text-white mr-2">10% Discount for Seniors & Veterans</span>
+          <div className="flex items-center gap-2 font-semibold text-primary">
+            <span className="text-white">10% Discount for Seniors & Veterans</span>
+            <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded border border-white/40 tracking-wider">
+              Code: SANDV10
+            </span>
           </div>
         </div>
       </div>
@@ -194,6 +197,10 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
             <div className="mt-6 p-4 bg-slate-800 rounded-xl border border-slate-700">
               <p className="text-primary font-bold text-sm uppercase tracking-wider mb-1">Special Offer</p>
               <p className="text-white text-sm">10% Discount for Seniors & Veterans</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-slate-400 text-xs">Coupon code:</span>
+                <span className="bg-primary/20 text-primary font-bold text-sm px-2 py-0.5 rounded tracking-wider border border-primary/30">SANDV10</span>
+              </div>
             </div>
           </div>
         </div>

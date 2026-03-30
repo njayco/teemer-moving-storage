@@ -557,6 +557,7 @@ router.post("/quotes/:id/checkout", async (req, res) => {
         },
       ],
       metadata: { quoteId: String(id) },
+      allow_promotion_codes: true,
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
