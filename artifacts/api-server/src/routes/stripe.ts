@@ -221,11 +221,10 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
             const amountPaid = (session.amount_total ?? 0) / 100;
             await db.insert(paymentsTable).values({
               jobId: job.id,
-              quoteId: job.quoteId,
               amount: amountPaid,
               method: "stripe",
               type: "remaining_balance",
-              stripeSessionId: session.id,
+              reference: session.id,
             });
             await db.update(jobsTable).set({
               status: "complete",

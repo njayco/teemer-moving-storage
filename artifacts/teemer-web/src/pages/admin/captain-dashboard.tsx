@@ -48,7 +48,15 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof Truck; color: 
   cancelled: { label: "Cancelled", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
 };
 
-const CAPTAIN_ACTIONS = [
+interface CaptainAction {
+  status: string;
+  label: string;
+  altLabel?: string;
+  icon: typeof Truck;
+  color: string;
+}
+
+const CAPTAIN_ACTIONS: CaptainAction[] = [
   { status: "scheduled", label: "Scheduled", icon: Clock, color: "bg-blue-500 hover:bg-blue-600" },
   { status: "en_route", label: "En Route", icon: Navigation, color: "bg-sky-500 hover:bg-sky-600" },
   { status: "arrived", label: "Arrived", icon: MapPin, color: "bg-teal-500 hover:bg-teal-600" },
@@ -357,7 +365,7 @@ function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
                     const action = CAPTAIN_ACTIONS.find((a) => a.status === actionStatus);
                     if (!action) return null;
                     const ActionIcon = action.icon;
-                    const buttonLabel = (isFinished && action.status === "finished" && (action as any).altLabel) ? (action as any).altLabel : action.label;
+                    const buttonLabel = (isFinished && action.status === "finished" && action.altLabel) ? action.altLabel : action.label;
                     return (
                       <button
                         key={action.status}
