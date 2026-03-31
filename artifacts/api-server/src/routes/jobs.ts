@@ -468,7 +468,8 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       }
     }
 
-    if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash" && existing.status === "finished") {
+    if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash"
+        && (existing.status === "finished" || existing.status === "awaiting_remaining_balance")) {
       updates.status = "complete";
       updates.completedAt = new Date();
     }
@@ -1263,9 +1264,10 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
     }
 
     if (status === "finished") {
-      const laborHours = typeof actualHours === "number" && actualHours > 0
-        ? actualHours
-        : job.estimatedHours ?? 0;
+      if (typeof actualHours !== "number" || actualHours <= 0) {
+        return res.status(400).json({ error: "actualHours is required and must be greater than 0 when finishing a job." });
+      }
+      const laborHours = actualHours;
       const hourlyRate = job.hourlyRate ?? 0;
       const subtotal = laborHours * hourlyRate;
       const extras = job.extraCharges ?? 0;

@@ -1057,7 +1057,7 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
           <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Crew</span>
-              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · {job.status === "finished" ? "" : "~"}{qd?.estimatedHours || job.estimatedHours || "—"} hrs{job.status === "finished" ? " actual" : " est."}</span>
+              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · {job.status === "finished" ? "" : "~"}{job.status === "finished" ? (job.estimatedHours || qd?.estimatedHours || "—") : (qd?.estimatedHours || job.estimatedHours || "—")} hrs{job.status === "finished" ? " actual" : " est."}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">{job.status === "finished" ? "Final Total" : "Total Estimate"}</span>
