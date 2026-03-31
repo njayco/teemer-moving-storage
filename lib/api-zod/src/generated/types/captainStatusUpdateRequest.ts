@@ -11,4 +11,6 @@ export interface CaptainStatusUpdateRequest {
   status: CaptainStatusUpdateRequestStatus;
   /** Optional operational note to append */
   notes?: string;
+  /** Actual hours worked (required when status is "finished") */
+  actualHours?: number;
 }

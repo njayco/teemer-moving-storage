@@ -921,6 +921,27 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
     }
   };
 
+  const handleUpdateActualHours = async (newHours: number) => {
+    if (newHours <= 0 || !job) return;
+    setUpdating(true);
+    try {
+      const hourlyRate = job.hourlyRate ?? 0;
+      const subtotal = newHours * hourlyRate;
+      const extras = job.extraCharges ?? 0;
+      const disc = job.discounts ?? 0;
+      const newFinalTotal = subtotal + extras - disc;
+      await updateJob({
+        jobId: job?.jobId || jobId,
+        data: { estimatedHours: newHours, finalTotal: newFinalTotal },
+      });
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleMarkComplete = async () => {
     const bal = job?.remainingBalance ?? 0;
     const ps = job?.paymentStatus;
@@ -1040,7 +1061,7 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
           </div>
 
           {job.status === "finished" && (
-            <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4">
+            <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <Receipt className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" />
                 <div className="flex-1">
@@ -1049,6 +1070,24 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
                   <div className="mt-2 text-lg font-bold text-yellow-900">
                     ${(job.remainingBalance || 0).toFixed(2)} remaining
                   </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pt-1 border-t border-yellow-200">
+                <span className="text-xs font-semibold text-yellow-800">Actual Hours Worked</span>
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateActualHours(Math.max(0.5, (job.estimatedHours ?? 0) - 0.5))}
+                    disabled={updating}
+                    className="w-7 h-7 rounded-lg bg-yellow-200 hover:bg-yellow-300 text-yellow-800 font-bold text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+                  >−</button>
+                  <span className="text-base font-bold text-yellow-900 w-12 text-center">{job.estimatedHours ?? "—"}h</span>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateActualHours((job.estimatedHours ?? 0) + 0.5)}
+                    disabled={updating}
+                    className="w-7 h-7 rounded-lg bg-yellow-200 hover:bg-yellow-300 text-yellow-800 font-bold text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+                  >+</button>
                 </div>
               </div>
             </div>

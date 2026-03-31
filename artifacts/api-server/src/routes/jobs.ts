@@ -422,6 +422,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       discounts,
       finalTotal,
       remainingBalance,
+      estimatedHours,
     } = req.body;
 
     const [existing] = await db
@@ -449,6 +450,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
     if (discounts !== undefined) updates.discounts = discounts;
     if (finalTotal !== undefined) updates.finalTotal = finalTotal;
     if (remainingBalance !== undefined) updates.remainingBalance = remainingBalance;
+    if (estimatedHours !== undefined) updates.estimatedHours = estimatedHours;
 
     if (status === "complete") {
       updates.completedAt = new Date();
@@ -472,6 +474,32 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         && (existing.status === "finished" || existing.status === "awaiting_remaining_balance")) {
       updates.status = "complete";
       updates.completedAt = new Date();
+    }
+
+    if (estimatedHours !== undefined && typeof estimatedHours === "number" && estimatedHours > 0
+        && (existing.status === "finished" || existing.status === "awaiting_remaining_balance")) {
+      const hourlyRate = existing.hourlyRate ?? 0;
+      const subtotal = estimatedHours * hourlyRate;
+      const extras = (extraCharges !== undefined ? extraCharges : existing.extraCharges) ?? 0;
+      const disc = (discounts !== undefined ? discounts : existing.discounts) ?? 0;
+      const newFinalTotal = subtotal + extras - disc;
+      updates.finalTotal = newFinalTotal;
+      updates.estimateSubtotal = subtotal;
+      const depositApplied = existing.depositPaid ?? 0;
+      const { remainingBalance: newRemaining } = await computeTotalPaidAndRemaining(
+        existing.id, depositApplied, newFinalTotal);
+      updates.remainingBalance = newRemaining;
+      const [existingInvoice] = await db.select().from(invoicesTable)
+        .where(eq(invoicesTable.jobId, existing.id)).limit(1);
+      if (existingInvoice) {
+        await db.update(invoicesTable).set({
+          subtotal,
+          finalTotal: newFinalTotal,
+          depositApplied,
+          remainingBalanceDue: newRemaining,
+          updatedAt: new Date(),
+        }).where(eq(invoicesTable.id, existingInvoice.id));
+      }
     }
 
     let cashAmount = 0;

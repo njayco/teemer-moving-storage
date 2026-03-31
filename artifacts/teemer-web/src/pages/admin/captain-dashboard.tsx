@@ -55,7 +55,7 @@ const CAPTAIN_ACTIONS = [
   { status: "in_progress", label: "Start Job", icon: Truck, color: "bg-orange-500 hover:bg-orange-600" },
   { status: "at_storage", label: "At Storage", icon: Warehouse, color: "bg-indigo-500 hover:bg-indigo-600" },
   { status: "returning", label: "Returning", icon: RotateCcw, color: "bg-cyan-500 hover:bg-cyan-600" },
-  { status: "finished", label: "Finish Job", icon: DollarSign, color: "bg-yellow-500 hover:bg-yellow-600" },
+  { status: "finished", label: "Finish Job", altLabel: "Edit Hours", icon: DollarSign, color: "bg-yellow-500 hover:bg-yellow-600" },
   { status: "delayed", label: "Delayed", icon: AlertTriangle, color: "bg-red-500 hover:bg-red-600" },
 ];
 
@@ -70,6 +70,7 @@ function getNextActions(currentStatus: string) {
     at_storage: ["returning", "finished", "delayed"],
     returning: ["finished", "delayed"],
     delayed: ["scheduled", "en_route", "arrived", "in_progress"],
+    finished: ["finished"],
   };
   return flowMap[currentStatus] || [];
 }
@@ -356,6 +357,7 @@ function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
                     const action = CAPTAIN_ACTIONS.find((a) => a.status === actionStatus);
                     if (!action) return null;
                     const ActionIcon = action.icon;
+                    const buttonLabel = (isFinished && action.status === "finished" && (action as any).altLabel) ? (action as any).altLabel : action.label;
                     return (
                       <button
                         key={action.status}
@@ -374,7 +376,7 @@ function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
                         ) : (
                           <ActionIcon className="w-4 h-4" />
                         )}
-                        {action.label}
+                        {buttonLabel}
                       </button>
                     );
                   })}

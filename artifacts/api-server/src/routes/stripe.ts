@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { quoteRequestsTable, paymentsTable, revenueLedgerTable, jobsTable } from "@workspace/db/schema";
+import { quoteRequestsTable, paymentsTable, revenueLedgerTable, jobsTable, invoicesTable } from "@workspace/db/schema";
 import { eq, and, notInArray } from "drizzle-orm";
 import crypto from "crypto";
 import {
@@ -209,6 +209,44 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
       if (result.alreadyProcessed) {
         req.log.info({ quoteId }, "Quote already processed, webhook ensured side effects present");
+      }
+
+      const jobIdMeta = session.metadata?.jobId;
+      const paymentType = session.metadata?.paymentType;
+      if (paymentType === "balance_payment" && jobIdMeta) {
+        const parsedJobId = parseInt(jobIdMeta, 10);
+        if (!isNaN(parsedJobId)) {
+          const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, parsedJobId)).limit(1);
+          if (job && (job.status === "finished" || job.status === "awaiting_remaining_balance")) {
+            const amountPaid = (session.amount_total ?? 0) / 100;
+            await db.insert(paymentsTable).values({
+              jobId: job.id,
+              quoteId: job.quoteId,
+              amount: amountPaid,
+              method: "stripe",
+              type: "remaining_balance",
+              stripeSessionId: session.id,
+            });
+            await db.update(jobsTable).set({
+              status: "complete",
+              completedAt: new Date(),
+              paymentStatus: "paid",
+              remainingBalance: 0,
+              updatedAt: new Date(),
+            }).where(eq(jobsTable.id, job.id));
+            const [existingInvoice] = await db.select().from(invoicesTable)
+              .where(eq(invoicesTable.jobId, job.id)).limit(1);
+            if (existingInvoice) {
+              await db.update(invoicesTable).set({
+                status: "paid",
+                paidAt: new Date(),
+                remainingBalanceDue: 0,
+                updatedAt: new Date(),
+              }).where(eq(invoicesTable.id, existingInvoice.id));
+            }
+            req.log.info({ jobId: job.id, amount: amountPaid }, "Balance payment received via Stripe — job auto-completed");
+          }
+        }
       }
     }
 
