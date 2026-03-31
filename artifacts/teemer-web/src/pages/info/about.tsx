@@ -1,7 +1,7 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { companyInfo } from "@/lib/mock-data";
 import { Link } from "wouter";
-import { GraduationCap, MapPin, Dumbbell, Heart, Award } from "lucide-react";
+import { GraduationCap, MapPin, Dumbbell, Heart, Award, Cpu, Lightbulb, Users } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -139,6 +139,91 @@ export default function AboutPage() {
                       <div>
                         <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Driven By</p>
                         <p className="text-sm font-semibold text-slate-700 mt-0.5">Family & Legacy</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CTO Bio Section */}
+          <div className="mt-10 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary to-primary/80 px-8 py-5">
+              <p className="text-white/70 font-bold text-sm uppercase tracking-widest">Leadership</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mt-1">Meet Our CTO</h2>
+            </div>
+
+            <div className="p-8 md:p-12">
+              <div className="flex flex-col md:flex-row gap-10 items-start">
+                {/* Photo */}
+                <div className="flex-shrink-0 mx-auto md:mx-0">
+                  <div className="relative">
+                    <div className="w-52 h-64 md:w-56 md:h-72 rounded-2xl overflow-hidden shadow-lg border-4 border-primary/20">
+                      <img
+                        src={`${import.meta.env.BASE_URL}najee-jeremiah.jpg`}
+                        alt="Najee Jeremiah, CTO of Teemer Moving & Storage Corp."
+                        className="w-full h-full object-cover object-top"
+                      />
+                    </div>
+                    <div className="absolute -bottom-3 -right-3 bg-secondary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">
+                      CTO
+                    </div>
+                  </div>
+                  <div className="text-center mt-6">
+                    <p className="font-bold text-secondary text-lg">Najee Jeremiah</p>
+                    <p className="text-slate-500 text-sm">Chief Technology Officer</p>
+                    <p className="text-slate-400 text-xs mt-1">Teemer Moving & Storage Corp.</p>
+                  </div>
+                </div>
+
+                {/* Bio */}
+                <div className="flex-1">
+                  <p className="text-slate-700 leading-relaxed text-base mb-4">
+                    Najee Khaleel Jeremiah is a Systems Architect and AI-native Software Engineer serving as Chief Technology Officer of Teemer Moving Company. With a foundation in Electrical Engineering from Howard University, Nassau Community College, and Brooklyn College, Najee blends technical depth with real-world execution.
+                  </p>
+                  <p className="text-slate-700 leading-relaxed text-base mb-4">
+                    He further advanced his expertise through the Pursuit HQ bootcamp in Long Island City, where he was trained in modern full-stack development, cloud systems, and AI-driven product design. His work focuses on building scalable, intelligent platforms — from logistics and dispatch systems to real-time tracking applications — bringing innovation and automation to industries traditionally underserved by technology.
+                  </p>
+                  <p className="text-slate-700 leading-relaxed text-base mb-8">
+                    Beyond Teemer, Najee is a visionary entrepreneur and founder of multiple ventures — including YsUp (educational gamification platform), Phone Msgr (social messaging app), and NJAYCO, a multi-industry holding company. Through the Denoko Cooperative he develops community-driven tools that empower small businesses with enterprise-level technology. Driven by his own journey, Najee is deeply committed to helping young Black men succeed and build the future.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <GraduationCap className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Education</p>
+                        <p className="text-sm font-semibold text-slate-700 mt-0.5">Howard U · Brooklyn College · Pursuit HQ</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Cpu className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Specialty</p>
+                        <p className="text-sm font-semibold text-slate-700 mt-0.5">AI Systems & Scalable Platforms</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Lightbulb className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Ventures</p>
+                        <p className="text-sm font-semibold text-slate-700 mt-0.5">YsUp · Phone Msgr · NJAYCO</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Users className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Mission</p>
+                        <p className="text-sm font-semibold text-slate-700 mt-0.5">Empowering Young Black Men</p>
                       </div>
                     </div>
                   </div>
