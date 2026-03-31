@@ -530,12 +530,15 @@ export const CaptainStatusUpdateRequestStatus = {
   returning: "returning",
   complete: "complete",
   delayed: "delayed",
+  finished: "finished",
 } as const;
 
 export interface CaptainStatusUpdateRequest {
   status: CaptainStatusUpdateRequestStatus;
   /** Optional operational note to append */
   notes?: string;
+  /** Actual hours worked (required when setting status to finished) */
+  actualHours?: number;
 }
 
 export interface ContactFormRequest {

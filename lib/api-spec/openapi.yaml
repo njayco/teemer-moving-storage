@@ -1612,10 +1612,13 @@ components:
       properties:
         status:
           type: string
-          enum: [scheduled, en_route, arrived, in_progress, at_storage, returning, complete, delayed]
+          enum: [scheduled, en_route, arrived, in_progress, at_storage, returning, complete, delayed, finished]
         notes:
           type: string
           description: Optional operational note to append
+        actualHours:
+          type: number
+          description: Actual hours worked (required when setting status to finished)
       required:
         - status
 

@@ -69,6 +69,7 @@ const JOB_STATUS_CONFIG: Record<string, { label: string; bg: string; text: strin
   at_storage: { label: "At Storage", bg: "bg-indigo-100", text: "text-indigo-700" },
   returning: { label: "Returning", bg: "bg-sky-100", text: "text-sky-700" },
   delayed: { label: "Delayed", bg: "bg-rose-100", text: "text-rose-700" },
+  finished: { label: "Finished — Awaiting Payment", bg: "bg-yellow-100", text: "text-yellow-800" },
   awaiting_remaining_balance: { label: "Awaiting Balance", bg: "bg-yellow-100", text: "text-yellow-700" },
   paid_in_cash: { label: "Paid in Cash", bg: "bg-emerald-100", text: "text-emerald-700" },
   complete: { label: "Complete", bg: "bg-green-100", text: "text-green-700" },
@@ -77,7 +78,7 @@ const JOB_STATUS_CONFIG: Record<string, { label: string; bg: string; text: strin
 
 const JOB_STATUS_OPTIONS = [
   "pending", "scheduled", "captain_assigned", "en_route", "arrived", "in_progress",
-  "at_storage", "returning", "delayed", "awaiting_remaining_balance", "paid_in_cash", "complete", "cancelled",
+  "at_storage", "returning", "delayed", "finished", "awaiting_remaining_balance", "paid_in_cash", "complete", "cancelled",
 ];
 
 const FILTER_TABS = [
@@ -91,6 +92,7 @@ const FILTER_TABS = [
   { value: "en_route", label: "En Route" },
   { value: "returning", label: "Returning" },
   { value: "delayed", label: "Delayed" },
+  { value: "finished", label: "Finished" },
   { value: "awaiting_remaining_balance", label: "Awaiting Balance" },
   { value: "paid_in_cash", label: "Paid Cash" },
   { value: "complete", label: "Complete" },
@@ -904,9 +906,12 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
   const handleMarkPaidCash = async () => {
     setUpdating(true);
     try {
+      const isFinished = job?.status === "finished" || job?.status === "awaiting_remaining_balance";
       await updateJob({
         jobId: job?.jobId || jobId,
-        data: { paymentStatus: "paid_cash", status: "paid_in_cash" },
+        data: isFinished
+          ? { paymentStatus: "paid_cash" }
+          : { paymentStatus: "paid_cash", status: "paid_in_cash" },
       });
       await refetch();
       qc.invalidateQueries({ queryKey: ["/api/admin/stats"] });
@@ -1034,14 +1039,29 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
             </div>
           </div>
 
+          {job.status === "finished" && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <Receipt className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <div className="font-bold text-yellow-800 text-sm">Job Finished — Balance Due</div>
+                  <div className="text-xs text-yellow-700 mt-0.5">Captain marked this job complete. Review actual hours, then send the balance invoice to collect payment.</div>
+                  <div className="mt-2 text-lg font-bold text-yellow-900">
+                    ${(job.remainingBalance || 0).toFixed(2)} remaining
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Crew</span>
-              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · ~{qd?.estimatedHours || job.estimatedHours || "—"} hrs</span>
+              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · {job.status === "finished" ? "" : "~"}{qd?.estimatedHours || job.estimatedHours || "—"} hrs{job.status === "finished" ? " actual" : " est."}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Total Estimate</span>
-              <span className="font-bold text-secondary">${(qd?.totalEstimate || job.finalTotal || job.estimatedPayout || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              <span className="text-slate-500">{job.status === "finished" ? "Final Total" : "Total Estimate"}</span>
+              <span className="font-bold text-secondary">${(job.finalTotal || qd?.totalEstimate || job.estimatedPayout || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Deposit Paid</span>

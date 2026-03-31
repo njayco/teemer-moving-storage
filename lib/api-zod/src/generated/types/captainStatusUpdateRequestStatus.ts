@@ -18,4 +18,5 @@ export const CaptainStatusUpdateRequestStatus = {
   returning: "returning",
   complete: "complete",
   delayed: "delayed",
+  finished: "finished",
 } as const;

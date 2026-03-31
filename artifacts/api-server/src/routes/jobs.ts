@@ -36,7 +36,7 @@ async function computeTotalPaidAndRemaining(
 
 const CAPTAIN_STATUSES = [
   "scheduled", "en_route", "arrived", "in_progress",
-  "at_storage", "returning", "complete", "delayed",
+  "at_storage", "returning", "complete", "delayed", "finished",
 ] as const;
 
 const MILESTONE_EMAIL_STATUSES = new Set(["arrived", "in_progress", "at_storage", "complete"]);
@@ -47,9 +47,13 @@ const JOB_STATUSES = [
   "pending",
   "scheduled",
   "captain_assigned",
+  "en_route",
   "arrived",
   "in_progress",
   "at_storage",
+  "returning",
+  "delayed",
+  "finished",
   "awaiting_remaining_balance",
   "paid_in_cash",
   "complete",
@@ -464,6 +468,11 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       }
     }
 
+    if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash" && existing.status === "finished") {
+      updates.status = "complete";
+      updates.completedAt = new Date();
+    }
+
     let cashAmount = 0;
     if (paymentStatus === "paid_cash" && existing.paymentStatus !== "paid_cash") {
       const total = existing.finalTotal ?? existing.estimatedPayout ?? 0;
@@ -842,7 +851,7 @@ router.get("/admin/stats", requireAdmin, async (req, res) => {
           sql`CASE WHEN ${jobsTable.status} IN ('pending', 'scheduled') THEN 1 ELSE 0 END`,
         ),
         inProgressJobs: sum(
-          sql`CASE WHEN ${jobsTable.status} IN ('captain_assigned', 'arrived', 'in_progress', 'at_storage') THEN 1 ELSE 0 END`,
+          sql`CASE WHEN ${jobsTable.status} IN ('captain_assigned', 'en_route', 'arrived', 'in_progress', 'at_storage', 'returning', 'delayed', 'finished', 'awaiting_remaining_balance') THEN 1 ELSE 0 END`,
         ),
         completedJobs: sum(
           sql`CASE WHEN ${jobsTable.status} = 'complete' THEN 1 ELSE 0 END`,
@@ -1217,7 +1226,7 @@ router.get("/captain/jobs", requireCaptainOrAdmin, async (req, res) => {
 router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, actualHours } = req.body;
 
     if (!status || !CAPTAIN_STATUSES.includes(status)) {
       return res.status(400).json({
@@ -1253,6 +1262,65 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
       updates.notes = existingNotes ? `${existingNotes}\n${newEntry}` : newEntry;
     }
 
+    if (status === "finished") {
+      const laborHours = typeof actualHours === "number" && actualHours > 0
+        ? actualHours
+        : job.estimatedHours ?? 0;
+      const hourlyRate = job.hourlyRate ?? 0;
+      const subtotal = laborHours * hourlyRate;
+      const extras = job.extraCharges ?? 0;
+      const disc = job.discounts ?? 0;
+      const newFinalTotal = subtotal + extras - disc;
+
+      updates.estimatedHours = laborHours;
+      updates.finalTotal = newFinalTotal;
+
+      const depositApplied = job.depositPaid ?? 0;
+      const { remainingBalance: remainingBalanceDue } = await computeTotalPaidAndRemaining(
+        job.id, depositApplied, newFinalTotal);
+      updates.remainingBalance = remainingBalanceDue;
+
+      const snapshot = {
+        laborHours,
+        hourlyRate,
+        travelFee: 0,
+        stairFee: 0,
+        storageFee: 0,
+        packingFee: 0,
+        notes: notes ?? "",
+        items: [],
+      };
+
+      const [existingInvoice] = await db.select().from(invoicesTable)
+        .where(eq(invoicesTable.jobId, job.id)).limit(1);
+
+      if (existingInvoice) {
+        await db.update(invoicesTable).set({
+          subtotal,
+          finalTotal: newFinalTotal,
+          depositApplied,
+          remainingBalanceDue,
+          editableSnapshotJson: snapshot,
+          updatedAt: new Date(),
+        }).where(eq(invoicesTable.id, existingInvoice.id));
+      } else {
+        const invoiceNumber = `INV-${job.jobId || job.id}-${Date.now().toString(36).toUpperCase()}`;
+        await db.insert(invoicesTable).values({
+          jobId: job.id,
+          invoiceNumber,
+          subtotal,
+          extraCharges: extras,
+          discounts: disc,
+          finalTotal: newFinalTotal,
+          depositApplied,
+          remainingBalanceDue,
+          dueDate: null,
+          status: "draft",
+          editableSnapshotJson: snapshot,
+        });
+      }
+    }
+
     if (status === "complete") {
       const pStatus = job.paymentStatus ?? "";
       if (pStatus !== "paid" && pStatus !== "paid_cash") {
@@ -1279,7 +1347,8 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
       in_progress: "In Progress",
       at_storage: "At Storage",
       returning: "Returning",
-      complete: "Job Finished",
+      finished: "Job Finished — Awaiting Payment",
+      complete: "Job Complete",
       delayed: "Delayed",
     };
 
