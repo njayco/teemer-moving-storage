@@ -22,7 +22,7 @@ export const companyInfo = {
   tagline: "Make Moving a Breeze",
   description:
     "Teemer Moving & Storage Corp. is a Long Beach, New York moving and storage company serving Long Island and key NYC boroughs. The company offers residential and commercial moving, packing and unpacking, storage services, piano moving, and packing supplies. The business emphasizes stress-free moves, efficient crews, free estimates, and strong customer service.",
-  email: "support@teemermoving.com",
+  email: "info@teemermoving.com",
 };
 
 export const services = [

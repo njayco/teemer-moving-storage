@@ -266,6 +266,61 @@ export async function sendDayBeforeReminderEmail(
   });
 }
 
+export async function sendContactNotificationEmail(data: {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+}): Promise<{ success: boolean; resendId?: string }> {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8" /></head>
+    <body style="font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 24px;">
+      <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+        <div style="background: #0f172a; padding: 24px 32px;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px;">New Contact Form Message</h1>
+          <p style="color: #94a3b8; margin: 4px 0 0; font-size: 14px;">Teemer Moving &amp; Storage Corp. — Website</p>
+        </div>
+        <div style="padding: 32px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 13px; width: 100px; vertical-align: top;">Name</td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px; font-weight: 600;">${data.name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 13px; vertical-align: top;">Email</td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px;"><a href="mailto:${data.email}" style="color: #FF3C00; text-decoration: none;">${data.email}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 13px; vertical-align: top;">Phone</td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px;"><a href="tel:${data.phone}" style="color: #FF3C00; text-decoration: none;">${data.phone}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0 0; color: #64748b; font-size: 13px; vertical-align: top;">Message</td>
+              <td style="padding: 12px 0 0; color: #0f172a; font-size: 14px; line-height: 1.6;">${data.message.replace(/\n/g, "<br />")}</td>
+            </tr>
+          </table>
+          <div style="margin-top: 24px; padding: 16px; background: #fff7ed; border-radius: 8px; border-left: 4px solid #FF3C00;">
+            <p style="margin: 0; font-size: 13px; color: #7c2d12;">Reply directly to <strong>${data.email}</strong> or call <strong>${data.phone}</strong> to follow up.</p>
+          </div>
+        </div>
+        <div style="background: #f8fafc; padding: 16px 32px; border-top: 1px solid #e2e8f0;">
+          <p style="margin: 0; font-size: 12px; color: #94a3b8;">Teemer Moving &amp; Storage Corp. · Long Beach, NY 11561 · (516) 269-3724</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `New Contact Form Submission — ${data.name}`,
+    html,
+    emailType: "contact_form",
+  });
+}
+
 function formatCurrency(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }

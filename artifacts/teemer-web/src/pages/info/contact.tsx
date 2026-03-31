@@ -1,6 +1,6 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { companyInfo } from "@/lib/mock-data";
-import { Phone, MapPin, Mail, Loader2, CheckCircle2 } from "lucide-react";
+import { Phone, MapPin, Mail, Clock, Loader2, CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,13 +36,13 @@ export default function ContactPage() {
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-16">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold font-display text-secondary mb-6">Contact Us</h1>
-            <p className="text-lg text-slate-600 mb-12">
+            <p className="text-lg text-slate-600 mb-10">
               Have questions or ready to book your move? Reach out to our team directly.
             </p>
             
-            <div className="space-y-8 mb-12">
+            <div className="space-y-6 mb-10">
               <div className="flex items-start">
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary flex-shrink-0">
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
@@ -51,7 +51,7 @@ export default function ContactPage() {
                 </div>
               </div>
               <div className="flex items-start">
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary flex-shrink-0">
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
@@ -60,7 +60,7 @@ export default function ContactPage() {
                 </div>
               </div>
               <div className="flex items-start">
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary flex-shrink-0">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
@@ -68,6 +68,25 @@ export default function ContactPage() {
                   <p className="text-slate-600 text-lg">{companyInfo.location}</p>
                 </div>
               </div>
+              <div className="flex items-start">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mr-6 text-primary flex-shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-secondary mb-1">Hours</h3>
+                  <p className="text-slate-600">Mon–Fri: 7:00 AM – 6:00 PM</p>
+                  <p className="text-slate-500 text-sm">Weekends by appointment</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Crew photo */}
+            <div className="rounded-2xl overflow-hidden shadow-md border border-slate-100 h-64">
+              <img
+                src={`${import.meta.env.BASE_URL}images/IMG_1927.jpg`}
+                alt="The Teemer Moving & Storage Corp. crew ready to help with your move"
+                className="w-full h-full object-cover object-center"
+              />
             </div>
           </div>
 

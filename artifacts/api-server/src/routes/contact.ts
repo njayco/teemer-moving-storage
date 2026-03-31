@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { contactsTable } from "@workspace/db/schema";
+import { sendContactNotificationEmail } from "../lib/email-service";
 
 const router: IRouter = Router();
 
@@ -17,6 +18,16 @@ router.post("/contact", async (req, res) => {
       destination: body.destination,
       message: body.message,
     });
+
+    sendContactNotificationEmail({
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      message: body.message || "",
+    }).catch((err) => {
+      req.log.error({ err }, "Failed to send contact notification email");
+    });
+
     res.status(201).json({
       success: true,
       message: "Thank you for reaching out! We'll get back to you within 24 hours.",

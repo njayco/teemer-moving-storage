@@ -1,7 +1,7 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { companyInfo } from "@/lib/mock-data";
 import { Link } from "wouter";
-import { GraduationCap, MapPin, Dumbbell, Heart } from "lucide-react";
+import { GraduationCap, MapPin, Dumbbell, Heart, Award } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -27,6 +27,40 @@ export default function AboutPage() {
                   <li>Punctuality and reliability</li>
                   <li>Community focus</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Crew in action banner */}
+          <div className="mt-10 rounded-3xl overflow-hidden shadow-md border border-slate-100 h-72 md:h-96">
+            <img
+              src={`${import.meta.env.BASE_URL}images/IMG_4628.jpg`}
+              alt="Teemer Moving crew carefully handling specialty items on the job"
+              className="w-full h-full object-cover object-center"
+            />
+          </div>
+
+          {/* Award recognition */}
+          <div className="mt-10 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+              <div className="flex flex-col justify-center p-8 md:p-12">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Award className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-primary font-bold text-sm uppercase tracking-widest">Recognition</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-secondary mb-4">Award-Winning Service</h2>
+                <p className="text-slate-600 leading-relaxed">
+                  Proud winner of the <strong>Long Island Choice Awards 2025</strong> — Best Moving Services, presented by the Herald and PSEG Long Island. This recognition reflects our commitment to exceptional service and community trust.
+                </p>
+              </div>
+              <div className="h-64 md:h-auto">
+                <img
+                  src={`${import.meta.env.BASE_URL}images/IMG_2975.jpg`}
+                  alt="Teemer Moving & Storage Corp. Long Island Choice Awards 2025 - Best Moving Services"
+                  className="w-full h-full object-cover object-center"
+                />
               </div>
             </div>
           </div>
@@ -110,6 +144,31 @@ export default function AboutPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Photo grid — crew at work */}
+          <div className="mt-10 grid grid-cols-3 gap-4">
+            <div className="rounded-2xl overflow-hidden h-48 shadow-sm border border-slate-100">
+              <img
+                src={`${import.meta.env.BASE_URL}images/IMG_3913.jpg`}
+                alt="Teemer crew preparing a residential move with boxes"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="rounded-2xl overflow-hidden h-48 shadow-sm border border-slate-100">
+              <img
+                src={`${import.meta.env.BASE_URL}images/IMG_4525.jpg`}
+                alt="Teemer crew wrapping and protecting furniture"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="rounded-2xl overflow-hidden h-48 shadow-sm border border-slate-100">
+              <img
+                src={`${import.meta.env.BASE_URL}images/IMG_4015.jpg`}
+                alt="Teemer crew reassembling furniture at destination"
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
 
