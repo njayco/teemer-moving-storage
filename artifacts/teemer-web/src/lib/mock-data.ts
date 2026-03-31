@@ -122,8 +122,8 @@ export const faqs = [
     a: "We currently serve Manhattan, Queens, and Brooklyn, along with all of Nassau County and Suffolk County on Long Island. We do not currently serve the Bronx or Staten Island for standard moves, but contact us for long-distance options.",
   },
   {
-    q: "Do you offer same-day or last-minute moves?",
-    a: "We do our best to accommodate last-minute requests based on crew and truck availability. Call us directly at (516) 269-3724 for the fastest response. Same-day junk removal may also be available for an additional fee.",
+    q: "Do you offer storage services?",
+    a: "Yes. We offer both short-term and long-term storage solutions in a secure facility. Whether you need temporary storage between moves or a longer arrangement, we can accommodate your needs. Ask about storage pricing when you request your quote.",
   },
 ];
 
