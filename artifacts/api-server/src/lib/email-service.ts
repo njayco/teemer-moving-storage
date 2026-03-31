@@ -272,6 +272,14 @@ export async function sendContactNotificationEmail(data: {
   phone: string;
   message: string;
 }): Promise<{ success: boolean; resendId?: string }> {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+  const name = esc(data.name);
+  const email = esc(data.email);
+  const phone = esc(data.phone);
+  const message = esc(data.message).replace(/\n/g, "<br />");
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -286,23 +294,23 @@ export async function sendContactNotificationEmail(data: {
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 13px; width: 100px; vertical-align: top;">Name</td>
-              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px; font-weight: 600;">${data.name}</td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px; font-weight: 600;">${name}</td>
             </tr>
             <tr>
               <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 13px; vertical-align: top;">Email</td>
-              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px;"><a href="mailto:${data.email}" style="color: #FF3C00; text-decoration: none;">${data.email}</a></td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px;"><a href="mailto:${email}" style="color: #FF3C00; text-decoration: none;">${email}</a></td>
             </tr>
             <tr>
               <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 13px; vertical-align: top;">Phone</td>
-              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px;"><a href="tel:${data.phone}" style="color: #FF3C00; text-decoration: none;">${data.phone}</a></td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px;"><a href="tel:${phone}" style="color: #FF3C00; text-decoration: none;">${phone}</a></td>
             </tr>
             <tr>
               <td style="padding: 12px 0 0; color: #64748b; font-size: 13px; vertical-align: top;">Message</td>
-              <td style="padding: 12px 0 0; color: #0f172a; font-size: 14px; line-height: 1.6;">${data.message.replace(/\n/g, "<br />")}</td>
+              <td style="padding: 12px 0 0; color: #0f172a; font-size: 14px; line-height: 1.6;">${message}</td>
             </tr>
           </table>
           <div style="margin-top: 24px; padding: 16px; background: #fff7ed; border-radius: 8px; border-left: 4px solid #FF3C00;">
-            <p style="margin: 0; font-size: 13px; color: #7c2d12;">Reply directly to <strong>${data.email}</strong> or call <strong>${data.phone}</strong> to follow up.</p>
+            <p style="margin: 0; font-size: 13px; color: #7c2d12;">Reply directly to <strong>${email}</strong> or call <strong>${phone}</strong> to follow up.</p>
           </div>
         </div>
         <div style="background: #f8fafc; padding: 16px 32px; border-top: 1px solid #e2e8f0;">
