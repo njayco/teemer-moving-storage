@@ -321,9 +321,10 @@ export async function sendContactNotificationEmail(data: {
     </html>
   `;
 
+  const subjectName = data.name.replace(/[\r\n\t]+/g, " ").trim();
   return sendEmail({
     to: ADMIN_EMAIL,
-    subject: `New Contact Form Submission — ${data.name}`,
+    subject: `New Contact Form Submission — ${subjectName}`,
     html,
     emailType: "contact_form",
   });
