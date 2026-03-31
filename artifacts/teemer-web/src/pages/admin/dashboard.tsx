@@ -1145,7 +1145,7 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
                 disabled={updating || job.invoiceStatus === "paid"}
                 className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50"
               >
-                <Receipt className="w-4 h-4 text-blue-500" /> {job.invoiceStatus === "sent" ? "Resend Invoice" : "Send Invoice"}
+                <Receipt className="w-4 h-4 text-blue-500" /> {job.status === "finished" || job.status === "awaiting_remaining_balance" ? (job.invoiceStatus === "sent" ? "Resend Balance Invoice" : "Send Balance Invoice") : (job.invoiceStatus === "sent" ? "Resend Invoice" : "Send Invoice")}
               </button>
               <button
                 onClick={handleEmailCustomer}

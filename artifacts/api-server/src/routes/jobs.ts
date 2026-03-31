@@ -541,6 +541,19 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
           });
         }
 
+        if (jobRow.status === "complete") {
+          const [existingInvoice] = await tx.select().from(invoicesTable)
+            .where(eq(invoicesTable.jobId, jobRow.id)).limit(1);
+          if (existingInvoice) {
+            await tx.update(invoicesTable).set({
+              status: "paid",
+              paidAt: new Date(),
+              remainingBalanceDue: 0,
+              updatedAt: new Date(),
+            }).where(eq(invoicesTable.id, existingInvoice.id));
+          }
+        }
+
         return [jobRow];
       });
     } else {
