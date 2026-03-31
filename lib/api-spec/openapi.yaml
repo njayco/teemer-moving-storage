@@ -1509,6 +1509,9 @@ components:
           type: number
         remainingBalance:
           type: number
+        estimatedHours:
+          type: number
+          description: Actual hours worked (used to recalculate invoice on finished jobs)
 
     # ─── Captain ─────────────────────────────────────────────────────────────
     CaptainQuoteData:

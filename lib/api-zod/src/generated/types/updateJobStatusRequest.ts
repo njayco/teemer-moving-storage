@@ -19,4 +19,6 @@ export interface UpdateJobStatusRequest {
   discounts?: number;
   finalTotal?: number;
   remainingBalance?: number;
+  /** Actual hours worked (used to recalculate invoice on finished jobs) */
+  estimatedHours?: number;
 }

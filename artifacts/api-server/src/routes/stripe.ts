@@ -193,58 +193,71 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         return;
       }
 
-      const quoteId = session.metadata?.quoteId;
-      if (!quoteId || isNaN(parseInt(quoteId, 10))) {
-        req.log.error({ metadata: session.metadata }, "Invalid or missing quoteId in checkout session metadata");
-        res.status(400).json({ error: "Invalid quoteId in session metadata" });
-        return;
-      }
-
-      const parsedQuoteId = parseInt(quoteId, 10);
-      const result = await finalizeDeposit({
-        parsedQuoteId,
-        stripeSessionId: session.id,
-        logger: req.log,
-      });
-
-      if (result.alreadyProcessed) {
-        req.log.info({ quoteId }, "Quote already processed, webhook ensured side effects present");
-      }
-
-      const jobIdMeta = session.metadata?.jobId;
       const paymentType = session.metadata?.paymentType;
-      if (paymentType === "balance_payment" && jobIdMeta) {
+
+      if (paymentType === "balance_payment") {
+        const jobIdMeta = session.metadata?.jobId;
+        if (!jobIdMeta || isNaN(parseInt(jobIdMeta, 10))) {
+          req.log.error({ metadata: session.metadata }, "Balance payment webhook missing valid jobId");
+          res.json({ received: true });
+          return;
+        }
         const parsedJobId = parseInt(jobIdMeta, 10);
-        if (!isNaN(parsedJobId)) {
-          const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, parsedJobId)).limit(1);
-          if (job && (job.status === "finished" || job.status === "awaiting_remaining_balance")) {
+        const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, parsedJobId)).limit(1);
+        if (job && (job.status === "finished" || job.status === "awaiting_remaining_balance")) {
+          const existingPayment = await db.select().from(paymentsTable)
+            .where(and(eq(paymentsTable.jobId, job.id), eq(paymentsTable.reference, session.id)))
+            .limit(1);
+          if (existingPayment.length === 0) {
             const amountPaid = (session.amount_total ?? 0) / 100;
-            await db.insert(paymentsTable).values({
-              jobId: job.id,
-              amount: amountPaid,
-              method: "stripe",
-              type: "remaining_balance",
-              reference: session.id,
-            });
-            await db.update(jobsTable).set({
-              status: "complete",
-              completedAt: new Date(),
-              paymentStatus: "paid",
-              remainingBalance: 0,
-              updatedAt: new Date(),
-            }).where(eq(jobsTable.id, job.id));
-            const [existingInvoice] = await db.select().from(invoicesTable)
-              .where(eq(invoicesTable.jobId, job.id)).limit(1);
-            if (existingInvoice) {
-              await db.update(invoicesTable).set({
-                status: "paid",
-                paidAt: new Date(),
-                remainingBalanceDue: 0,
+            await db.transaction(async (tx) => {
+              await tx.insert(paymentsTable).values({
+                jobId: job.id,
+                amount: amountPaid,
+                method: "stripe",
+                type: "remaining_balance",
+                reference: session.id,
+              });
+              await tx.update(jobsTable).set({
+                status: "complete",
+                completedAt: new Date(),
+                paymentStatus: "paid",
+                remainingBalance: 0,
                 updatedAt: new Date(),
-              }).where(eq(invoicesTable.id, existingInvoice.id));
-            }
+              }).where(eq(jobsTable.id, job.id));
+              const [existingInvoice] = await tx.select().from(invoicesTable)
+                .where(eq(invoicesTable.jobId, job.id)).limit(1);
+              if (existingInvoice) {
+                await tx.update(invoicesTable).set({
+                  status: "paid",
+                  paidAt: new Date(),
+                  remainingBalanceDue: 0,
+                  updatedAt: new Date(),
+                }).where(eq(invoicesTable.id, existingInvoice.id));
+              }
+            });
             req.log.info({ jobId: job.id, amount: amountPaid }, "Balance payment received via Stripe — job auto-completed");
+          } else {
+            req.log.info({ jobId: job.id }, "Balance payment already processed for this session");
           }
+        }
+      } else {
+        const quoteId = session.metadata?.quoteId;
+        if (!quoteId || isNaN(parseInt(quoteId, 10))) {
+          req.log.error({ metadata: session.metadata }, "Invalid or missing quoteId in checkout session metadata");
+          res.status(400).json({ error: "Invalid quoteId in session metadata" });
+          return;
+        }
+
+        const parsedQuoteId = parseInt(quoteId, 10);
+        const result = await finalizeDeposit({
+          parsedQuoteId,
+          stripeSessionId: session.id,
+          logger: req.log,
+        });
+
+        if (result.alreadyProcessed) {
+          req.log.info({ quoteId }, "Quote already processed, webhook ensured side effects present");
         }
       }
     }
