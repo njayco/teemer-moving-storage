@@ -1060,13 +1060,13 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
             </div>
           </div>
 
-          {job.status === "finished" && (
+          {(job.status === "finished" || job.status === "awaiting_remaining_balance") && (
             <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <Receipt className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" />
                 <div className="flex-1">
-                  <div className="font-bold text-yellow-800 text-sm">Job Finished — Balance Due</div>
-                  <div className="text-xs text-yellow-700 mt-0.5">Captain marked this job complete. Review actual hours, then send the balance invoice to collect payment.</div>
+                  <div className="font-bold text-yellow-800 text-sm">{job.status === "finished" ? "Job Finished — Balance Due" : "Invoice Sent — Awaiting Payment"}</div>
+                  <div className="text-xs text-yellow-700 mt-0.5">{job.status === "finished" ? "Captain marked this job complete. Review actual hours, then send the balance invoice to collect payment." : "Balance invoice has been sent. Adjust hours if needed before payment is collected."}</div>
                   <div className="mt-2 text-lg font-bold text-yellow-900">
                     ${(job.remainingBalance || 0).toFixed(2)} remaining
                   </div>
@@ -1096,7 +1096,7 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
           <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Crew</span>
-              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · {job.status === "finished" ? "" : "~"}{job.status === "finished" ? (job.estimatedHours || qd?.estimatedHours || "—") : (qd?.estimatedHours || job.estimatedHours || "—")} hrs{job.status === "finished" ? " actual" : " est."}</span>
+              <span className="font-medium">{qd?.crewSize || job.crewSize || "—"} movers · {(job.status === "finished" || job.status === "awaiting_remaining_balance") ? "" : "~"}{(job.status === "finished" || job.status === "awaiting_remaining_balance") ? (job.estimatedHours || qd?.estimatedHours || "—") : (qd?.estimatedHours || job.estimatedHours || "—")} hrs{(job.status === "finished" || job.status === "awaiting_remaining_balance") ? " actual" : " est."}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">{job.status === "finished" ? "Final Total" : "Total Estimate"}</span>
