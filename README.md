@@ -8,9 +8,13 @@ A full-featured web application for **Teemer Moving & Storage Corp.** (Long Beac
 
 ### Marketing Website
 - **Landing Page** — Dual-entry splash with quick access to the information site and booking platform
-- **Company Pages** — About, Services, Service Area, Photo Gallery, FAQ, Contact Form
-- **Multi-Step Quote Form** — Room-by-room inventory selection, piano moving options, residential/commercial toggle, AI-powered box estimation, real-time pricing with crew/hour calculations
-- **Deposit Payment** — Stripe Checkout integration for upfront deposits (under $1k = $50 flat; over $1k = 50%)
+- **Company Pages** — About, Services, Service Area, Photo Gallery (15 items), FAQ (15 questions), Contact Form
+- **Leadership Profiles** — CEO Alan Teemer and CTO Najee Jeremiah bios with photos on the About page
+- **Award Recognition** — Long Island Choice Awards 2025 (Best Moving Services) featured on About page
+- **Real Company Photos** — All info pages (About, Services, Service Area, Contact) feature actual crew and job photos
+- **Multi-Step Quote Form** — Room-by-room inventory selection, piano moving options, junk removal, residential/commercial toggle, AI-powered box estimation, real-time pricing with crew/hour calculations
+- **Deposit Payment** — Stripe Checkout integration for upfront deposits (under $1k = $50 flat; $1k+ = 50%)
+- **Coupon Support** — SANDV10 (10% discount for seniors & veterans)
 
 ### Customer Experience
 - **Customer Portal** — Request a move and track existing jobs
@@ -41,10 +45,22 @@ A full-featured web application for **Teemer Moving & Storage Corp.** (Long Beac
 - **Signature Storage** — Base64 PNG signature data, timestamp, IP address for audit trail
 - **Admin Visibility** — Contract status badges, signed signature image preview, PDF download
 
+### Contact & Communication
+- **Contact Form** — Name, email, phone, message submitted to database
+- **Admin Email Notification** — Every contact form submission triggers a branded HTML email to `alan@teemermoving.com` with full details and a quick-reply CTA
+- **Email Logging** — All transactional emails logged in `email_logs` table with type and delivery status
+
+### SEO & Discoverability
+- **Open Graph / Twitter Cards** — Full meta tags with `social-preview.jpg` (1200×630) for rich previews on WhatsApp, iMessage, Twitter, Facebook
+- **JSON-LD Structured Data** — LocalBusiness schema for Google rich results
+- **Sitemap** — `/sitemap.xml` covering all 9 public pages
+- **Robots.txt** — Standard crawl permissions
+
 ### Pricing Engine
 - **Residential** — Hourly rate × crew size × estimated hours, with stair/travel/packing surcharges
 - **Commercial** — MAX(2× residential rate, tier minimum) where tiers are: small $1k, medium $3k, large $6k, enterprise $10k
 - **Piano Surcharge** — Upright ground $350, upright stairs $500, grand $800
+- **Junk Removal** — Small $200, Medium $375, Large $575, Full Truck $750
 - **Weekend Surcharge** — 5% fee on weekend moves
 
 ---
@@ -85,11 +101,11 @@ teemer-moving-storage/
 │   │   │   │   ├── jobs.ts         # Job management + status updates
 │   │   │   │   ├── contracts.ts    # Digital contract generation & signing
 │   │   │   │   ├── tracking.ts     # Public move tracking
-│   │   │   │   ├── contact.ts      # Contact form submissions
+│   │   │   │   ├── contact.ts      # Contact form → DB + admin email
 │   │   │   │   └── email-logs.ts   # Email history
 │   │   │   └── lib/
 │   │   │       ├── contract-pdf.ts   # PDFKit contract generator
-│   │   │       ├── email-service.ts  # Resend email functions
+│   │   │       ├── email-service.ts  # Resend email functions (incl. contact notification)
 │   │   │       ├── email-templates.ts# Branded HTML email templates
 │   │   │       ├── pricing-engine.ts # Quote pricing calculations
 │   │   │       ├── stripe-client.ts  # Stripe integration
@@ -97,6 +113,13 @@ teemer-moving-storage/
 │   │   └── build.mjs          # esbuild config
 │   │
 │   └── teemer-web/            # React frontend
+│       ├── public/
+│       │   ├── images/        # Company photos (crew, jobs, awards)
+│       │   ├── alan-teemer.jpeg    # CEO profile photo
+│       │   ├── najee-jeremiah.jpg  # CTO profile photo
+│       │   ├── social-preview.jpg  # OG/Twitter card image (1200×630)
+│       │   ├── robots.txt
+│       │   └── sitemap.xml
 │       └── src/
 │           ├── pages/
 │           │   ├── info/      # Marketing pages (home, about, services, etc.)
@@ -207,6 +230,11 @@ teemer-moving-storage/
 | GET | `/api/invoices/:jobId` | Get invoice |
 | PATCH | `/api/invoices/:jobId` | Save/update invoice |
 
+### Contact
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/contact` | Submit contact form → saves to DB + emails admin |
+
 ---
 
 ## Getting Started
@@ -260,12 +288,23 @@ pnpm --filter @workspace/teemer-web run dev
 
 ## Business Rules
 
-- **Deposits**: Under $1,000 total → $50 flat deposit; over $1,000 → 50% deposit
+- **Deposits**: Under $1,000 total → $50 flat deposit; $1,000+ → 50% deposit
 - **Mark Complete**: Blocked unless remaining balance is $0 or payment marked as paid/paid_cash
 - **Piano Moving**: Surcharge auto-applied — Upright ground $350, Upright stairs $500, Grand $800
+- **Junk Removal**: Small $200, Medium $375, Large $575, Full Truck $750
 - **Commercial Pricing**: MAX(2× residential rate, tier minimum based on company size)
 - **Weekend Moves**: 5% surcharge
 - **Cancellation**: $75 late fee without proper notice (24hr for last-minute, 2 weeks for scheduled)
+- **Coupon SANDV10**: 10% discount for seniors & veterans (applied at quote stage)
+
+---
+
+## Leadership
+
+| Name | Title |
+|------|-------|
+| Alan Teemer | Chief Executive Officer |
+| Najee Khaleel Jeremiah | Chief Technology Officer |
 
 ---
 
@@ -274,7 +313,8 @@ pnpm --filter @workspace/teemer-web run dev
 **Teemer Moving & Storage Corp.**
 Long Beach, NY 11561
 Phone: (516) 269-3724
-Email: alan@teemermoving.com
+Public Email: info@teemermoving.com
+Admin Email: alan@teemermoving.com
 
 Service Areas: Long Beach, Nassau County, Suffolk County, Manhattan, Queens, Brooklyn
 
