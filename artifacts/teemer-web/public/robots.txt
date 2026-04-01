@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://teemermoving.replit.app/sitemap.xml
+Sitemap: https://teemermoving.com/sitemap.xml
