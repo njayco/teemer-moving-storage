@@ -1,5 +1,34 @@
 import Stripe from 'stripe';
 
+async function fetchStripeConnection(
+  hostname: string,
+  token: string,
+  environment: string
+): Promise<{ publishable: string; secret: string } | null> {
+  const url = new URL(`https://${hostname}/api/v2/connection`);
+  url.searchParams.set('include_secrets', 'true');
+  url.searchParams.set('connector_names', 'stripe');
+  url.searchParams.set('environment', environment);
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      'Accept': 'application/json',
+      'X-Replit-Token': token
+    }
+  });
+
+  const data = await response.json() as {
+    items?: Array<{ settings: { publishable: string; secret: string } }>;
+  };
+
+  const connectionSettings = data.items?.[0];
+  if (!connectionSettings?.settings?.publishable || !connectionSettings?.settings?.secret) {
+    return null;
+  }
+
+  return connectionSettings.settings;
+}
+
 async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
   if (process.env.STRIPE_SECRET_KEY) {
     return {
@@ -19,35 +48,22 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
     throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY or connect via Replit Stripe connector.');
   }
 
-  const connectorName = 'stripe';
   const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
   const targetEnvironment = isProduction ? 'production' : 'development';
 
-  const url = new URL(`https://${hostname}/api/v2/connection`);
-  url.searchParams.set('include_secrets', 'true');
-  url.searchParams.set('connector_names', connectorName);
-  url.searchParams.set('environment', targetEnvironment);
+  let settings = await fetchStripeConnection(hostname, xReplitToken, targetEnvironment);
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept': 'application/json',
-      'X-Replit-Token': xReplitToken
-    }
-  });
+  if (!settings && isProduction) {
+    settings = await fetchStripeConnection(hostname, xReplitToken, 'development');
+  }
 
-  const data = await response.json() as {
-    items?: Array<{ settings: { publishable: string; secret: string } }>;
-  };
-
-  const connectionSettings = data.items?.[0];
-
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
-    throw new Error(`Stripe ${targetEnvironment} connection not found`);
+  if (!settings) {
+    throw new Error(`Stripe connection not found for any environment`);
   }
 
   return {
-    publishableKey: connectionSettings.settings.publishable,
-    secretKey: connectionSettings.settings.secret,
+    publishableKey: settings.publishable,
+    secretKey: settings.secret,
   };
 }
 
