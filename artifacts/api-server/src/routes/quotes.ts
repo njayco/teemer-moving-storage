@@ -27,6 +27,8 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
     materialsSubtotal: q.materialsSubtotal,
     pianoSurcharge: q.pianoSurcharge ?? 0,
     commercialAdjustment: q.commercialAdjustment ?? 0,
+    distanceMiles: q.distanceMiles ?? 0,
+    distanceSurcharge: Math.round((q.distanceMiles ?? 0) * 3.00 * 100) / 100,
     totalEstimate: q.totalEstimate,
     depositAmount: q.depositAmount,
     // Legacy compat
@@ -336,6 +338,7 @@ router.post("/quotes", async (req, res) => {
         isCommercial,
         commercialBusinessType: body.commercialBusinessType || undefined,
         commercialSizeTier: body.commercialSizeTier || undefined,
+        distanceMiles: Number(body.distanceMiles ?? 0),
       });
       totalEstimate = pricing.totalEstimate;
       depositAmount = pricing.depositAmount;
@@ -406,6 +409,8 @@ router.post("/quotes", async (req, res) => {
         junkConstructionDebris: isJunkRemoval ? junkFields.constructionDebris : false,
         junkSameDay: isJunkRemoval ? junkFields.sameDay : false,
         junkHazardousItems: isJunkRemoval ? junkFields.hazardousItems : false,
+
+        distanceMiles: isJunkRemoval ? 0 : Number(body.distanceMiles ?? 0),
 
         ...pricingFields,
 

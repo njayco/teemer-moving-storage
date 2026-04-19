@@ -86,6 +86,7 @@ const step1Schema = z.object({
   secondStop: z.string().optional(),
   storageNeeded: z.boolean().default(false),
   additionalNotes: z.string().optional(),
+  distanceMiles: z.coerce.number().min(0).optional(),
 });
 type Step1Values = z.infer<typeof step1Schema>;
 
@@ -486,6 +487,14 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
                   <span className="font-semibold text-slate-800">{fmt(q.pianoSurcharge)}</span>
                 </div>
               )}
+              {((q as Record<string, unknown>).distanceSurcharge as number ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-primary" /> Long-Distance Travel ({(q as Record<string, unknown>).distanceMiles as number} mi × $3.00/mi)
+                  </span>
+                  <span className="font-semibold text-slate-800">{fmt((q as Record<string, unknown>).distanceSurcharge as number)}</span>
+                </div>
+              )}
               {(q.commercialAdjustment ?? 0) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600 flex items-center gap-1.5">
@@ -742,6 +751,7 @@ export default function QuotePage() {
       originAddress: step1Data.pickupAddress || "",
       destinationAddress: step1Data.dropoffAddress || "",
       moveType: "local" as const,
+      distanceMiles: step1Data.distanceMiles ? Number(step1Data.distanceMiles) : 0,
     };
 
     const payload = isJunkRemoval
@@ -1009,6 +1019,24 @@ export default function QuotePage() {
                                 className={inputCls(!!step1Errors.dropoffAddress)}
                               />
                               {step1Errors.dropoffAddress && <p className="text-red-500 text-xs mt-1.5">{step1Errors.dropoffAddress.message}</p>}
+                            </div>
+
+                            <div>
+                              <label className={labelCls()}>
+                                Distance to Drop-off <span className="text-slate-400 font-normal">(miles, optional)</span>
+                              </label>
+                              <div className="relative">
+                                <input
+                                  {...register("distanceMiles")}
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  placeholder="e.g. 25"
+                                  className={inputCls(false)}
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium pointer-events-none">mi</span>
+                              </div>
+                              <p className="text-xs text-slate-500 mt-1.5">Long-distance travel charged at <strong>$3.00 per mile</strong> (one-way). Leave blank for local moves.</p>
                             </div>
 
                             <div>

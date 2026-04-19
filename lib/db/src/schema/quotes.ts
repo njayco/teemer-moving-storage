@@ -67,6 +67,9 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   junkBasePrice: real("junk_base_price"),
   junkAddonsTotal: real("junk_addons_total"),
 
+  // Distance (one-way miles to drop-off)
+  distanceMiles: real("distance_miles").default(0),
+
   // Calculated pricing
   crewSize: integer("crew_size"),
   hourlyRate: real("hourly_rate"),

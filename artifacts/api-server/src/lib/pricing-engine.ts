@@ -16,6 +16,8 @@ export interface PricingInput {
   isCommercial?: boolean;
   commercialBusinessType?: string;
   commercialSizeTier?: "small" | "medium" | "large" | "enterprise";
+  // Distance surcharge
+  distanceMiles?: number;
 }
 
 export interface PricingResult {
@@ -26,6 +28,7 @@ export interface PricingResult {
   materialsSubtotal: number;
   pianoSurcharge: number;
   commercialAdjustment: number;
+  distanceSurcharge: number;
   totalEstimate: number;
   depositAmount: number;
   breakdown: {
@@ -240,6 +243,11 @@ export function calculatePricing(input: PricingInput): PricingResult {
     totalEstimate = commercialTotal;
   }
 
+  // Distance surcharge: $3.00 per mile (one-way to drop-off)
+  const distanceMiles = Math.max(0, input.distanceMiles ?? 0);
+  const distanceSurcharge = Math.round(distanceMiles * 3.00 * 100) / 100;
+  totalEstimate += distanceSurcharge;
+
   totalEstimate = Math.round(totalEstimate * 100) / 100;
   const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5 * 100) / 100;
 
@@ -251,6 +259,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     materialsSubtotal: Math.round(materialsSubtotal * 100) / 100,
     pianoSurcharge,
     commercialAdjustment: Math.round(commercialAdjustment * 100) / 100,
+    distanceSurcharge,
     totalEstimate,
     depositAmount,
     breakdown: {
