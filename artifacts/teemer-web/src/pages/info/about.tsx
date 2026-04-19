@@ -51,8 +51,11 @@ export default function AboutPage() {
                   <span className="text-primary font-bold text-sm uppercase tracking-widest">Recognition</span>
                 </div>
                 <h2 className="text-2xl md:text-3xl font-bold text-secondary mb-4">Award-Winning Service</h2>
-                <p className="text-slate-600 leading-relaxed">
+                <p className="text-slate-600 leading-relaxed mb-4">
                   Proud winner of the <strong>Long Island Choice Awards 2025</strong> — Best Moving Services, presented by the Herald and PSEG Long Island. This recognition reflects our commitment to exceptional service and community trust.
+                </p>
+                <p className="text-slate-600 leading-relaxed">
+                  We are also honored to receive the <strong>2026 MLK Day Long Beach Community Leadership &amp; Entrepreneurship Award</strong> in recognition of outstanding entrepreneurship, community investment, and steadfast leadership.
                 </p>
               </div>
               <div className="h-64 md:h-auto">
@@ -100,8 +103,11 @@ export default function AboutPage() {
                   <p className="text-slate-700 leading-relaxed text-base mb-6">
                     Alan Teemer is the CEO of Teemer Moving and Storage Corp., where he leads with a strong commitment to reliability, efficiency, and customer satisfaction. Originally from Long Beach, Alan built his foundation in business through his studies at Nassau Community College and Alfred University, where he majored in Business.
                   </p>
-                  <p className="text-slate-700 leading-relaxed text-base mb-8">
+                  <p className="text-slate-700 leading-relaxed text-base mb-6">
                     Driven by ambition and a passion for growth, Alan has developed a reputation for leadership and dedication in the moving and storage industry. He values discipline both professionally and personally, and is deeply family-oriented — grounding his work ethic and long-term vision in the importance of building a legacy for those closest to him.
+                  </p>
+                  <p className="text-slate-700 leading-relaxed text-base mb-8">
+                    As Teemer Moving continues to grow, Alan has become a respected figure in the moving and storage industry, known for his community focus, hands-on leadership, and commitment to raising the standard of service for customers across Long Island and New York City.
                   </p>
 
                   <div className="grid grid-cols-2 gap-4">
