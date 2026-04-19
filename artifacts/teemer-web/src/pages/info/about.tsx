@@ -3,6 +3,17 @@ import { companyInfo } from "@/lib/mock-data";
 import { Link } from "wouter";
 import { GraduationCap, MapPin, Dumbbell, Heart, Award, Cpu, Lightbulb, Users } from "lucide-react";
 
+const AWARD_IMAGES = [
+  {
+    src: `${import.meta.env.BASE_URL}images/IMG_2975.jpg`,
+    alt: "Teemer Moving & Storage Corp. Long Island Choice Awards 2025 - Best Moving Services",
+  },
+  {
+    src: `${import.meta.env.BASE_URL}images/ChatGPT_Image_Apr_19,_2026_at_06_05_39_PM_1776636954805.png`,
+    alt: "2026 MLK Day Long Beach Community Leadership and Entrepreneurship Award presented to Alan Teemer",
+  },
+];
+
 export default function AboutPage() {
   return (
     <InfoLayout>
@@ -58,12 +69,21 @@ export default function AboutPage() {
                   We are also honored to receive the <strong>2026 MLK Day Long Beach Community Leadership &amp; Entrepreneurship Award</strong> in recognition of outstanding entrepreneurship, community investment, and steadfast leadership.
                 </p>
               </div>
-              <div className="h-64 md:h-auto">
-                <img
-                  src={`${import.meta.env.BASE_URL}images/IMG_2975.jpg`}
-                  alt="Teemer Moving & Storage Corp. Long Island Choice Awards 2025 - Best Moving Services"
-                  className="w-full h-full object-cover object-center"
-                />
+              <div className="relative h-64 md:h-auto overflow-hidden">
+                <div className="absolute inset-0 animate-[awardSlide_8s_ease-in-out_infinite]">
+                  <img
+                    src={AWARD_IMAGES[0].src}
+                    alt={AWARD_IMAGES[0].alt}
+                    className="w-full h-full object-cover object-center"
+                  />
+                </div>
+                <div className="absolute inset-0 opacity-0 animate-[awardSlide_8s_ease-in-out_infinite_4s]">
+                  <img
+                    src={AWARD_IMAGES[1].src}
+                    alt={AWARD_IMAGES[1].alt}
+                    className="w-full h-full object-cover object-center"
+                  />
+                </div>
               </div>
             </div>
           </div>

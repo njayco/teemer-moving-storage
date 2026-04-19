@@ -9,7 +9,7 @@ const TEEMER_PHOTOS = [
   { src: "/images/IMG_1970.jpg", alt: "Teemer crew unloading and organizing belongings" },
   { src: "/images/IMG_2975.jpg", alt: "Teemer professionals handling a Long Island move" },
   { src: "/images/award-trophy.jpg", alt: "Long Island Press Award trophy" },
-  { src: "/images/ChatGPT_Image_Apr_19,_2026_at_06_05_39_PM_1776636694487.png", alt: "2026 MLK Day Long Beach Community Leadership and Entrepreneurship Award presented to Alan Teemer" },
+  { src: "/images/ChatGPT_Image_Apr_19,_2026_at_06_05_39_PM_1776636954805.png", alt: "2026 MLK Day Long Beach Community Leadership and Entrepreneurship Award presented to Alan Teemer" },
   { src: "/images/IMG_3913.jpg", alt: "Teemer team completing a full home relocation" },
   { src: "/images/IMG_4015.jpg", alt: "Teemer movers stacking and loading boxes with care" },
   { src: "/images/IMG_4047.jpg", alt: "Teemer crew performing a commercial office move" },
