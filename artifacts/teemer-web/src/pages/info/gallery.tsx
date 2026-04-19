@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { InfoLayout } from "@/components/layout/info-layout";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const TEEMER_PHOTOS = [
   { src: "/images/IMG_1914.jpg", alt: "Teemer crew carefully loading furniture into the truck" },
@@ -11,7 +9,7 @@ const TEEMER_PHOTOS = [
   { src: "/images/IMG_1970.jpg", alt: "Teemer crew unloading and organizing belongings" },
   { src: "/images/IMG_2975.jpg", alt: "Teemer professionals handling a Long Island move" },
   { src: "/images/award-trophy.jpg", alt: "Long Island Press Award trophy" },
-  { src: "/images/ChatGPT_Image_Apr_19,_2026_at_06_05_39_PM_1776636954805.png", alt: "2026 MLK Day Long Beach Community Leadership and Entrepreneurship Award presented to Alan Teemer" },
+  { src: "/images/award_for_teemer_1776637916733.jpg", alt: "2026 MLK Day Long Beach Community Leadership and Entrepreneurship Award presented to Alan Teemer" },
   { src: "/images/IMG_3913.jpg", alt: "Teemer team completing a full home relocation" },
   { src: "/images/IMG_4015.jpg", alt: "Teemer movers stacking and loading boxes with care" },
   { src: "/images/IMG_4047.jpg", alt: "Teemer crew performing a commercial office move" },
@@ -21,8 +19,6 @@ const TEEMER_PHOTOS = [
 ];
 
 export default function GalleryPage() {
-  const [activePhoto, setActivePhoto] = useState<(typeof TEEMER_PHOTOS)[number] | null>(null);
-
   return (
     <InfoLayout>
       <div className="bg-white py-16 md:py-24">
@@ -34,12 +30,7 @@ export default function GalleryPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {TEEMER_PHOTOS.map((photo, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setActivePhoto(photo)}
-                className="relative aspect-video rounded-2xl overflow-hidden group text-left"
-              >
+              <div key={idx} className="relative aspect-video rounded-2xl overflow-hidden group">
                 <img 
                   src={photo.src} 
                   alt={photo.alt}
@@ -48,24 +39,11 @@ export default function GalleryPage() {
                 <div className="absolute inset-0 bg-secondary/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <span className="text-white font-bold tracking-wide">View Image</span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>
       </div>
-
-      <Dialog open={!!activePhoto} onOpenChange={(open) => !open && setActivePhoto(null)}>
-        <DialogContent className="max-w-5xl w-[95vw] p-3 sm:p-4 bg-white border-0">
-          <DialogTitle className="sr-only">Gallery image preview</DialogTitle>
-          {activePhoto && (
-            <img
-              src={activePhoto.src}
-              alt={activePhoto.alt}
-              className="w-full h-auto max-h-[85vh] object-contain rounded-lg"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </InfoLayout>
   );
 }
