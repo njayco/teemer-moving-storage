@@ -81,8 +81,20 @@ const JOB_STATUS_OPTIONS = [
   "at_storage", "returning", "delayed", "finished", "awaiting_remaining_balance", "paid_in_cash", "complete", "cancelled",
 ];
 
+function isToday(dateStr?: string | null): boolean {
+  if (!dateStr) return false;
+  const today = new Date();
+  const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+  return (
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate()
+  );
+}
+
 const FILTER_TABS = [
   { value: "all", label: "All" },
+  { value: "same_day", label: "Same Day" },
   { value: "pending", label: "Pending" },
   { value: "scheduled", label: "Scheduled" },
   { value: "captain_assigned", label: "Captain Assigned" },
@@ -1328,13 +1340,19 @@ function JobsTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  const { data: jobs = [], isLoading } = useListJobs(
+  const isSameDayFilter = statusFilter === "same_day";
+
+  const { data: rawJobs = [], isLoading } = useListJobs(
     {
-      status: statusFilter !== "all" ? statusFilter : undefined,
+      status: !isSameDayFilter && statusFilter !== "all" ? statusFilter : undefined,
       search: searchQuery || undefined,
     },
-    { query: { queryKey: ["/api/jobs", statusFilter, searchQuery] } },
+    { query: { queryKey: ["/api/jobs", isSameDayFilter ? "all" : statusFilter, searchQuery] } },
   );
+
+  const jobs = isSameDayFilter
+    ? rawJobs.filter((j) => isToday(j.quoteData?.moveDate ?? j.dateTime))
+    : rawJobs;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1434,9 +1452,16 @@ function JobsTab() {
                   </td>
                   <td className="px-4 py-3 text-slate-600 text-xs">{job.assignedMover || "—"}</td>
                   <td className="px-4 py-3 text-slate-600 text-xs">
-                    {job.quoteData?.moveDate
-                      ? new Date(job.quoteData.moveDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                      : job.dateTime || "—"}
+                    <div className="flex items-center gap-1.5">
+                      {job.quoteData?.moveDate
+                        ? new Date(job.quoteData.moveDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                        : job.dateTime || "—"}
+                      {isToday(job.quoteData?.moveDate ?? job.dateTime) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 leading-none">
+                          Today
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-xs">
                     <div className="text-slate-600 truncate max-w-[150px]">{job.quoteData?.pickupAddress || job.pickupLocation}</div>

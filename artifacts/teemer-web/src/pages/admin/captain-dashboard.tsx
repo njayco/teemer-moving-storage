@@ -261,12 +261,17 @@ function JobCard({ job, onUpdate }: { job: CaptainJob; onUpdate: () => void }) {
         <div className="p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-xs font-mono text-slate-400">{job.jobId}</span>
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${statusCfg.bg} ${statusCfg.color}`}>
                   <StatusIcon className="w-3 h-3" />
                   {statusCfg.label}
                 </span>
+                {isToday(moveDate) && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">
+                    Today
+                  </span>
+                )}
               </div>
               <h3 className="font-bold text-secondary text-lg truncate">{job.customer || job.quoteData?.contactName || "Customer"}</h3>
             </div>
@@ -473,7 +478,13 @@ export default function CaptainDashboard() {
 
   const completedJobs = jobs.filter((j) => j.status === "complete" || j.status === "cancelled");
 
-  const displayJobs = activeTab === "today" ? [...activeJobs, ...todayJobs.filter((j) => !activeJobs.find((a) => a.id === j.id))] : activeTab === "upcoming" ? upcomingJobs : completedJobs;
+  const todayActiveJobs = activeJobs.filter((j) => isToday(j.quoteData?.moveDate || j.dateTime));
+  const nonTodayActiveJobs = activeJobs.filter((j) => !isToday(j.quoteData?.moveDate || j.dateTime));
+  const todayPendingJobs = todayJobs.filter((j) => !activeJobs.find((a) => a.id === j.id));
+
+  const displayJobs = activeTab === "today"
+    ? [...todayActiveJobs, ...todayPendingJobs, ...nonTodayActiveJobs]
+    : activeTab === "upcoming" ? upcomingJobs : completedJobs;
 
   const tabs = [
     { key: "today" as const, label: "Today", count: todayJobs.length + activeJobs.filter((a) => !todayJobs.find((t) => t.id === a.id)).length },
