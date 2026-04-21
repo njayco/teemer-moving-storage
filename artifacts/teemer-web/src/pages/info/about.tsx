@@ -12,6 +12,10 @@ const AWARD_IMAGES = [
     src: `${import.meta.env.BASE_URL}images/ChatGPT_Image_Apr_19,_2026_at_06_05_39_PM_1776636954805.png`,
     alt: "2026 MLK Day Long Beach Community Leadership and Entrepreneurship Award presented to Alan Teemer",
   },
+  {
+    src: `${import.meta.env.BASE_URL}images/mlk_award_2026_real.jpg`,
+    alt: "2026 MLK Day Long Beach Community Leadership & Entrepreneurship Award certificate presented to Alan Teemer — January 19th, 2026",
+  },
 ];
 
 export default function AboutPage() {
@@ -70,20 +74,23 @@ export default function AboutPage() {
                 </p>
               </div>
               <div className="relative h-64 md:h-auto overflow-hidden">
-                <div className="absolute inset-0 animate-[awardSlide_8s_ease-in-out_infinite]">
-                  <img
-                    src={AWARD_IMAGES[0].src}
-                    alt={AWARD_IMAGES[0].alt}
-                    className="w-full h-full object-cover object-center"
-                  />
-                </div>
-                <div className="absolute inset-0 opacity-0 animate-[awardSlide_8s_ease-in-out_infinite_4s]">
-                  <img
-                    src={AWARD_IMAGES[1].src}
-                    alt={AWARD_IMAGES[1].alt}
-                    className="w-full h-full object-cover object-center"
-                  />
-                </div>
+                {AWARD_IMAGES.map((img, i) => (
+                  <div
+                    key={img.src}
+                    className="absolute inset-0"
+                    style={{
+                      animation: `awardSlide 12s ease-in-out infinite`,
+                      animationDelay: `${i * 4}s`,
+                      opacity: i === 0 ? undefined : 0,
+                    }}
+                  >
+                    <img
+                      src={img.src}
+                      alt={img.alt}
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>

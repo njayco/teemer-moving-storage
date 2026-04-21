@@ -147,3 +147,9 @@
     @apply font-bold tracking-tight text-secondary;
   }
 }
+
+/* Award slideshow — 3 images × 4s each = 12s cycle */
+@keyframes awardSlide {
+  0%, 28%  { opacity: 1; }
+  33%, 100% { opacity: 0; }
+}

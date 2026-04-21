@@ -103,6 +103,7 @@ interface HomeSize {
 
 
 const ARRIVAL_WINDOWS = [
+  "Same Day",
   "7:00 AM – 9:00 AM",
   "8:00 AM – 10:00 AM",
   "9:00 AM – 11:00 AM",
@@ -975,6 +976,21 @@ export default function QuotePage() {
                             className={inputCls(!!step1Errors.email)}
                           />
                           {step1Errors.email && <p className="text-red-500 text-xs mt-1.5">{step1Errors.email.message}</p>}
+                        </div>
+
+                        {/* Same Day quick-select */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const today = new Date().toISOString().split("T")[0];
+                              setStep1Value("moveDate", today, { shouldValidate: true });
+                              setStep1Value("arrivalTimeWindow", "Same Day");
+                            }}
+                            className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-primary/40 bg-primary/5 text-primary font-extrabold text-xs uppercase tracking-widest py-2.5 rounded-xl hover:bg-primary/10 hover:border-primary/70 transition-all"
+                          >
+                            ⚡ Same Day Move — Book for Today
+                          </button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

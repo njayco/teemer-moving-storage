@@ -73,9 +73,25 @@ export default function ContactPage() {
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-secondary mb-1">Hours</h3>
-                  <p className="text-slate-600">Mon–Fri: 7:00 AM – 6:00 PM</p>
-                  <p className="text-slate-500 text-sm">Weekends by appointment</p>
+                  <h3 className="font-bold text-secondary mb-2">Hours</h3>
+                  <table className="text-sm w-full border-collapse">
+                    <tbody>
+                      {[
+                        { day: "Monday",    time: "7:00 AM – 6:00 PM" },
+                        { day: "Tuesday",   time: "7:00 AM – 6:00 PM" },
+                        { day: "Wednesday", time: "7:00 AM – 6:00 PM" },
+                        { day: "Thursday",  time: "7:00 AM – 6:00 PM" },
+                        { day: "Friday",    time: "7:00 AM – 6:00 PM" },
+                        { day: "Saturday",  time: "By Appointment" },
+                        { day: "Sunday",    time: "By Appointment" },
+                      ].map(({ day, time }) => (
+                        <tr key={day} className="border-b border-slate-100 last:border-0">
+                          <td className="py-1 pr-4 text-slate-500 font-medium w-28">{day}</td>
+                          <td className={`py-1 font-semibold ${time === "By Appointment" ? "text-slate-400" : "text-slate-700"}`}>{time}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

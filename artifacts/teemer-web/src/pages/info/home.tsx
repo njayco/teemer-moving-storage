@@ -6,7 +6,9 @@ import { motion } from "framer-motion";
 
 const WHY_CHOOSE = [
   "Licensed & Fully Insured",
+  "Owner-Operated Crew — Hands-On Every Move",
   "Experienced & Uniformed Crews",
+  "Same Day Moves Available",
   "Modern Trucks & Equipment",
   "Transparent, No-Surprise Pricing",
   "Award-Winning Service",
@@ -113,6 +115,11 @@ export default function InfoHomePage() {
                 >
                   Call Us: {companyInfo.phone}
                 </a>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="bg-primary/20 border border-primary/50 text-primary font-extrabold text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                    ⚡ Same Day Moves Available
+                  </span>
+                </div>
               </div>
             </motion.div>
           </div>
