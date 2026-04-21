@@ -630,6 +630,7 @@ export default function QuotePage() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(1);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+  const [isSameDayMove, setIsSameDayMove] = useState(false);
 
   // Step 1 (React Hook Form)
   const {
@@ -983,14 +984,28 @@ export default function QuotePage() {
                           <button
                             type="button"
                             onClick={() => {
-                              const today = new Date().toISOString().split("T")[0];
-                              setStep1Value("moveDate", today, { shouldValidate: true });
-                              setStep1Value("arrivalTimeWindow", "Same Day");
+                              if (isSameDayMove) {
+                                setIsSameDayMove(false);
+                                setStep1Value("moveDate", "", { shouldValidate: false });
+                                setStep1Value("arrivalTimeWindow", "");
+                              } else {
+                                const today = new Date().toISOString().split("T")[0];
+                                setIsSameDayMove(true);
+                                setStep1Value("moveDate", today, { shouldValidate: true });
+                                setStep1Value("arrivalTimeWindow", "Same Day");
+                              }
                             }}
-                            className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-primary/40 bg-primary/5 text-primary font-extrabold text-xs uppercase tracking-widest py-2.5 rounded-xl hover:bg-primary/10 hover:border-primary/70 transition-all"
+                            className={`w-full flex items-center justify-center gap-2 border-2 font-extrabold text-xs uppercase tracking-widest py-2.5 rounded-xl transition-all ${
+                              isSameDayMove
+                                ? "border-primary bg-primary text-white shadow-lg"
+                                : "border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/70"
+                            }`}
                           >
-                            ⚡ Same Day Move — Book for Today
+                            ⚡ Same Day Move — Book for Today{isSameDayMove ? " ✓" : ""}
                           </button>
+                          {isSameDayMove && (
+                            <p className="text-xs text-primary font-medium mt-1.5 text-center">Same day selected — date locked to today. Click again to change.</p>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1000,7 +1015,8 @@ export default function QuotePage() {
                               {...register("moveDate")}
                               type="date"
                               min={new Date().toISOString().split("T")[0]}
-                              className={inputCls(!!step1Errors.moveDate)}
+                              disabled={isSameDayMove}
+                              className={`${inputCls(!!step1Errors.moveDate)} ${isSameDayMove ? "opacity-60 cursor-not-allowed bg-slate-100" : ""}`}
                             />
                             {step1Errors.moveDate && <p className="text-red-500 text-xs mt-1.5">{step1Errors.moveDate.message}</p>}
                           </div>
