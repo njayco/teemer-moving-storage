@@ -1022,7 +1022,11 @@ export default function QuotePage() {
                           </div>
                           <div>
                             <label className={labelCls()}>Preferred Arrival Time</label>
-                            <select {...register("arrivalTimeWindow")} className={inputCls()}>
+                            <select
+                              {...register("arrivalTimeWindow")}
+                              disabled={isSameDayMove}
+                              className={`${inputCls()} ${isSameDayMove ? "opacity-60 cursor-not-allowed bg-slate-100" : ""}`}
+                            >
                               <option value="">Any time is fine</option>
                               {ARRIVAL_WINDOWS.map((w) => (
                                 <option key={w} value={w}>{w}</option>

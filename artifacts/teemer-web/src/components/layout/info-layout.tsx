@@ -151,7 +151,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
           href="/info/quote"
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-primary text-white px-5 py-3 rounded-full font-extrabold text-sm uppercase tracking-wide shadow-xl shadow-primary/40 hover:bg-primary/90 hover:-translate-y-0.5 transition-all duration-200"
         >
-          Instant Quote <ArrowRight className="w-4 h-4" />
+          Get an Instant Quote <ArrowRight className="w-4 h-4" />
         </Link>
       )}
 
