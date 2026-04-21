@@ -646,18 +646,32 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       isSameDay(effectiveDate);
 
     if (dateChangedToToday || captainAssignedToSameDayJob) {
-      sendSameDayCaptainAlert({
-        jobId: updated.jobId,
-        jobId_db: updated.id,
-        customerName: updated.customer,
-        moveDate: effectiveDate,
-        arrivalWindow: updated.arrivalWindow ?? undefined,
-        pickupAddress: updated.originAddress ?? updated.pickupLocation,
-        destinationAddress: updated.destinationAddress ?? updated.destination,
-        crewSize: updated.crewSize ?? undefined,
-        estimatedHours: updated.estimatedHours ?? undefined,
-        notes: updated.specialRequirements ?? undefined,
-      }).catch(() => {});
+      const [existingAlert] = await db
+        .select({ id: emailLogsTable.id })
+        .from(emailLogsTable)
+        .where(
+          and(
+            eq(emailLogsTable.jobId, updated.id),
+            eq(emailLogsTable.emailType, "same_day_captain_alert"),
+            eq(emailLogsTable.status, "sent"),
+          ),
+        )
+        .limit(1);
+
+      if (!existingAlert) {
+        sendSameDayCaptainAlert({
+          jobId: updated.jobId,
+          jobId_db: updated.id,
+          customerName: updated.customer,
+          moveDate: effectiveDate,
+          arrivalWindow: updated.arrivalWindow ?? undefined,
+          pickupAddress: updated.originAddress ?? updated.pickupLocation,
+          destinationAddress: updated.destinationAddress ?? updated.destination,
+          crewSize: updated.crewSize ?? undefined,
+          estimatedHours: updated.estimatedHours ?? undefined,
+          notes: updated.specialRequirements ?? undefined,
+        }).catch(() => {});
+      }
     }
 
     res.json(formatJobRow(updated));
