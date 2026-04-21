@@ -450,6 +450,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       finalTotal,
       remainingBalance,
       estimatedHours,
+      dateTime,
     } = req.body;
 
     const [existing] = await db
@@ -478,6 +479,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
     if (finalTotal !== undefined) updates.finalTotal = finalTotal;
     if (remainingBalance !== undefined) updates.remainingBalance = remainingBalance;
     if (estimatedHours !== undefined) updates.estimatedHours = estimatedHours;
+    if (dateTime !== undefined) updates.dateTime = dateTime;
 
     if (status === "complete") {
       updates.completedAt = new Date();
@@ -629,6 +631,32 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         visibleToCustomer: true,
         notes: `Payment marked as paid in cash ($${cashAmount.toFixed(2)})`,
         createdByUserId: req.user?.userId ?? undefined,
+      }).catch(() => {});
+    }
+
+    const effectiveDate = dateTime !== undefined ? dateTime : (existing.dateTime ?? "");
+    const dateChangedToToday =
+      dateTime !== undefined &&
+      dateTime !== existing.dateTime &&
+      isSameDay(dateTime) &&
+      !isSameDay(existing.dateTime ?? "");
+    const captainAssignedToSameDayJob =
+      assignedCaptainId &&
+      assignedCaptainId !== existing.assignedCaptainId &&
+      isSameDay(effectiveDate);
+
+    if (dateChangedToToday || captainAssignedToSameDayJob) {
+      sendSameDayCaptainAlert({
+        jobId: updated.jobId,
+        jobId_db: updated.id,
+        customerName: updated.customer,
+        moveDate: effectiveDate,
+        arrivalWindow: updated.arrivalWindow ?? undefined,
+        pickupAddress: updated.originAddress ?? updated.pickupLocation,
+        destinationAddress: updated.destinationAddress ?? updated.destination,
+        crewSize: updated.crewSize ?? undefined,
+        estimatedHours: updated.estimatedHours ?? undefined,
+        notes: updated.specialRequirements ?? undefined,
       }).catch(() => {});
     }
 
