@@ -108,12 +108,10 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
     y = labelValue(doc, "PHONE NUMBER:", data.customerPhone, margin, y);
     const contractDateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     y = labelValue(doc, "CONTRACT DATE:", contractDateStr, margin, y);
-    if (data.moveDate) {
-      const scheduledStr = data.arrivalWindow
-        ? `${data.moveDate} — Arrival window: ${data.arrivalWindow}`
-        : data.moveDate;
-      y = labelValue(doc, "SCHEDULED DATE & TIME:", scheduledStr, margin, y);
-    }
+    const scheduledStr = data.moveDate
+      ? (data.arrivalWindow ? `${data.moveDate} from approximately ${data.arrivalWindow}` : data.moveDate)
+      : "—";
+    y = labelValue(doc, "SCHEDULED DATE & TIME:", scheduledStr, margin, y);
     y += 6;
     drawHRule(doc, y, margin);
     y += 12;
