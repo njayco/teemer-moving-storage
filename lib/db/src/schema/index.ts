@@ -9,3 +9,4 @@ export * from "./revenue-ledger";
 export * from "./job-status-events";
 export * from "./email-logs";
 export * from "./contracts";
+export * from "./settings";

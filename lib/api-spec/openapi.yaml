@@ -395,6 +395,43 @@ paths:
                   $ref: "#/components/schemas/EmailLog"
         "403":
           description: Admin access required
+  /admin/settings/alert-emails:
+    get:
+      operationId: getAlertEmailSettings
+      tags: [admin]
+      summary: Get same-day alert email recipients
+      description: Returns the list of email addresses that receive same-day job alerts (admin only)
+      responses:
+        "200":
+          description: Alert email settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertEmailSettings"
+        "403":
+          description: Admin access required
+    put:
+      operationId: updateAlertEmailSettings
+      tags: [admin]
+      summary: Update same-day alert email recipients
+      description: Sets the list of email addresses that receive same-day job alerts (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertEmailSettings"
+      responses:
+        "200":
+          description: Updated alert email settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertEmailSettings"
+        "400":
+          description: Invalid email addresses
+        "403":
+          description: Admin access required
   /jobs/{jobId}/events:
     get:
       operationId: getJobEvents
@@ -2129,3 +2166,14 @@ components:
           nullable: true
         contractData:
           type: object
+
+    AlertEmailSettings:
+      type: object
+      required:
+        - emails
+      properties:
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of email addresses that receive same-day job alerts

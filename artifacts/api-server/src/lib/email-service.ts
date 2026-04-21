@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { db } from "@workspace/db";
-import { emailLogsTable } from "@workspace/db/schema";
+import { emailLogsTable, settingsTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 import {
   depositConfirmationHtml,
@@ -28,6 +29,22 @@ import {
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Teemer Moving <noreply@teemer.com>";
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || "alan@teemermoving.com";
+
+async function getAlertEmails(): Promise<string[]> {
+  try {
+    const [row] = await db
+      .select()
+      .from(settingsTable)
+      .where(eq(settingsTable.key, "alert_emails"));
+    if (row) {
+      const parsed = JSON.parse(row.value) as string[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // fall through to default
+  }
+  return [ADMIN_EMAIL];
+}
 
 function getResendClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY;
@@ -271,13 +288,19 @@ export async function sendDayBeforeReminderEmail(
 export async function sendSameDayCaptainAlert(
   data: SameDayCaptainAlertData & { jobId_db?: number }
 ): Promise<{ success: boolean; resendId?: string }> {
-  return sendEmail({
-    to: ADMIN_EMAIL,
-    subject: `URGENT: Same-Day Job Booked — ${data.customerName} (${data.moveDate})`,
-    html: sameDayCaptainAlertHtml(data),
-    emailType: "same_day_captain_alert",
-    jobId: data.jobId_db ?? null,
-  });
+  const recipients = await getAlertEmails();
+  const subject = `URGENT: Same-Day Job Booked — ${data.customerName} (${data.moveDate})`;
+  const html = sameDayCaptainAlertHtml(data);
+  const emailType = "same_day_captain_alert";
+  const jobId = data.jobId_db ?? null;
+
+  const results = await Promise.all(
+    recipients.map((to) => sendEmail({ to, subject, html, emailType, jobId }))
+  );
+
+  const anySuccess = results.some((r) => r.success);
+  const firstResendId = results.find((r) => r.resendId)?.resendId;
+  return { success: anySuccess, resendId: firstResendId };
 }
 
 export async function sendContactNotificationEmail(data: {

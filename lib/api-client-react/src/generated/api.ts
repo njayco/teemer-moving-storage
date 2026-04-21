@@ -19,6 +19,7 @@ import type {
 import type {
   AddCaptainNoteBody,
   AdminStats,
+  AlertEmailSettings,
   CaptainJob,
   CaptainStatusUpdateRequest,
   ContactFormRequest,
@@ -1734,6 +1735,169 @@ export function useGetEmailLogs<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns the list of email addresses that receive same-day job alerts (admin only)
+ * @summary Get same-day alert email recipients
+ */
+export const getGetAlertEmailSettingsUrl = () => {
+  return `/api/admin/settings/alert-emails`;
+};
+
+export const getAlertEmailSettings = async (
+  options?: RequestInit,
+): Promise<AlertEmailSettings> => {
+  return customFetch<AlertEmailSettings>(getGetAlertEmailSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAlertEmailSettingsQueryKey = () => {
+  return [`/api/admin/settings/alert-emails`] as const;
+};
+
+export const getGetAlertEmailSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAlertEmailSettings>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAlertEmailSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAlertEmailSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAlertEmailSettings>>
+  > = ({ signal }) => getAlertEmailSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAlertEmailSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAlertEmailSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAlertEmailSettings>>
+>;
+export type GetAlertEmailSettingsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get same-day alert email recipients
+ */
+
+export function useGetAlertEmailSettings<
+  TData = Awaited<ReturnType<typeof getAlertEmailSettings>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAlertEmailSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAlertEmailSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Sets the list of email addresses that receive same-day job alerts (admin only)
+ * @summary Update same-day alert email recipients
+ */
+export const getUpdateAlertEmailSettingsUrl = () => {
+  return `/api/admin/settings/alert-emails`;
+};
+
+export const updateAlertEmailSettings = async (
+  alertEmailSettings: AlertEmailSettings,
+  options?: RequestInit,
+): Promise<AlertEmailSettings> => {
+  return customFetch<AlertEmailSettings>(getUpdateAlertEmailSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(alertEmailSettings),
+  });
+};
+
+export const getUpdateAlertEmailSettingsMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAlertEmailSettings>>,
+    TError,
+    { data: BodyType<AlertEmailSettings> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAlertEmailSettings>>,
+  TError,
+  { data: BodyType<AlertEmailSettings> },
+  TContext
+> => {
+  const mutationKey = ["updateAlertEmailSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAlertEmailSettings>>,
+    { data: BodyType<AlertEmailSettings> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateAlertEmailSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAlertEmailSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAlertEmailSettings>>
+>;
+export type UpdateAlertEmailSettingsMutationBody = BodyType<AlertEmailSettings>;
+export type UpdateAlertEmailSettingsMutationError = ErrorType<void>;
+
+/**
+ * @summary Update same-day alert email recipients
+ */
+export const useUpdateAlertEmailSettings = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAlertEmailSettings>>,
+    TError,
+    { data: BodyType<AlertEmailSettings> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAlertEmailSettings>>,
+  TError,
+  { data: BodyType<AlertEmailSettings> },
+  TContext
+> => {
+  return useMutation(getUpdateAlertEmailSettingsMutationOptions(options));
+};
 
 /**
  * @summary Get job timeline events (admin only)

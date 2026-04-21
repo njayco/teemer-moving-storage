@@ -8,6 +8,7 @@
 
 export * from "./addCaptainNoteBody";
 export * from "./adminStats";
+export * from "./alertEmailSettings";
 export * from "./authUser";
 export * from "./authUserRole";
 export * from "./captainJob";

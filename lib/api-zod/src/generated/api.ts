@@ -797,6 +797,12 @@ export const UpdateJobStatusBody = zod.object({
   discounts: zod.number().optional(),
   finalTotal: zod.number().optional(),
   remainingBalance: zod.number().optional(),
+  estimatedHours: zod
+    .number()
+    .optional()
+    .describe(
+      "Actual hours worked (used to recalculate invoice on finished jobs)",
+    ),
 });
 
 export const UpdateJobStatusResponse = zod.object({
@@ -968,6 +974,32 @@ export const GetEmailLogsResponseItem = zod.object({
   sentAt: zod.string().nullish(),
 });
 export const GetEmailLogsResponse = zod.array(GetEmailLogsResponseItem);
+
+/**
+ * Returns the list of email addresses that receive same-day job alerts (admin only)
+ * @summary Get same-day alert email recipients
+ */
+export const GetAlertEmailSettingsResponse = zod.object({
+  emails: zod
+    .array(zod.string())
+    .describe("List of email addresses that receive same-day job alerts"),
+});
+
+/**
+ * Sets the list of email addresses that receive same-day job alerts (admin only)
+ * @summary Update same-day alert email recipients
+ */
+export const UpdateAlertEmailSettingsBody = zod.object({
+  emails: zod
+    .array(zod.string())
+    .describe("List of email addresses that receive same-day job alerts"),
+});
+
+export const UpdateAlertEmailSettingsResponse = zod.object({
+  emails: zod
+    .array(zod.string())
+    .describe("List of email addresses that receive same-day job alerts"),
+});
 
 /**
  * @summary Get job timeline events (admin only)
@@ -1303,11 +1335,16 @@ export const UpdateCaptainJobStatusBody = zod.object({
     "returning",
     "complete",
     "delayed",
+    "finished",
   ]),
   notes: zod
     .string()
     .optional()
     .describe("Optional operational note to append"),
+  actualHours: zod
+    .number()
+    .optional()
+    .describe("Actual hours worked (required when setting status to finished)"),
 });
 
 export const UpdateCaptainJobStatusResponse = zod.object({

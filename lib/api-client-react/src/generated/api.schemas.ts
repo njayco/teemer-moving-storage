@@ -760,6 +760,11 @@ export interface SignContractResponse {
   contractData?: SignContractResponseContractData;
 }
 
+export interface AlertEmailSettings {
+  /** List of email addresses that receive same-day job alerts */
+  emails: string[];
+}
+
 export type ListJobsParams = {
   /**
    * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
