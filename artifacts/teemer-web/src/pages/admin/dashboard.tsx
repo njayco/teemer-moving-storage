@@ -1668,7 +1668,7 @@ export default function AdminDashboard() {
             {navItems.map((item) => (
               <button
                 key={item.label}
-                onClick={() => { setActiveTab(item.tab); if (item.tab === "jobs") setJobsFilter("all"); }}
+                onClick={() => setActiveTab(item.tab)}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   activeTab === item.tab ? "bg-primary text-white font-semibold" : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`}
@@ -1680,7 +1680,12 @@ export default function AdminDashboard() {
                     {(stats?.pendingQuotes ?? 0) > 9 ? "9+" : stats?.pendingQuotes}
                   </span>
                 )}
-                {item.label === "All Jobs" && sameDayCount > 0 && (
+                {item.label === "All Jobs" && jobsFilter === "same_day" && (
+                  <span className="ml-auto bg-orange-500 text-white text-[10px] rounded px-1.5 py-0.5 font-bold leading-none">
+                    Today
+                  </span>
+                )}
+                {item.label === "All Jobs" && jobsFilter !== "same_day" && sameDayCount > 0 && (
                   <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                     {sameDayCount > 9 ? "9+" : sameDayCount}
                   </span>
@@ -1717,13 +1722,18 @@ export default function AdminDashboard() {
               {navItems.map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => { setActiveTab(item.tab); if (item.tab === "jobs") setJobsFilter("all"); }}
+                  onClick={() => setActiveTab(item.tab)}
                   className={`relative px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === item.tab ? "bg-primary text-white" : "text-slate-600"
                   }`}
                 >
                   {item.label}
-                  {item.label === "All Jobs" && sameDayCount > 0 && (
+                  {item.label === "All Jobs" && jobsFilter === "same_day" && (
+                    <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[9px] rounded px-1 font-bold leading-none">
+                      Today
+                    </span>
+                  )}
+                  {item.label === "All Jobs" && jobsFilter !== "same_day" && sameDayCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
                       {sameDayCount > 9 ? "9+" : sameDayCount}
                     </span>
