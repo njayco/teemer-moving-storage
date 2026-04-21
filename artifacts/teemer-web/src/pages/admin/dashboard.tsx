@@ -1334,8 +1334,8 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
   );
 }
 
-function JobsTab() {
-  const [statusFilter, setStatusFilter] = useState("all");
+function JobsTab({ defaultFilter = "all" }: { defaultFilter?: string }) {
+  const [statusFilter, setStatusFilter] = useState(defaultFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -1505,7 +1505,14 @@ function JobsTab() {
 export default function AdminDashboard() {
   const { data: stats } = useGetAdminStats();
   const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs">("dashboard");
+  const [jobsFilter, setJobsFilter] = useState("all");
   const { user, logout } = useAuth();
+
+  const { data: allJobs = [] } = useListJobs(
+    {},
+    { query: { queryKey: ["/api/jobs", "all", ""] } },
+  );
+  const sameDayCount = allJobs.filter((j) => isToday(j.quoteData?.moveDate ?? j.dateTime)).length;
 
   const [, setLocation] = useLocation();
 
@@ -1527,7 +1534,7 @@ export default function AdminDashboard() {
             {navItems.map((item) => (
               <button
                 key={item.label}
-                onClick={() => setActiveTab(item.tab)}
+                onClick={() => { setActiveTab(item.tab); if (item.tab === "jobs") setJobsFilter("all"); }}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   activeTab === item.tab ? "bg-primary text-white font-semibold" : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`}
@@ -1571,7 +1578,7 @@ export default function AdminDashboard() {
               {navItems.map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => setActiveTab(item.tab)}
+                  onClick={() => { setActiveTab(item.tab); if (item.tab === "jobs") setJobsFilter("all"); }}
                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === item.tab ? "bg-primary text-white" : "text-slate-600"
                   }`}
@@ -1595,6 +1602,25 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-auto p-6">
           {activeTab === "dashboard" && (
             <>
+              {sameDayCount > 0 && (
+                <button
+                  onClick={() => { setJobsFilter("same_day"); setActiveTab("jobs"); }}
+                  className="w-full mb-6 flex items-center gap-4 px-5 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-md transition-colors text-left group"
+                >
+                  <div className="flex-shrink-0 p-2.5 bg-white/20 rounded-xl group-hover:bg-white/30 transition-colors">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-red-100">Same-Day Jobs</div>
+                    <div className="text-2xl font-bold leading-tight">
+                      {sameDayCount} job{sameDayCount !== 1 ? "s" : ""} scheduled today
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-red-100 text-sm font-medium group-hover:text-white transition-colors">
+                    View all <ArrowRight className="w-4 h-4" />
+                  </div>
+                </button>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <StatCard label="Total Jobs" value={stats?.totalJobs ?? 0} icon={Package} />
                 <StatCard label="Pending Jobs" value={stats?.pendingJobs ?? 0} icon={Clock} color="text-amber-600" />
@@ -1638,7 +1664,7 @@ export default function AdminDashboard() {
                       </div>
                     </button>
                     <button
-                      onClick={() => setActiveTab("jobs")}
+                      onClick={() => { setJobsFilter("all"); setActiveTab("jobs"); }}
                       className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
                     >
                       <Package className="w-5 h-5 text-primary" />
@@ -1680,7 +1706,7 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "quotes" && <QuotesTab />}
-          {activeTab === "jobs" && <JobsTab />}
+          {activeTab === "jobs" && <JobsTab key={jobsFilter} defaultFilter={jobsFilter} />}
         </main>
       </div>
     </div>
