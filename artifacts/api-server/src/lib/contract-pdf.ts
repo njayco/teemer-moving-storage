@@ -83,7 +83,12 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
       .fillColor(GREEN)
       .fontSize(9)
       .font("Helvetica")
-      .text("Long Beach, NY 11561  •  (516) 269-3724  •  info@teemermoving.com", margin, 43, { width: usableWidth, align: "center" });
+      .text("Long Beach, NY 11561  •  (516) 269-3724  •  info@teemermoving.com", margin, 40, { width: usableWidth, align: "center" });
+    doc
+      .fillColor("#94a3b8")
+      .fontSize(7.5)
+      .font("Helvetica")
+      .text("US DOT # 3716575  •  MC # 1306475", margin, 54, { width: usableWidth, align: "center" });
 
     let y = 90;
 
@@ -101,6 +106,14 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
     y = labelValue(doc, "MOVER:", "Teemer Moving and Storage Corp", margin, y);
     y = labelValue(doc, "CUSTOMER/CLIENT:", data.customerName, margin, y);
     y = labelValue(doc, "PHONE NUMBER:", data.customerPhone, margin, y);
+    const contractDateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    y = labelValue(doc, "CONTRACT DATE:", contractDateStr, margin, y);
+    if (data.moveDate) {
+      const scheduledStr = data.arrivalWindow
+        ? `${data.moveDate} — Arrival window: ${data.arrivalWindow}`
+        : data.moveDate;
+      y = labelValue(doc, "SCHEDULED DATE & TIME:", scheduledStr, margin, y);
+    }
     y += 6;
     drawHRule(doc, y, margin);
     y += 12;

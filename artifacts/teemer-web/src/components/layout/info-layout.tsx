@@ -156,6 +156,7 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
             <div className="space-y-3">
               <p className="flex items-center"><MapPin className="w-5 h-5 mr-3 text-primary shrink-0" /> {companyInfo.location}</p>
               <p className="flex items-center"><Phone className="w-5 h-5 mr-3 text-primary shrink-0" /> {companyInfo.phone}</p>
+              <p className="text-slate-500 text-xs pt-1">US DOT # 3716575 &nbsp;·&nbsp; MC # 1306475</p>
             </div>
           </div>
           
