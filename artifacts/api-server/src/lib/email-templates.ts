@@ -416,6 +416,46 @@ export function dayBeforeReminderHtml(data: DayBeforeReminderData): string {
   return baseLayout("Move Reminder — Teemer Moving & Storage", body);
 }
 
+export interface SameDayCaptainAlertData {
+  jobId: string;
+  customerName: string;
+  moveDate: string;
+  arrivalWindow?: string;
+  pickupAddress: string;
+  destinationAddress: string;
+  crewSize?: number;
+  estimatedHours?: number;
+  notes?: string;
+}
+
+export function sameDayCaptainAlertHtml(data: SameDayCaptainAlertData): string {
+  const rows: [string, string][] = [
+    ["Job ID", data.jobId],
+    ["Customer", data.customerName],
+    ["Move Date", data.moveDate],
+  ];
+  if (data.arrivalWindow) rows.push(["Arrival Window", data.arrivalWindow]);
+  rows.push(["Pickup", data.pickupAddress]);
+  rows.push(["Drop-off", data.destinationAddress]);
+  if (data.crewSize) rows.push(["Crew Size", `${data.crewSize} movers`]);
+  if (data.estimatedHours) rows.push(["Est. Hours", `${data.estimatedHours} hrs`]);
+  if (data.notes) rows.push(["Notes", data.notes]);
+
+  const body = `
+    <div style="background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:16px 20px;margin:0 0 24px;">
+      <p style="margin:0;color:#dc2626;font-size:18px;font-weight:700;letter-spacing:0.5px;">&#9888; SAME-DAY JOB ALERT</p>
+      <p style="margin:6px 0 0;color:#7f1d1d;font-size:13px;">A new job has been booked for <strong>today</strong>. Immediate action required.</p>
+    </div>
+    <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">New Same-Day Move Booking</h2>
+    <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
+      A job has just been created with today's move date. Please review the details below and coordinate with dispatch immediately.
+    </p>
+    ${sectionHeading("Job Details")}
+    ${detailTable(rows)}
+  `;
+  return baseLayout("URGENT: Same-Day Job — Teemer Moving & Storage", body);
+}
+
 export interface JobCompletedData {
   customerName: string;
   quoteId: number;

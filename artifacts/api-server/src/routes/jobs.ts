@@ -13,7 +13,7 @@ import {
 import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte, inArray } from "drizzle-orm";
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
-import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail } from "../lib/email-service";
+import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail, sendSameDayCaptainAlert } from "../lib/email-service";
 
 async function computeTotalPaidAndRemaining(
   jobId: number,
@@ -40,6 +40,18 @@ const CAPTAIN_STATUSES = [
 ] as const;
 
 const MILESTONE_EMAIL_STATUSES = new Set(["arrived", "in_progress", "at_storage", "complete"]);
+
+function isSameDay(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    const parsedStr = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+    return parsedStr === todayStr;
+  }
+  return dateStr.startsWith(todayStr);
+}
 
 const router: IRouter = Router();
 
@@ -298,6 +310,21 @@ router.post("/jobs", requireAdmin, async (req, res) => {
           notes: `Deposit of $${depositAmount.toFixed(2)} recorded`,
         }).catch(() => {});
       }
+    }
+
+    if (isSameDay(job.dateTime ?? "")) {
+      sendSameDayCaptainAlert({
+        jobId: job.jobId,
+        jobId_db: job.id,
+        customerName: job.customer,
+        moveDate: job.dateTime ?? "",
+        arrivalWindow: job.arrivalWindow ?? undefined,
+        pickupAddress: job.originAddress ?? job.pickupLocation,
+        destinationAddress: job.destinationAddress ?? job.destination,
+        crewSize: job.crewSize ?? undefined,
+        estimatedHours: job.estimatedHours ?? undefined,
+        notes: job.specialRequirements ?? undefined,
+      }).catch(() => {});
     }
 
     res.status(201).json(formatJobRow(job));

@@ -13,6 +13,7 @@ import {
   contractEmailHtml,
   bookingConfirmationHtml,
   dayBeforeReminderHtml,
+  sameDayCaptainAlertHtml,
   type DepositConfirmationData,
   type AdminNewJobData,
   type StatusUpdateData,
@@ -22,6 +23,7 @@ import {
   type JobCompletedData,
   type BookingConfirmationData,
   type DayBeforeReminderData,
+  type SameDayCaptainAlertData,
 } from "./email-templates";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Teemer Moving <noreply@teemer.com>";
@@ -263,6 +265,18 @@ export async function sendDayBeforeReminderEmail(
     emailType: "day_before_reminder",
     quoteId: data.quoteId,
     jobId: data.jobId,
+  });
+}
+
+export async function sendSameDayCaptainAlert(
+  data: SameDayCaptainAlertData & { jobId_db?: number }
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `URGENT: Same-Day Job Booked — ${data.customerName} (${data.moveDate})`,
+    html: sameDayCaptainAlertHtml(data),
+    emailType: "same_day_captain_alert",
+    jobId: data.jobId_db ?? null,
   });
 }
 
