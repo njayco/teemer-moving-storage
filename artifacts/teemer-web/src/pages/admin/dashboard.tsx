@@ -1680,6 +1680,11 @@ export default function AdminDashboard() {
                     {(stats?.pendingQuotes ?? 0) > 9 ? "9+" : stats?.pendingQuotes}
                   </span>
                 )}
+                {item.label === "All Jobs" && sameDayCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {sameDayCount > 9 ? "9+" : sameDayCount}
+                  </span>
+                )}
               </button>
             ))}
             <div className="border-t border-white/10 mt-2 pt-2">
@@ -1713,11 +1718,16 @@ export default function AdminDashboard() {
                 <button
                   key={item.label}
                   onClick={() => { setActiveTab(item.tab); if (item.tab === "jobs") setJobsFilter("all"); }}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  className={`relative px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === item.tab ? "bg-primary text-white" : "text-slate-600"
                   }`}
                 >
                   {item.label}
+                  {item.label === "All Jobs" && sameDayCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
+                      {sameDayCount > 9 ? "9+" : sameDayCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
