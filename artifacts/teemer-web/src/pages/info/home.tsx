@@ -258,6 +258,59 @@ export default function InfoHomePage() {
         </div>
       </div>
 
+      {/* ═══ VIDEO TESTIMONIALS — Full width ═══ */}
+      <section className="py-14 bg-slate-50 border-t border-slate-100">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <p className="text-primary font-bold text-xs uppercase tracking-widest mb-2">Real Customers, Real Moves</p>
+            <h2 className="text-xl md:text-2xl font-black text-secondary uppercase tracking-wide">
+              Hear It Straight from Our Customers
+            </h2>
+            <p className="text-slate-500 text-sm mt-2 max-w-xl mx-auto">
+              Don't just take our word for it — watch what Long Island &amp; NYC customers are saying after their move.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { src: `${import.meta.env.BASE_URL}videos/testimonial-1.mov`, label: "Customer Review" },
+              { src: `${import.meta.env.BASE_URL}videos/testimonial-2.mov`, label: "Customer Review" },
+              { src: `${import.meta.env.BASE_URL}videos/testimonial-3.mov`, label: "Customer Review" },
+              { src: `${import.meta.env.BASE_URL}videos/testimonial-4.mov`, label: "Customer Review" },
+            ].map((v, i) => (
+              <motion.div
+                key={v.src}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className="bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100 flex flex-col"
+              >
+                <div className="relative bg-secondary flex-1">
+                  <video
+                    src={v.src}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-64 object-cover"
+                    style={{ background: "#0B132B" }}
+                  >
+                    Your browser does not support video playback.
+                  </video>
+                </div>
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <div className="flex text-amber-400">
+                    {[...Array(5)].map((_, idx) => (
+                      <Star key={idx} className="fill-current w-3 h-3" />
+                    ))}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600">{v.label}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ SERVICES — Full width below both columns ═══ */}
       <section className="py-14 bg-white border-t border-slate-100">
         <div className="max-w-5xl mx-auto px-4">
