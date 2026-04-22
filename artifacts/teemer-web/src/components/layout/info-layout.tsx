@@ -33,12 +33,22 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
               <Clock className="w-4 h-4 mr-2 text-primary" />
               Mon-Fri 7AM-6PM
             </span>
-          </div>
-          <div className="flex items-center gap-2 font-semibold text-primary">
-            <span className="text-white">10% Discount for Seniors & Veterans</span>
-            <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded border border-white/40 tracking-wider">
-              Code: SANDV10
+            <span className="flex items-center gap-1.5 text-white">
+              10% Off for Seniors &amp; Veterans
+              <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded border border-white/40 tracking-wider">
+                SANDV10
+              </span>
             </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Call for an Estimate</span>
+            <a
+              href={`tel:${companyInfo.phone}`}
+              className="flex items-center text-white font-bold text-base hover:text-primary transition-colors"
+            >
+              <Phone className="w-3.5 h-3.5 mr-1.5 text-primary fill-primary" />
+              {companyInfo.phone}
+            </a>
           </div>
         </div>
       </div>
@@ -76,13 +86,6 @@ export function InfoLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="hidden lg:flex items-center space-x-4">
-            <div className="flex flex-col items-end mr-4">
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Call for an Estimate</span>
-              <a href={`tel:${companyInfo.phone}`} className="flex items-center text-secondary font-bold text-lg hover:text-primary transition-colors">
-                <Phone className="w-4 h-4 mr-2 text-primary fill-primary" />
-                {companyInfo.phone}
-              </a>
-            </div>
             <Link 
               href="/info/quote" 
               className="bg-primary text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-primary/30 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/40 transition-all duration-200"
