@@ -1564,7 +1564,7 @@ function SettingsTab() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-xl w-full">
       <h2 className="text-xl font-bold text-secondary mb-1">Alert Settings</h2>
       <p className="text-sm text-slate-500 mb-6">
         Configure which email addresses receive same-day job alerts. Changes take effect immediately — no redeploy needed.
@@ -1579,11 +1579,11 @@ function SettingsTab() {
           ) : (
             <ul className="space-y-2 mb-3">
               {emails.map((addr) => (
-                <li key={addr} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                  <span className="text-sm text-slate-800">{addr}</span>
+                <li key={addr} className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                  <span className="text-sm text-slate-800 break-all min-w-0">{addr}</span>
                   <button
                     onClick={() => removeEmail(addr)}
-                    className="text-slate-400 hover:text-red-500 transition-colors ml-2"
+                    className="text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
                     aria-label={`Remove ${addr}`}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1718,16 +1718,19 @@ export default function AdminDashboard() {
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <div className="flex items-center gap-6">
             <div className="text-secondary font-semibold text-lg hidden sm:block">Operations Control Center</div>
-            <div className="flex gap-1 sm:hidden">
+            <div className="flex gap-0.5 sm:hidden">
               {navItems.map((item) => (
                 <button
                   key={item.label}
                   onClick={() => setActiveTab(item.tab)}
-                  className={`relative px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === item.tab ? "bg-primary text-white" : "text-slate-600"
+                  className={`relative flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors min-w-[52px] ${
+                    activeTab === item.tab ? "bg-primary text-white" : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
-                  {item.label}
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-[10px] font-medium leading-none">
+                    {item.label === "All Jobs" ? "Jobs" : item.label}
+                  </span>
                   {item.label === "All Jobs" && jobsFilter === "same_day" && (
                     <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[9px] rounded px-1 font-bold leading-none">
                       Today
@@ -1753,7 +1756,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-3 sm:p-6">
           {activeTab === "dashboard" && (
             <>
               {sameDayCount > 0 && (
