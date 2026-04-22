@@ -270,12 +270,11 @@ export default function InfoHomePage() {
               Don't just take our word for it — watch what Long Island &amp; NYC customers are saying after their move.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
               { src: `${import.meta.env.BASE_URL}videos/testimonial-1.mov`, label: "Customer Review" },
               { src: `${import.meta.env.BASE_URL}videos/testimonial-2.mov`, label: "Customer Review" },
               { src: `${import.meta.env.BASE_URL}videos/testimonial-3.mov`, label: "Customer Review" },
-              { src: `${import.meta.env.BASE_URL}videos/testimonial-4.mov`, label: "Customer Review" },
             ].map((v, i) => (
               <motion.div
                 key={v.src}
