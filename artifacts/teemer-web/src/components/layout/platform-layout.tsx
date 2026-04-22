@@ -7,7 +7,7 @@ export function PlatformLayout({ children, role }: { children: React.ReactNode, 
 
   const customerLinks = [
     { href: "/platform/customer", label: "Dashboard", icon: UserCircle },
-    { href: "/platform/customer/track", label: "Track a Job", icon: MapPin },
+    { href: "/track", label: "Track a Job", icon: MapPin },
   ];
 
   const providerLinks = [
