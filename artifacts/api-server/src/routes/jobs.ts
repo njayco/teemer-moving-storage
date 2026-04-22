@@ -604,6 +604,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       }).catch(() => {});
     }
 
+    let resolvedCaptainName: string | undefined;
     if (assignedCaptainId && assignedCaptainId !== existing.assignedCaptainId) {
       const [captain] = await db
         .select({ name: usersTable.name })
@@ -611,14 +612,14 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         .where(eq(usersTable.id, assignedCaptainId))
         .limit(1);
 
-      const captainName = captain?.name || assignedMover || `Captain #${assignedCaptainId}`;
+      resolvedCaptainName = captain?.name || assignedMover || `Captain #${assignedCaptainId}`;
 
       recordTimelineEvent({
         jobId: updated.id,
         eventType: "captain_assigned",
         statusLabel: "Captain Assigned",
         visibleToCustomer: true,
-        notes: `Move captain assigned: ${captainName}`,
+        notes: `Move captain assigned: ${resolvedCaptainName}`,
         createdByUserId: req.user?.userId ?? undefined,
       }).catch(() => {});
     }
@@ -659,6 +660,15 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
         .limit(1);
 
       if (!existingAlert) {
+        let alertCaptainName = resolvedCaptainName;
+        if (!alertCaptainName && updated.assignedCaptainId) {
+          const [existingCaptain] = await db
+            .select({ name: usersTable.name })
+            .from(usersTable)
+            .where(eq(usersTable.id, updated.assignedCaptainId))
+            .limit(1);
+          alertCaptainName = existingCaptain?.name || updated.assignedMover || undefined;
+        }
         sendSameDayCaptainAlert({
           jobId: updated.jobId,
           jobId_db: updated.id,
@@ -670,6 +680,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
           crewSize: updated.crewSize ?? undefined,
           estimatedHours: updated.estimatedHours ?? undefined,
           notes: updated.specialRequirements ?? undefined,
+          captainName: alertCaptainName,
         }).catch(() => {});
       }
     }

@@ -426,6 +426,7 @@ export interface SameDayCaptainAlertData {
   crewSize?: number;
   estimatedHours?: number;
   notes?: string;
+  captainName?: string;
 }
 
 export function sameDayCaptainAlertHtml(data: SameDayCaptainAlertData): string {
@@ -434,6 +435,7 @@ export function sameDayCaptainAlertHtml(data: SameDayCaptainAlertData): string {
     ["Customer", data.customerName],
     ["Move Date", data.moveDate],
   ];
+  if (data.captainName) rows.push(["Captain", data.captainName]);
   if (data.arrivalWindow) rows.push(["Arrival Window", data.arrivalWindow]);
   rows.push(["Pickup", data.pickupAddress]);
   rows.push(["Drop-off", data.destinationAddress]);
