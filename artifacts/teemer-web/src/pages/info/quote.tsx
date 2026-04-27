@@ -739,12 +739,8 @@ export default function QuotePage() {
       setAiEstimate(data);
       if (data.small != null) setSmallBoxes(data.small);
       if (data.medium != null) setMediumBoxes(data.medium);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setAiError("Couldn't reach the estimator — please enter counts manually.");
-      } else {
-        setAiError("Couldn't reach the estimator — please enter counts manually.");
-      }
+    } catch {
+      setAiError("Couldn't reach the estimator — please enter counts manually.");
     } finally {
       clearTimeout(timeoutId);
       setAiLoading(false);
