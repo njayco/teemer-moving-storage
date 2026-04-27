@@ -487,6 +487,7 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
     const completion = await openai.chat.completions.create({
       model: "gpt-5-mini",
       messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
       max_completion_tokens: 4000,
     });
 
