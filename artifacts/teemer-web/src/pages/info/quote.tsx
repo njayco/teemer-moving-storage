@@ -712,6 +712,8 @@ export default function QuotePage() {
     setAiLoading(true);
     setAiError(null);
     setAiEstimate(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
     try {
       const res = await fetch("/api/quotes/estimate-boxes", {
         method: "POST",
@@ -723,15 +725,28 @@ export default function QuotePage() {
           isFullyFurnished: homeSize.isFullyFurnished,
           notes: getStep1Values().additionalNotes || "",
         }),
+        signal: controller.signal,
       });
-      if (!res.ok) throw new Error("AI estimation not available yet");
+      if (!res.ok) {
+        if (res.status >= 500) {
+          setAiError("AI estimator is temporarily unavailable. Please enter your box counts manually.");
+        } else {
+          setAiError("AI box estimation is not available right now. Please enter your box counts manually.");
+        }
+        return;
+      }
       const data = await res.json();
       setAiEstimate(data);
       if (data.small != null) setSmallBoxes(data.small);
       if (data.medium != null) setMediumBoxes(data.medium);
-    } catch {
-      setAiError("AI box estimation is coming soon. Please enter your box counts manually.");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setAiError("Couldn't reach the estimator — please enter counts manually.");
+      } else {
+        setAiError("Couldn't reach the estimator — please enter counts manually.");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setAiLoading(false);
     }
   };

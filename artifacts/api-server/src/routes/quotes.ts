@@ -481,16 +481,22 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
     const openai = new OpenAI({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
+      timeout: 12_000,
+      maxRetries: 1,
     });
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-mini",
       messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 150,
+      max_completion_tokens: 4000,
     });
 
-    const text = completion.choices[0]?.message?.content?.trim() ?? "";
+    const rawText = completion.choices[0]?.message?.content?.trim() ?? "";
+    if (!rawText) {
+      req.log.warn({ completion }, "OpenAI returned empty content");
+      throw new Error("Empty response from AI");
+    }
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const text = jsonMatch ? jsonMatch[0] : rawText;
     const parsed = JSON.parse(text) as { small: number; medium: number; note: string };
 
     if (typeof parsed.small !== "number" || typeof parsed.medium !== "number") {
