@@ -542,8 +542,12 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       const hourlyRate = existing.hourlyRate ?? 0;
       const subtotal = estimatedHours * hourlyRate;
       const extras = (extraCharges !== undefined ? extraCharges : existing.extraCharges) ?? 0;
-      const disc = (discounts !== undefined ? discounts : existing.discounts) ?? 0;
-      const newFinalTotal = subtotal + extras - disc;
+      const adminDisc = (discounts !== undefined ? discounts : existing.discounts) ?? 0;
+      // CRITICAL: include the customer's promo-code discount (e.g. SANDV10)
+      // alongside any admin-entered discounts so editing the invoice does
+      // not silently overstate the customer's balance by dropping the promo.
+      const promoDisc = existing.discountAmount ?? 0;
+      const newFinalTotal = Math.max(0, subtotal + extras - adminDisc - promoDisc);
       updates.finalTotal = newFinalTotal;
       updates.estimateSubtotal = subtotal;
       const depositApplied = existing.depositPaid ?? 0;

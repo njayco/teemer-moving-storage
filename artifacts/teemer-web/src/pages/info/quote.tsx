@@ -893,6 +893,10 @@ export default function QuotePage() {
     if (previewHoursTimerRef.current) clearTimeout(previewHoursTimerRef.current);
     previewHoursTimerRef.current = setTimeout(async () => {
       try {
+        // Pull the latest distance from step-1 (typed in another form
+        // controller) so changes there ripple into the live preview too.
+        const step1 = (() => { try { return getStep1Values(); } catch { return null; } })();
+        const liveDistanceMiles = step1?.distanceMiles ? Number(step1.distanceMiles) : 0;
         const res = await fetch("/api/quotes/preview-hours", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -904,13 +908,18 @@ export default function QuotePage() {
             hasStairs: homeSize.hasStairs,
             hasHeavyItems: homeSize.hasHeavyItems,
             isFullyFurnished: homeSize.isFullyFurnished,
-            inventory: {},
-            smallBoxes: 0,
-            mediumBoxes: 0,
-            needsPackingMaterials: false,
+            // CRITICAL: feed the live inventory/boxes/materials so the
+            // preview matches what calculatePricing() will see at submit
+            // time. The pricing engine factors inventory into estimated
+            // hours, so omitting these would cause the pre-pack-day rule
+            // to flip silently between step 2 and step 3.
+            inventory,
+            smallBoxes,
+            mediumBoxes,
+            needsPackingMaterials,
             isCommercial,
             commercialSizeTier: isCommercial ? commercialSizeTier : undefined,
-            distanceMiles: 0,
+            distanceMiles: liveDistanceMiles,
           }),
         });
         if (res.ok) {
@@ -931,6 +940,7 @@ export default function QuotePage() {
       }
     }, 250);
     return () => { if (previewHoursTimerRef.current) clearTimeout(previewHoursTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isJunkRemoval,
     isCommercial,
@@ -942,6 +952,13 @@ export default function QuotePage() {
     homeSize.hasStairs,
     homeSize.hasHeavyItems,
     homeSize.isFullyFurnished,
+    // Re-run on every inventory/box/materials change so the pre-pack-day
+    // requirement updates the moment the customer adds heavy items, more
+    // boxes, or requests packing materials in step 3.
+    inventory,
+    smallBoxes,
+    mediumBoxes,
+    needsPackingMaterials,
   ]);
 
   // Single canonical rule: trust the server's packingDayRequired flag rather
