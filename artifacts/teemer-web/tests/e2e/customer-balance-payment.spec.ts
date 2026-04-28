@@ -34,10 +34,17 @@ test("customer balance payment journey: admin books job → customer pays remain
   //      hits the same endpoint).
   const admin = adminCreds();
   await page.goto("/admin/login");
-  await page.getByLabel(/email|username/i).first().fill(admin.email);
-  await page.getByLabel(/password/i).fill(admin.password);
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await page.waitForURL(/\/admin(\?|$|\/)/, { timeout: 30_000 });
+  // The admin <Label>s have no htmlFor, so getByLabel doesn't match. Use the
+  // typed inputs scoped to the login <form> instead, and submit by clicking
+  // the form's own submit button to avoid colliding with any header
+  // "Sign in" link.
+  await page.locator('form input[type="email"]').fill(admin.email);
+  await page.locator('form input[type="password"]').fill(admin.password);
+  await page.locator('form button[type="submit"]').click();
+  // Don't accept /admin/login itself as "logged in".
+  await page.waitForURL((u) => /\/admin(\?|$|\/)/.test(u.pathname) && !u.pathname.endsWith("/login"), {
+    timeout: 30_000,
+  });
 
   const adminCookies = await context.cookies();
   const adminCookieHeader = adminCookies.map((c) => `${c.name}=${c.value}`).join("; ");
@@ -67,8 +74,13 @@ test("customer balance payment journey: admin books job → customer pays remain
       arrivalWindow: "9:00 AM - 11:00 AM",
     }),
   });
-  expect(createJobRes.ok, `POST /api/jobs failed: ${createJobRes.status} ${await createJobRes.text().catch(() => "")}`).toBe(true);
-  const createdJob = (await createJobRes.json()) as { id: number };
+  // Read the body exactly once — `Response.text()` and `Response.json()` both
+  // consume the body, so building a failure message with `await text()` AND
+  // then calling `await json()` on the same Response throws "Body is
+  // unusable". Save the raw text first, then assert + parse.
+  const createJobBody = await createJobRes.text().catch(() => "");
+  expect(createJobRes.ok, `POST /api/jobs failed: ${createJobRes.status} ${createJobBody}`).toBe(true);
+  const createdJob = JSON.parse(createJobBody) as { id: number };
   expect(createdJob.id, "Created job missing id").toBeTruthy();
   const jobId = createdJob.id;
 
@@ -76,11 +88,17 @@ test("customer balance payment journey: admin books job → customer pays remain
   await context.clearCookies();
 
   // ── 3. Customer logs in via the real UI and opens the job detail page.
+  // The customer login labels DO have htmlFor wired up (unlike the admin
+  // form), so getByLabel works here. Scope the submit click to the form so
+  // it doesn't collide with the public header "Sign in" link.
   await page.goto("/account/login");
   await page.getByLabel(/username|email/i).first().fill(seed.email);
   await page.getByLabel(/password/i).fill(seed.password);
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await page.waitForURL(/\/account(\?|$|\/)/, { timeout: 30_000 });
+  await page.locator('form button[type="submit"]').click();
+  // Don't accept /account/login itself as "logged in".
+  await page.waitForURL((u) => /\/account(\?|$|\/)/.test(u.pathname) && !u.pathname.endsWith("/login"), {
+    timeout: 30_000,
+  });
 
   await page.goto(`/account/jobs/${jobId}`);
   await expect(page.getByText(`JOB-${jobId}`)).toBeVisible({ timeout: 15_000 });

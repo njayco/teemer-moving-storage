@@ -48,6 +48,20 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // In production (Replit's path-router), /api/* is routed to the
+    // API server by infra. In any environment without that router
+    // (CI / e2e / `pnpm dev` outside of Replit) we forward /api here
+    // when VITE_DEV_API_PROXY_TARGET is set, so the SPA can talk to
+    // its backend the same way the production proxy does.
+    proxy: process.env.VITE_DEV_API_PROXY_TARGET
+      ? {
+          "/api": {
+            target: process.env.VITE_DEV_API_PROXY_TARGET,
+            changeOrigin: true,
+            secure: false,
+          },
+        }
+      : undefined,
   },
   preview: {
     port,

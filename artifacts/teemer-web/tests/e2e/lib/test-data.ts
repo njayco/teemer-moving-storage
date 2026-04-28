@@ -136,6 +136,11 @@ export async function seedSavedQuoteCustomer(tag: string): Promise<CustomerSeed>
       numberOfBedrooms: 1,
       numberOfLivingRooms: 1,
       isFullyFurnished: true,
+      // The API now requires a pre-pack-day arrival window whenever the
+      // computed packing time is >= 5 hours (which fully-furnished moves
+      // hit). Match what the public quote form sends from
+      // PACKING_ARRIVAL_WINDOWS[0] so this seed matches a real submission.
+      packingArrivalWindow: "8:00 AM – 10:00 AM",
     }),
   });
   if (!quoteRes.ok) {

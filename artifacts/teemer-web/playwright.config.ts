@@ -20,7 +20,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI ? "list" : [["list"]],
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["html", { outputFolder: "playwright-report", open: "never" }],
+      ]
+    : [["list"]],
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:25308",
     trace: "retain-on-failure",
@@ -32,7 +37,17 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Allow CI (and local NixOS shells) to point Playwright at a
+        // system-installed Chromium binary so we don't need Playwright's
+        // bundled headless shell — which depends on glibc / libglib /
+        // libnss layouts that Replit's NixOS doesn't provide out of the
+        // box. When unset, Playwright uses its own bundled browser.
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : undefined,
+      },
     },
   ],
 });

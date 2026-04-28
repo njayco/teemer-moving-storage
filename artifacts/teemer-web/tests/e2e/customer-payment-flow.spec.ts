@@ -31,8 +31,14 @@ test("customer payment journey: save-for-later → admin payment request → sel
   await page.goto("/account/login");
   await page.getByLabel(/username|email/i).first().fill(seed.email);
   await page.getByLabel(/password/i).fill(seed.password);
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await page.waitForURL(/\/account(\?|$|\/)/, { timeout: 30_000 });
+  // Scope to the form's submit button — the public layout also has a
+  // header "Sign in" link that would otherwise match.
+  await page.locator("form button[type=submit]").click();
+  // Wait for the customer dashboard, not just any /account/* URL —
+  // /account/login itself contains "/account/".
+  await page.waitForURL((u) => !u.pathname.endsWith("/login") && u.pathname.startsWith("/account"), {
+    timeout: 30_000,
+  });
   await expect(page.getByText(seed.fullName, { exact: false })).toBeVisible({ timeout: 15_000 });
 
   // The saved quote should appear on the dashboard.
@@ -44,10 +50,16 @@ test("customer payment journey: save-for-later → admin payment request → sel
   // ── 3. Admin logs in and creates a payment request through the UI.
   const admin = adminCreds();
   await page.goto("/admin/login");
-  await page.getByLabel(/email|username/i).first().fill(admin.email);
-  await page.getByLabel(/password/i).fill(admin.password);
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await page.waitForURL(/\/admin(\?|$|\/)/, { timeout: 30_000 });
+  // Admin login uses plain <label>s without htmlFor, so getByLabel
+  // doesn't match. Target the inputs by type instead.
+  await page.locator("form input[type=email]").fill(admin.email);
+  await page.locator("form input[type=password]").fill(admin.password);
+  await page.locator("form button[type=submit]").click();
+  // Wait for the admin dashboard, not just any /admin/* URL —
+  // /admin/login itself contains "/admin/".
+  await page.waitForURL((u) => !u.pathname.endsWith("/login") && u.pathname.startsWith("/admin"), {
+    timeout: 30_000,
+  });
 
   // Open the Payments tab → "Send Payment Request" modal.
   const paymentsTab = page.getByRole("button", { name: /^payments$/i }).first();
@@ -91,8 +103,10 @@ test("customer payment journey: save-for-later → admin payment request → sel
   await page.goto("/account/login");
   await page.getByLabel(/username|email/i).first().fill(seed.email);
   await page.getByLabel(/password/i).fill(seed.password);
-  await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await page.waitForURL(/\/account(\?|$|\/)/, { timeout: 30_000 });
+  await page.locator("form button[type=submit]").click();
+  await page.waitForURL((u) => !u.pathname.endsWith("/login") && u.pathname.startsWith("/account"), {
+    timeout: 30_000,
+  });
 
   await page.goto(`/account/payment-requests/${paymentRequestId}/pay`);
   await expect(page.getByText(`PR-${paymentRequestId}`)).toBeVisible({ timeout: 15_000 });
