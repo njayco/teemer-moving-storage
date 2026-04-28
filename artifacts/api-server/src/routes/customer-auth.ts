@@ -617,6 +617,34 @@ router.post("/customer-auth/reset-password", async (req, res) => {
   }
 });
 
+// ─── Dev-only test helper ───────────────────────────────────────────────────
+//
+// Returns the reset URL for a known customer email so e2e UI tests can
+// exercise the reset-password page without scraping outbound emails. Mounted
+// ONLY when NODE_ENV !== "production" to ensure it's never exposed in real
+// deployments.
+if (process.env.NODE_ENV !== "production") {
+  router.post("/customer-auth/__test/reset-token", async (req, res) => {
+    const emailRaw = String(req.body?.email ?? "").trim().toLowerCase();
+    if (!emailRaw) {
+      res.status(400).json({ error: "email required" });
+      return;
+    }
+    const [customer] = await db
+      .select({ id: customersTable.id, passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(sql`lower(${customersTable.email}) = ${emailRaw}`)
+      .limit(1);
+    if (!customer || !customer.passwordHash) {
+      res.status(404).json({ error: "no customer with a password for that email" });
+      return;
+    }
+    const token = signPasswordResetToken(customer.id, customer.passwordHash);
+    const baseUrl = getAppBaseUrl();
+    res.json({ token, resetUrl: `${baseUrl}/account/reset-password?token=${encodeURIComponent(token)}` });
+  });
+}
+
 router.get("/customer-auth/check-username", async (req, res) => {
   const username = typeof req.query.username === "string" ? req.query.username : "";
   if (!username) {

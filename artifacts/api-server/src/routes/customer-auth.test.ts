@@ -1,5 +1,6 @@
 import { test, describe, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import jwt from "jsonwebtoken";
 import { db } from "@workspace/db";
 import { customersTable, quoteRequestsTable, jobsTable, emailLogsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -16,6 +17,35 @@ import {
   track,
 } from "./test-helpers.js";
 import { __resetIpHitsForTests } from "../lib/auth-rate-limit";
+import {
+  signCustomerToken,
+  signEmailVerificationToken,
+  signPasswordResetToken,
+} from "../lib/auth";
+
+// Mirrors the secret resolution in src/lib/auth.ts. Used for synthesizing
+// expired or wrong-purpose tokens that the public helpers won't produce.
+const TEST_JWT_SECRET = process.env.JWT_SECRET || "teemer-dev-secret-local-only";
+
+function signExpiredVerificationToken(customerId: number, email: string): string {
+  return jwt.sign(
+    {
+      purpose: "customer_email_verification",
+      customerId,
+      email: email.toLowerCase(),
+    },
+    TEST_JWT_SECRET,
+    { expiresIn: "-1s" },
+  );
+}
+
+function signExpiredResetToken(customerId: number, hashKey: string): string {
+  return jwt.sign(
+    { purpose: "customer_password_reset", customerId, hashKey },
+    TEST_JWT_SECRET,
+    { expiresIn: "-1s" },
+  );
+}
 
 before(async () => {
   await startTestServer();
@@ -560,5 +590,527 @@ describe("Auth email throttling", () => {
       process.env.AUTH_IP_RATE_PER_HOUR = "1000";
       __resetIpHitsForTests();
     }
+  });
+});
+
+// ─── Email verification ─────────────────────────────────────────────────────
+
+describe("POST /api/customer-auth/verify-email", () => {
+  test("happy path: marks the customer's email as verified", async () => {
+    const email = testEmail("verify-ok");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Verify Ok", email },
+    });
+    assert.equal(signup.status, 201);
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    // Pre-condition: not verified yet.
+    const before = await db
+      .select({ emailVerifiedAt: customersTable.emailVerifiedAt })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    assert.equal(before[0].emailVerifiedAt, null);
+
+    const token = signEmailVerificationToken(customerId, email);
+    const res = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.alreadyVerified, false);
+
+    const after = await db
+      .select({ emailVerifiedAt: customersTable.emailVerifiedAt })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    assert.ok(after[0].emailVerifiedAt instanceof Date, "emailVerifiedAt should be set");
+  });
+
+  test("idempotent: re-verifying succeeds and reports alreadyVerified=true", async () => {
+    const email = testEmail("verify-twice");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Verify Twice", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const token = signEmailVerificationToken(customerId, email);
+    const first = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token },
+    });
+    assert.equal(first.status, 200);
+    assert.equal(first.body.alreadyVerified, false);
+
+    const verifiedAtBefore = (
+      await db
+        .select({ emailVerifiedAt: customersTable.emailVerifiedAt })
+        .from(customersTable)
+        .where(eq(customersTable.id, customerId))
+    )[0].emailVerifiedAt;
+
+    const second = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token },
+    });
+    assert.equal(second.status, 200);
+    assert.equal(second.body.success, true);
+    assert.equal(second.body.alreadyVerified, true, "second call should report alreadyVerified");
+
+    // Crucially, the timestamp must NOT be overwritten on re-verify.
+    const verifiedAtAfter = (
+      await db
+        .select({ emailVerifiedAt: customersTable.emailVerifiedAt })
+        .from(customersTable)
+        .where(eq(customersTable.id, customerId))
+    )[0].emailVerifiedAt;
+    assert.equal(
+      verifiedAtAfter?.getTime(),
+      verifiedAtBefore?.getTime(),
+      "Re-verify must not bump emailVerifiedAt",
+    );
+  });
+
+  test("rejects when token email no longer matches the account email", async () => {
+    const oldEmail = testEmail("verify-old");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Email Changer", email: oldEmail },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    // Mint a token for the original email, then change the email under us.
+    const token = signEmailVerificationToken(customerId, oldEmail);
+    const newEmail = testEmail("verify-new");
+    await db
+      .update(customersTable)
+      .set({ email: newEmail })
+      .where(eq(customersTable.id, customerId));
+
+    const res = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /no longer valid/i);
+
+    const row = await db
+      .select({ emailVerifiedAt: customersTable.emailVerifiedAt })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    assert.equal(row[0].emailVerifiedAt, null, "must NOT verify after email change");
+  });
+
+  test("rejects a wrong-purpose token (customer session token replayed as verification)", async () => {
+    const email = testEmail("verify-wrong-purpose");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Wrong Purpose", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    // A long-lived session token should NOT satisfy verify-email.
+    const sessionToken = signCustomerToken({
+      customerId,
+      email,
+      username: signup.body.customer.username,
+      fullName: "Wrong Purpose",
+    });
+
+    const res = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token: sessionToken },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /invalid|expired/i);
+  });
+
+  test("rejects an expired verification token", async () => {
+    const email = testEmail("verify-expired");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Verify Expired", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const expired = signExpiredVerificationToken(customerId, email);
+    const res = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token: expired },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /invalid or has expired/i);
+  });
+
+  test("rejects a missing or empty token with 400", async () => {
+    const r1 = await api("/api/customer-auth/verify-email", { method: "POST", body: {} });
+    assert.equal(r1.status, 400);
+
+    const r2 = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token: "   " },
+    });
+    assert.equal(r2.status, 400);
+  });
+
+  test("rejects a token for a customer that no longer exists", async () => {
+    const ghostId = 999_999_111;
+    const token = signEmailVerificationToken(ghostId, "ghost@teemer-tests.local");
+    const res = await api("/api/customer-auth/verify-email", {
+      method: "POST",
+      body: { token },
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+describe("POST /api/customer-auth/resend-verification", () => {
+  test("requires customer auth (401 without a session cookie)", async () => {
+    const res = await api("/api/customer-auth/resend-verification", { method: "POST" });
+    assert.equal(res.status, 401);
+  });
+
+  test("returns success when the signed-in customer is unverified", async () => {
+    const email = testEmail("resend");
+    const jar = new CookieJar();
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      cookieJar: jar,
+      body: { fullName: "Resend Tester", email },
+    });
+    track.customer(signup.body.customer.customerId);
+
+    const res = await api("/api/customer-auth/resend-verification", {
+      method: "POST",
+      cookieJar: jar,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    // Unverified path should NOT report alreadyVerified.
+    assert.notEqual(res.body.alreadyVerified, true);
+  });
+
+  test("short-circuits with alreadyVerified=true when already verified", async () => {
+    const email = testEmail("resend-verified");
+    const jar = new CookieJar();
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      cookieJar: jar,
+      body: { fullName: "Already Verified", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    // Verify via the real endpoint so we exercise the same code path users hit.
+    const token = signEmailVerificationToken(customerId, email);
+    await api("/api/customer-auth/verify-email", { method: "POST", body: { token } });
+
+    const res = await api("/api/customer-auth/resend-verification", {
+      method: "POST",
+      cookieJar: jar,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.alreadyVerified, true);
+  });
+});
+
+// ─── Password reset ─────────────────────────────────────────────────────────
+
+describe("POST /api/customer-auth/forgot-password", () => {
+  test("returns 200 for a known email (no enumeration leak)", async () => {
+    const email = testEmail("forgot-known");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Forgot Known", email },
+    });
+    track.customer(signup.body.customer.customerId);
+
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { success: true });
+  });
+
+  test("returns 200 with the SAME body for an unknown email (no enumeration)", async () => {
+    const unknown = testEmail("forgot-nobody");
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email: unknown },
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { success: true });
+  });
+
+  test("returns 200 for an obviously malformed email (no enumeration)", async () => {
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email: "not-an-email" },
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { success: true });
+  });
+
+  test("returns 200 for a passwordless ghost contact (no enumeration)", async () => {
+    // Ghost (no password) — shape is identical to "unknown email".
+    const email = testEmail("forgot-ghost");
+    const [c] = await db
+      .insert(customersTable)
+      .values({ fullName: "Ghost", email, phone: null, username: null, passwordHash: null })
+      .returning();
+    track.customer(c.id);
+
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { success: true });
+  });
+});
+
+describe("GET /api/customer-auth/reset-password/check", () => {
+  test("returns valid:true with the email for a freshly minted token", async () => {
+    const email = testEmail("check-ok");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Check Ok", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const token = signPasswordResetToken(customerId, row.passwordHash!);
+
+    const res = await api(
+      `/api/customer-auth/reset-password/check?token=${encodeURIComponent(token)}`,
+    );
+    assert.equal(res.status, 200);
+    assert.equal(res.body.valid, true);
+    assert.equal(res.body.email, email);
+  });
+
+  test("returns valid:false for an expired token", async () => {
+    const email = testEmail("check-expired");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Check Expired", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const expired = signExpiredResetToken(customerId, (row.passwordHash ?? "").slice(0, 16));
+
+    const res = await api(
+      `/api/customer-auth/reset-password/check?token=${encodeURIComponent(expired)}`,
+    );
+    assert.equal(res.status, 200);
+    assert.equal(res.body.valid, false);
+  });
+
+  test("returns 400 when the token query parameter is missing", async () => {
+    const res = await api("/api/customer-auth/reset-password/check");
+    assert.equal(res.status, 400);
+    assert.equal(res.body.valid, false);
+  });
+});
+
+describe("POST /api/customer-auth/reset-password", () => {
+  test("happy path: rotates the password, auto-logs the customer in, lets them sign in with the new one", async () => {
+    const email = testEmail("reset-ok");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Reset Ok", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+    const oldPassword = signup.body.generatedPassword;
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const token = signPasswordResetToken(customerId, row.passwordHash!);
+
+    const newPassword = "NewSecret-" + uniqueSuffix();
+    const jar = new CookieJar();
+    const res = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      cookieJar: jar,
+      body: { token, password: newPassword },
+    });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.customer.customerId, customerId);
+
+    // Auto-login: the same jar should now access /me without a separate login.
+    const me = await api("/api/customer-auth/me", { cookieJar: jar });
+    assert.equal(me.status, 200, "reset should auto-log the customer in");
+    assert.equal(me.body.customer.customerId, customerId);
+
+    // The new password actually works for a fresh login.
+    const loginNew = await api("/api/customer-auth/login", {
+      method: "POST",
+      body: { identifier: email, password: newPassword },
+    });
+    assert.equal(loginNew.status, 200);
+
+    // The old password no longer works.
+    const loginOld = await api("/api/customer-auth/login", {
+      method: "POST",
+      body: { identifier: email, password: oldPassword },
+    });
+    assert.equal(loginOld.status, 401);
+  });
+
+  test("single-use guard: re-using the same token after a successful reset is rejected", async () => {
+    const email = testEmail("reset-reuse");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Reset Reuse", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const token = signPasswordResetToken(customerId, row.passwordHash!);
+
+    const first = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { token, password: "FirstNew-" + uniqueSuffix() },
+    });
+    assert.equal(first.status, 200);
+
+    // Replay the same token — the hashKey embedded in it no longer matches
+    // the (now rotated) password hash, so it must be rejected.
+    const second = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { token, password: "SecondNew-" + uniqueSuffix() },
+    });
+    assert.equal(second.status, 400);
+    assert.match(second.body.error, /already been used/i);
+
+    // The pre-flight check route should report the same single-use semantics.
+    const check = await api(
+      `/api/customer-auth/reset-password/check?token=${encodeURIComponent(token)}`,
+    );
+    assert.equal(check.body.valid, false);
+    assert.match(check.body.error, /already been used/i);
+  });
+
+  test("rejects passwords shorter than 8 characters", async () => {
+    const email = testEmail("reset-short");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Reset Short", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const token = signPasswordResetToken(customerId, row.passwordHash!);
+
+    const res = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { token, password: "abc12" },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /at least 8/i);
+  });
+
+  test("rejects an empty password", async () => {
+    const email = testEmail("reset-empty");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Reset Empty", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const token = signPasswordResetToken(customerId, row.passwordHash!);
+
+    const res = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { token, password: "" },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /at least 8/i);
+  });
+
+  test("rejects a missing token with 400", async () => {
+    const res = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { password: "longenoughpw" },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /missing reset token/i);
+  });
+
+  test("rejects an expired reset token", async () => {
+    const email = testEmail("reset-expired");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Reset Expired", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    const [row] = await db
+      .select({ passwordHash: customersTable.passwordHash })
+      .from(customersTable)
+      .where(eq(customersTable.id, customerId));
+    const expired = signExpiredResetToken(customerId, (row.passwordHash ?? "").slice(0, 16));
+
+    const res = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { token: expired, password: "AnotherLongPw1" },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /invalid or has expired/i);
+  });
+
+  test("rejects a wrong-purpose token (verification token replayed as reset)", async () => {
+    const email = testEmail("reset-wrong-purpose");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Reset Wrong Purpose", email },
+    });
+    const customerId = signup.body.customer.customerId;
+    track.customer(customerId);
+
+    // Mint an email-verification token and try to use it as a reset token.
+    const verifToken = signEmailVerificationToken(customerId, email);
+    const res = await api("/api/customer-auth/reset-password", {
+      method: "POST",
+      body: { token: verifToken, password: "AnotherLongPw1" },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /invalid or has expired/i);
   });
 });
