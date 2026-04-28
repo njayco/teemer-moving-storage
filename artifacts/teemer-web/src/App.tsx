@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
+import { CustomerAuthProvider } from "@/lib/customer-auth";
 
 import NotFound from "@/pages/not-found";
 import SplashPage from "@/pages/splash";
@@ -29,6 +30,13 @@ import RevenuePage from "@/pages/admin/revenue";
 import AdminLoginPage from "@/pages/admin/login";
 import AdminAuthGuard from "@/pages/admin/auth-guard";
 import CaptainAuthGuard from "@/pages/admin/captain-auth-guard";
+
+import CustomerLoginPage from "@/pages/account/login";
+import CustomerSignupPage from "@/pages/account/signup";
+import CustomerDashboardPage from "@/pages/account/dashboard";
+import CustomerQuoteDetailPage from "@/pages/account/quote-detail";
+import CustomerJobDetailPage from "@/pages/account/job-detail";
+import CustomerPaymentRequestPayPage from "@/pages/account/payment-request-pay";
 
 const queryClient = new QueryClient();
 
@@ -86,6 +94,14 @@ function Router() {
       <Route path="/platform/customer" component={CustomerPortal} />
       <Route path="/platform/provider" component={ProviderPortal} />
 
+      {/* Customer Account */}
+      <Route path="/account/login" component={CustomerLoginPage} />
+      <Route path="/account/signup" component={CustomerSignupPage} />
+      <Route path="/account/quotes/:id" component={CustomerQuoteDetailPage} />
+      <Route path="/account/jobs/:id" component={CustomerJobDetailPage} />
+      <Route path="/account/payment-requests/:id/pay" component={CustomerPaymentRequestPayPage} />
+      <Route path="/account" component={CustomerDashboardPage} />
+
       {/* Admin */}
       <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin/captain" component={ProtectedCaptain} />
@@ -103,10 +119,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
+          <CustomerAuthProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </CustomerAuthProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

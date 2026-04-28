@@ -853,6 +853,197 @@ export interface DeleteDiscountCodeResponse {
   id: number;
 }
 
+export interface CustomerSignupRequest {
+  fullName: string;
+  email: string;
+  phone: string;
+  /** Optional. If omitted, generated from name. Format: +letters/digits/underscores 3-30 chars. */
+  username?: string;
+  /** Optional. If omitted a strong password is generated and emailed. */
+  password?: string;
+  attachQuoteId?: number | null;
+}
+
+export interface CustomerSession {
+  customerId: number;
+  email: string;
+  phone?: string | null;
+  username: string;
+  fullName: string;
+}
+
+export interface CustomerSignupResponse {
+  customer?: CustomerSession;
+  /** The auto-generated password if no password was supplied. Shown once. */
+  generatedPassword?: string | null;
+}
+
+export interface CustomerLoginRequest {
+  /** Username (with leading +) or email */
+  identifier: string;
+  password: string;
+}
+
+export interface CustomerSessionResponse {
+  customer?: CustomerSession;
+}
+
+export interface UsernameAvailability {
+  available?: boolean;
+  valid?: boolean;
+  normalized?: string;
+}
+
+export interface CustomerQuoteSummary {
+  id?: string;
+  status?: string;
+  contactName?: string;
+  moveDate?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  totalEstimate?: number | null;
+  depositAmount?: number | null;
+  crewSize?: number | null;
+  estimatedHours?: number | null;
+  createdAt?: string | null;
+}
+
+export interface CustomerQuoteUpdate {
+  moveDate?: string;
+  arrivalTimeWindow?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  secondStop?: string;
+  additionalNotes?: string;
+  parkingInstructions?: string;
+  phone?: string;
+}
+
+export interface CustomerJobSummary {
+  id?: string;
+  jobId?: string;
+  status?: string;
+  paymentStatus?: string | null;
+  moveDate?: string | null;
+  arrivalWindow?: string | null;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  finalTotal?: number | null;
+  depositPaid?: number | null;
+  remainingBalance?: number | null;
+  crewSize?: number | null;
+  estimatedHours?: number | null;
+  hourlyRate?: number | null;
+  createdAt?: string | null;
+  completedAt?: string | null;
+}
+
+export type CustomerJobDetailJob = { [key: string]: unknown };
+
+export type CustomerJobDetailQuote = { [key: string]: unknown } | null;
+
+export type CustomerJobDetailInvoice = { [key: string]: unknown } | null;
+
+export type CustomerJobDetailPaymentsItem = { [key: string]: unknown };
+
+export interface CustomerJobDetail {
+  job?: CustomerJobDetailJob;
+  quote?: CustomerJobDetailQuote;
+  invoice?: CustomerJobDetailInvoice;
+  payments?: CustomerJobDetailPaymentsItem[];
+}
+
+export interface CustomerPayment {
+  id?: number;
+  jobId?: number | null;
+  amount?: number;
+  type?: string;
+  method?: string | null;
+  confirmationNumber?: string | null;
+  paymentRequestId?: number | null;
+  paidAt?: string | null;
+  notes?: string | null;
+}
+
+export interface CustomerPaymentRequest {
+  id?: number;
+  customerId?: number;
+  amountCents?: number;
+  description?: string;
+  status?: string;
+  stripeSessionId?: string | null;
+  confirmationNumber?: string | null;
+  createdAt?: string | null;
+  paidAt?: string | null;
+  payUrl?: string | null;
+}
+
+export interface CheckoutSessionResponse {
+  url?: string | null;
+  sessionId?: string;
+}
+
+export interface AdminCustomerLookup {
+  id?: number;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  username?: string | null;
+  hasAccount?: boolean;
+}
+
+export interface CreatePaymentRequestRequest {
+  username?: string | null;
+  customerId?: number | null;
+  /** @minimum 100 */
+  amountCents: number;
+  description: string;
+}
+
+export type AdminPaymentRequestCustomer = {
+  id?: number;
+  fullName?: string;
+  email?: string;
+  username?: string | null;
+} | null;
+
+export interface AdminPaymentRequest {
+  id?: number;
+  customerId?: number;
+  amountCents?: number;
+  description?: string;
+  status?: string;
+  stripeSessionId?: string | null;
+  confirmationNumber?: string | null;
+  createdAt?: string | null;
+  paidAt?: string | null;
+  payUrl?: string | null;
+  customer?: AdminPaymentRequestCustomer;
+}
+
+export type AdminPaymentRowJob = { [key: string]: unknown } | null;
+
+export type AdminPaymentRowQuote = { [key: string]: unknown } | null;
+
+export type AdminPaymentRowCustomer = { [key: string]: unknown } | null;
+
+export interface AdminPaymentRow {
+  id?: number;
+  jobId?: number | null;
+  customerId?: number | null;
+  paymentRequestId?: number | null;
+  type?: string;
+  method?: string | null;
+  amount?: number;
+  reference?: string | null;
+  confirmationNumber?: string | null;
+  paidAt?: string | null;
+  notes?: string | null;
+  job?: AdminPaymentRowJob;
+  quote?: AdminPaymentRowQuote;
+  customer?: AdminPaymentRowCustomer;
+}
+
 export type ListJobsParams = {
   /**
    * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)
@@ -908,4 +1099,21 @@ export type SignContractBody = {
 export type SignContract200 = {
   success?: boolean;
   signedAt?: string;
+};
+
+export type CustomerCheckUsernameParams = {
+  username: string;
+};
+
+export type LookupCustomersParams = {
+  q: string;
+};
+
+export type ListAdminPaymentRequestsParams = {
+  status?: string;
+};
+
+export type ListAdminPaymentsParams = {
+  method?: string;
+  search?: string;
 };

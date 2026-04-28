@@ -1040,6 +1040,367 @@ paths:
         "404":
           description: Job not found
 
+  # ─── Customer accounts (Task #44) ─────────────────────────────────────────
+  /customer-auth/signup:
+    post:
+      operationId: customerSignup
+      tags: [customer-auth]
+      summary: Create a customer account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerSignupRequest"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerSignupResponse"
+        "400":
+          description: Invalid input
+        "409":
+          description: Email or username already in use
+  /customer-auth/login:
+    post:
+      operationId: customerLogin
+      tags: [customer-auth]
+      summary: Customer login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerLoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerSessionResponse"
+        "401":
+          description: Invalid credentials
+  /customer-auth/logout:
+    post:
+      operationId: customerLogout
+      tags: [customer-auth]
+      summary: Customer logout
+      responses:
+        "200":
+          description: Logged out
+  /customer-auth/me:
+    get:
+      operationId: customerMe
+      tags: [customer-auth]
+      summary: Current signed-in customer
+      responses:
+        "200":
+          description: Current customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerSessionResponse"
+        "401":
+          description: Not authenticated
+  /customer-auth/check-username:
+    get:
+      operationId: customerCheckUsername
+      tags: [customer-auth]
+      summary: Check if a username is available
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Availability info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameAvailability"
+
+  /customer/quotes:
+    get:
+      operationId: listCustomerQuotes
+      tags: [customer]
+      summary: List the signed-in customer's saved quotes
+      responses:
+        "200":
+          description: Quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerQuoteSummary"
+  /customer/quotes/{id}:
+    get:
+      operationId: getCustomerQuote
+      tags: [customer]
+      summary: Get one of the customer's saved quotes
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteResponse"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCustomerQuote
+      tags: [customer]
+      summary: Update a saved quote (only while still in quote_requested status)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerQuoteUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteResponse"
+        "409":
+          description: No longer editable
+  /customer/jobs:
+    get:
+      operationId: listCustomerJobs
+      tags: [customer]
+      summary: List the customer's jobs
+      responses:
+        "200":
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerJobSummary"
+  /customer/jobs/{id}:
+    get:
+      operationId: getCustomerJob
+      tags: [customer]
+      summary: Get full detail for a customer job
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerJobDetail"
+  /customer/jobs/{id}/contract.pdf:
+    get:
+      operationId: downloadCustomerContractPdf
+      tags: [customer]
+      summary: Download contract PDF for the customer's job
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  /customer/invoices/{jobId}/pdf:
+    get:
+      operationId: downloadCustomerInvoicePdf
+      tags: [customer]
+      summary: Download invoice PDF
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  /customer/payments:
+    get:
+      operationId: listCustomerPayments
+      tags: [customer]
+      summary: Customer's payment history
+      responses:
+        "200":
+          description: Payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerPayment"
+  /customer/payment-requests:
+    get:
+      operationId: listCustomerPaymentRequests
+      tags: [customer]
+      summary: Customer's pending and historical payment requests
+      responses:
+        "200":
+          description: Payment requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerPaymentRequest"
+  /customer/payment-requests/{id}:
+    get:
+      operationId: getCustomerPaymentRequest
+      tags: [customer]
+      summary: Get one of the customer's payment requests
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payment request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerPaymentRequest"
+  /customer/payment-requests/{id}/checkout:
+    post:
+      operationId: payCustomerPaymentRequest
+      tags: [customer]
+      summary: Start Stripe checkout for a payment request
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Checkout session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSessionResponse"
+  /customer/jobs/{id}/balance-checkout:
+    post:
+      operationId: payCustomerJobBalance
+      tags: [customer]
+      summary: Start Stripe checkout for the customer's outstanding balance
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Checkout session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSessionResponse"
+
+  # ─── Admin: payment requests + payments view (Task #44) ───────────────────
+  /admin/customers/lookup:
+    get:
+      operationId: lookupCustomers
+      tags: [admin]
+      summary: Look up customers by name, email, phone, or username
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminCustomerLookup"
+  /admin/payment-requests:
+    get:
+      operationId: listAdminPaymentRequests
+      tags: [admin]
+      summary: List all payment requests
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payment requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminPaymentRequest"
+    post:
+      operationId: createAdminPaymentRequest
+      tags: [admin]
+      summary: Send a payment request to a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentRequestRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaymentRequest"
+  /admin/payments:
+    get:
+      operationId: listAdminPayments
+      tags: [admin]
+      summary: List all payments (admin Payments view)
+      parameters:
+        - in: query
+          name: method
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminPaymentRow"
+
 components:
   schemas:
     HealthStatus:
@@ -2424,3 +2785,211 @@ components:
           type: boolean
         id:
           type: integer
+
+    # ─── Customer accounts (Task #44) ────────────────────────────────────────
+    CustomerSignupRequest:
+      type: object
+      required: [fullName, email, phone]
+      properties:
+        fullName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        username:
+          type: string
+          description: "Optional. If omitted, generated from name. Format: +letters/digits/underscores 3-30 chars."
+        password:
+          type: string
+          description: Optional. If omitted a strong password is generated and emailed.
+        attachQuoteId:
+          type: integer
+          nullable: true
+    CustomerSignupResponse:
+      type: object
+      properties:
+        customer:
+          $ref: "#/components/schemas/CustomerSession"
+        generatedPassword:
+          type: string
+          nullable: true
+          description: The auto-generated password if no password was supplied. Shown once.
+    CustomerLoginRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          description: Username (with leading +) or email
+        password: { type: string }
+    CustomerSession:
+      type: object
+      required: [customerId, email, username, fullName]
+      properties:
+        customerId: { type: integer }
+        email: { type: string }
+        phone: { type: string, nullable: true }
+        username: { type: string }
+        fullName: { type: string }
+    CustomerSessionResponse:
+      type: object
+      properties:
+        customer:
+          $ref: "#/components/schemas/CustomerSession"
+    UsernameAvailability:
+      type: object
+      properties:
+        available: { type: boolean }
+        valid: { type: boolean }
+        normalized: { type: string }
+
+    CustomerQuoteSummary:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        contactName: { type: string }
+        moveDate: { type: string }
+        pickupAddress: { type: string }
+        dropoffAddress: { type: string }
+        totalEstimate: { type: number, nullable: true }
+        depositAmount: { type: number, nullable: true }
+        crewSize: { type: integer, nullable: true }
+        estimatedHours: { type: integer, nullable: true }
+        createdAt: { type: string, nullable: true }
+    CustomerQuoteUpdate:
+      type: object
+      properties:
+        moveDate: { type: string }
+        arrivalTimeWindow: { type: string }
+        pickupAddress: { type: string }
+        dropoffAddress: { type: string }
+        secondStop: { type: string }
+        additionalNotes: { type: string }
+        parkingInstructions: { type: string }
+        phone: { type: string }
+
+    CustomerJobSummary:
+      type: object
+      properties:
+        id: { type: string }
+        jobId: { type: string }
+        status: { type: string }
+        paymentStatus: { type: string, nullable: true }
+        moveDate: { type: string, nullable: true }
+        arrivalWindow: { type: string, nullable: true }
+        pickupAddress: { type: string }
+        dropoffAddress: { type: string }
+        finalTotal: { type: number, nullable: true }
+        depositPaid: { type: number, nullable: true }
+        remainingBalance: { type: number, nullable: true }
+        crewSize: { type: integer, nullable: true }
+        estimatedHours: { type: integer, nullable: true }
+        hourlyRate: { type: number, nullable: true }
+        createdAt: { type: string, nullable: true }
+        completedAt: { type: string, nullable: true }
+    CustomerJobDetail:
+      type: object
+      properties:
+        job: { type: object }
+        quote: { type: object, nullable: true }
+        invoice: { type: object, nullable: true }
+        payments:
+          type: array
+          items: { type: object }
+
+    CustomerPayment:
+      type: object
+      properties:
+        id: { type: integer }
+        jobId: { type: integer, nullable: true }
+        amount: { type: number }
+        type: { type: string }
+        method: { type: string, nullable: true }
+        confirmationNumber: { type: string, nullable: true }
+        paymentRequestId: { type: integer, nullable: true }
+        paidAt: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+
+    CustomerPaymentRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        customerId: { type: integer }
+        amountCents: { type: integer }
+        description: { type: string }
+        status: { type: string }
+        stripeSessionId: { type: string, nullable: true }
+        confirmationNumber: { type: string, nullable: true }
+        createdAt: { type: string, nullable: true }
+        paidAt: { type: string, nullable: true }
+        payUrl: { type: string, nullable: true }
+
+    CheckoutSessionResponse:
+      type: object
+      properties:
+        url: { type: string, nullable: true }
+        sessionId: { type: string }
+
+    AdminCustomerLookup:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        username: { type: string, nullable: true }
+        hasAccount: { type: boolean }
+
+    CreatePaymentRequestRequest:
+      type: object
+      required: [amountCents, description]
+      properties:
+        username: { type: string, nullable: true }
+        customerId: { type: integer, nullable: true }
+        amountCents: { type: integer, minimum: 100 }
+        description: { type: string }
+
+    AdminPaymentRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        customerId: { type: integer }
+        amountCents: { type: integer }
+        description: { type: string }
+        status: { type: string }
+        stripeSessionId: { type: string, nullable: true }
+        confirmationNumber: { type: string, nullable: true }
+        createdAt: { type: string, nullable: true }
+        paidAt: { type: string, nullable: true }
+        payUrl: { type: string, nullable: true }
+        customer:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            fullName: { type: string }
+            email: { type: string }
+            username: { type: string, nullable: true }
+
+    AdminPaymentRow:
+      type: object
+      properties:
+        id: { type: integer }
+        jobId: { type: integer, nullable: true }
+        customerId: { type: integer, nullable: true }
+        paymentRequestId: { type: integer, nullable: true }
+        type: { type: string }
+        method: { type: string, nullable: true }
+        amount: { type: number }
+        reference: { type: string, nullable: true }
+        confirmationNumber: { type: string, nullable: true }
+        paidAt: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        job:
+          type: object
+          nullable: true
+        quote:
+          type: object
+          nullable: true
+        customer:
+          type: object
+          nullable: true

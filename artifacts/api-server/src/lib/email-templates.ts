@@ -576,3 +576,103 @@ export function jobCompletedHtml(data: JobCompletedData): string {
   `;
   return baseLayout("Move Completed — Teemer Moving & Storage", body);
 }
+
+// ─── Customer account credentials (Task #44) ────────────────────────────────
+export interface AccountCredentialsData {
+  customerName: string;
+  username: string;
+  email: string;
+  temporaryPassword: string;
+  loginUrl: string;
+}
+
+export function accountCredentialsHtml(data: AccountCredentialsData): string {
+  const body = `
+    <h2 style="margin:0 0 12px;color:#0B132B;font-size:22px;">Welcome, ${escapeHtml(data.customerName)}!</h2>
+    <p style="margin:0 0 12px;color:#475569;font-size:15px;line-height:1.5;">
+      Your Teemer Moving customer account has been created. Sign in any time
+      to view your saved quotes, see your scheduled moves, download contracts,
+      and pay outstanding balances.
+    </p>
+    <div style="margin:20px 0;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+      <p style="margin:0 0 8px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Sign-in details</p>
+      <p style="margin:0;color:#1e293b;font-size:14px;"><strong>Username:</strong> ${escapeHtml(data.username)}</p>
+      <p style="margin:4px 0 0;color:#1e293b;font-size:14px;"><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+      <p style="margin:4px 0 0;color:#1e293b;font-size:14px;"><strong>Temporary password:</strong>
+        <code style="display:inline-block;padding:2px 8px;background:#fff;border:1px dashed #94a3b8;border-radius:4px;font-family:monospace;font-size:14px;">${escapeHtml(data.temporaryPassword)}</code>
+      </p>
+    </div>
+    <p style="margin:0 0 8px;color:#475569;font-size:14px;">You can sign in with either your <strong>username</strong> or your <strong>email</strong>.</p>
+    ${ctaButton("Sign In to My Account", data.loginUrl)}
+    <p style="margin:18px 0 0;color:#94a3b8;font-size:12px;">For your security, please change this temporary password after signing in.</p>
+  `;
+  return baseLayout("Your Teemer Moving Account", body);
+}
+
+// ─── Payment request notification (Task #44) ────────────────────────────────
+export interface PaymentRequestNotificationData {
+  customerName: string;
+  amount: number;
+  description: string;
+  paymentRequestId: number;
+  payUrl: string;
+}
+
+export function paymentRequestNotificationHtml(data: PaymentRequestNotificationData): string {
+  const amountStr = formatCurrencyHtml(data.amount);
+  const body = `
+    <h2 style="margin:0 0 12px;color:#0B132B;font-size:22px;">Payment Request from Teemer Moving</h2>
+    <p style="margin:0 0 12px;color:#475569;font-size:15px;line-height:1.5;">
+      Hi ${escapeHtml(data.customerName)}, we've sent you a new payment request through your Teemer customer account.
+    </p>
+    <div style="margin:20px 0;padding:18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;text-align:center;">
+      <p style="margin:0 0 4px;color:#166534;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Amount Due</p>
+      <p style="margin:0;color:#16a34a;font-size:32px;font-weight:700;">${amountStr}</p>
+      <p style="margin:8px 0 0;color:#475569;font-size:13px;">${escapeHtml(data.description)}</p>
+      <p style="margin:6px 0 0;color:#94a3b8;font-size:11px;">Request #${data.paymentRequestId}</p>
+    </div>
+    ${ctaButton("Pay Now", data.payUrl)}
+    <p style="margin:18px 0 0;color:#94a3b8;font-size:12px;">You can also sign in to your account at any time to review and pay this request.</p>
+  `;
+  return baseLayout("Payment Request — Teemer Moving", body);
+}
+
+// ─── Payment receipt with confirmation # (Task #44) ─────────────────────────
+export interface PaymentReceiptData {
+  customerName: string;
+  amount: number;
+  confirmationNumber: string;
+  description: string;
+  paidAt: string;
+  receiptUrl?: string;
+  jobId?: string | number;
+  paymentRequestId?: string | number;
+}
+
+export function paymentReceiptHtml(data: PaymentReceiptData): string {
+  const amountStr = formatCurrencyHtml(data.amount);
+  const body = `
+    <h2 style="margin:0 0 12px;color:#0B132B;font-size:22px;">Payment Received — Thank You!</h2>
+    <p style="margin:0 0 12px;color:#475569;font-size:15px;line-height:1.5;">
+      Hi ${escapeHtml(data.customerName)}, we've successfully received your payment.
+      Please keep this confirmation for your records.
+    </p>
+    <div style="margin:20px 0;padding:18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;text-align:center;">
+      <p style="margin:0 0 4px;color:#166534;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Amount Paid</p>
+      <p style="margin:0;color:#16a34a;font-size:30px;font-weight:700;">${amountStr}</p>
+      <p style="margin:8px 0 0;color:#475569;font-size:13px;">${escapeHtml(data.description)}</p>
+    </div>
+    <div style="margin:16px 0;padding:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+      <p style="margin:0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Confirmation Number</p>
+      <p style="margin:4px 0 0;color:#0B132B;font-size:18px;font-family:monospace;font-weight:700;">${escapeHtml(data.confirmationNumber)}</p>
+      <p style="margin:6px 0 0;color:#94a3b8;font-size:12px;">Paid ${escapeHtml(data.paidAt)}</p>
+    </div>
+    ${data.receiptUrl ? ctaButton("View Receipt Online", data.receiptUrl) : ""}
+    <p style="margin:18px 0 0;color:#94a3b8;font-size:12px;">If you have any questions, please reply to this email or call (516) 269-3724.</p>
+  `;
+  return baseLayout("Payment Receipt — Teemer Moving", body);
+}
+
+function formatCurrencyHtml(value: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+}

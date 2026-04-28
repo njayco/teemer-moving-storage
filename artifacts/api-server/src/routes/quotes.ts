@@ -224,6 +224,7 @@ router.patch("/quotes/:id/status", async (req, res) => {
               mountedTVCount: updated.mountedTVCount ?? 0,
               discountCode: updated.discountCode || undefined,
               discountAmount: updated.discountAmount ?? 0,
+              customerId: updated.customerId ?? undefined,
             })
             .returning();
         }

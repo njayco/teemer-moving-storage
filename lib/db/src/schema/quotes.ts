@@ -112,6 +112,9 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   // Status: quote_requested | deposit_paid | booked | pending (legacy)
   status: text("status").default("quote_requested"),
 
+  // Customer account ownership (set when a customer claims this quote via Save-for-later or Attach)
+  customerId: integer("customer_id"),
+
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -1728,3 +1728,540 @@ export const SignContractResponse = zod.object({
 export const DownloadContractPdfParams = zod.object({
   jobId: zod.coerce.string(),
 });
+
+/**
+ * @summary Create a customer account
+ */
+export const CustomerSignupBody = zod.object({
+  fullName: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  username: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional. If omitted, generated from name. Format: +letters\/digits\/underscores 3-30 chars.",
+    ),
+  password: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional. If omitted a strong password is generated and emailed.",
+    ),
+  attachQuoteId: zod.number().nullish(),
+});
+
+/**
+ * @summary Customer login
+ */
+export const CustomerLoginBody = zod.object({
+  identifier: zod.string().describe("Username (with leading +) or email"),
+  password: zod.string(),
+});
+
+export const CustomerLoginResponse = zod.object({
+  customer: zod
+    .object({
+      customerId: zod.number(),
+      email: zod.string(),
+      phone: zod.string().nullish(),
+      username: zod.string(),
+      fullName: zod.string(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Current signed-in customer
+ */
+export const CustomerMeResponse = zod.object({
+  customer: zod
+    .object({
+      customerId: zod.number(),
+      email: zod.string(),
+      phone: zod.string().nullish(),
+      username: zod.string(),
+      fullName: zod.string(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Check if a username is available
+ */
+export const CustomerCheckUsernameQueryParams = zod.object({
+  username: zod.coerce.string(),
+});
+
+export const CustomerCheckUsernameResponse = zod.object({
+  available: zod.boolean().optional(),
+  valid: zod.boolean().optional(),
+  normalized: zod.string().optional(),
+});
+
+/**
+ * @summary List the signed-in customer's saved quotes
+ */
+export const ListCustomerQuotesResponseItem = zod.object({
+  id: zod.string().optional(),
+  status: zod.string().optional(),
+  contactName: zod.string().optional(),
+  moveDate: zod.string().optional(),
+  pickupAddress: zod.string().optional(),
+  dropoffAddress: zod.string().optional(),
+  totalEstimate: zod.number().nullish(),
+  depositAmount: zod.number().nullish(),
+  crewSize: zod.number().nullish(),
+  estimatedHours: zod.number().nullish(),
+  createdAt: zod.string().nullish(),
+});
+export const ListCustomerQuotesResponse = zod.array(
+  ListCustomerQuotesResponseItem,
+);
+
+/**
+ * @summary Get one of the customer's saved quotes
+ */
+export const GetCustomerQuoteParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetCustomerQuoteResponse = zod.object({
+  id: zod.string(),
+  status: zod
+    .enum(["quote_requested", "deposit_paid", "booked"])
+    .describe("quote_requested | deposit_paid | booked"),
+  createdAt: zod.string(),
+  crewSize: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  laborSubtotal: zod.number().optional(),
+  materialsSubtotal: zod.number().optional(),
+  pianoSurcharge: zod.number().optional(),
+  commercialAdjustment: zod
+    .number()
+    .optional()
+    .describe("Amount added above residential estimate for commercial moves"),
+  mountedTVFee: zod
+    .number()
+    .optional()
+    .describe(
+      "Per-TV wall-mounted TV dismount\/remount surcharge (count × $50\/TV); included in totalEstimate",
+    ),
+  totalEstimate: zod.number().optional(),
+  depositAmount: zod.number().optional(),
+  serviceType: zod
+    .enum(["moving", "junk_removal"])
+    .optional()
+    .describe("Service type: moving or junk_removal"),
+  junkLoadSize: zod.enum(["small", "medium", "large", "full_truck"]).optional(),
+  junkStairsFlights: zod.number().optional(),
+  junkHeavyItemsCount: zod.number().optional(),
+  junkConstructionDebris: zod.boolean().optional(),
+  junkSameDay: zod.boolean().optional(),
+  junkHazardousItems: zod.boolean().optional(),
+  junkBasePrice: zod.number().optional(),
+  junkAddonsTotal: zod.number().optional(),
+  estimatedPriceLow: zod.number().optional(),
+  estimatedPriceHigh: zod.number().optional(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
+  quoteRequest: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      secondStop: zod.string().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      moveType: zod.string().optional(),
+      residentialOrCommercial: zod.string().optional(),
+      originAddress: zod.string().optional(),
+      destinationAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasGarage: zod.boolean().optional(),
+      hasOutdoorFurniture: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      pianoType: zod.enum(["none", "upright", "grand"]).optional(),
+      pianoFloor: zod.enum(["ground", "stairs"]).optional(),
+      isCommercial: zod.boolean().optional(),
+      commercialBusinessType: zod.string().optional(),
+      commercialSizeTier: zod
+        .enum(["small", "medium", "large", "enterprise"])
+        .optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      boxesAlreadyPacked: zod.number().optional(),
+      needsPackingMaterials: zod.boolean().optional(),
+      smallBoxes: zod.number().optional(),
+      mediumBoxes: zod.number().optional(),
+      serviceType: zod.enum(["moving", "junk_removal"]).optional(),
+      junkLoadSize: zod
+        .enum(["small", "medium", "large", "full_truck"])
+        .optional(),
+      junkStairsFlights: zod.number().optional(),
+      junkHeavyItemsCount: zod.number().optional(),
+      junkConstructionDebris: zod.boolean().optional(),
+      junkSameDay: zod.boolean().optional(),
+      junkHazardousItems: zod.boolean().optional(),
+      moveSize: zod.string().optional(),
+      numberOfRooms: zod.number().optional(),
+      packingHelpNeeded: zod.string().optional(),
+      specialItems: zod.string().optional(),
+    })
+    .describe("Echo of the quote request fields as stored"),
+});
+
+/**
+ * @summary Update a saved quote (only while still in quote_requested status)
+ */
+export const UpdateCustomerQuoteParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateCustomerQuoteBody = zod.object({
+  moveDate: zod.string().optional(),
+  arrivalTimeWindow: zod.string().optional(),
+  pickupAddress: zod.string().optional(),
+  dropoffAddress: zod.string().optional(),
+  secondStop: zod.string().optional(),
+  additionalNotes: zod.string().optional(),
+  parkingInstructions: zod.string().optional(),
+  phone: zod.string().optional(),
+});
+
+export const UpdateCustomerQuoteResponse = zod.object({
+  id: zod.string(),
+  status: zod
+    .enum(["quote_requested", "deposit_paid", "booked"])
+    .describe("quote_requested | deposit_paid | booked"),
+  createdAt: zod.string(),
+  crewSize: zod.number().optional(),
+  hourlyRate: zod.number().optional(),
+  estimatedHours: zod.number().optional(),
+  laborSubtotal: zod.number().optional(),
+  materialsSubtotal: zod.number().optional(),
+  pianoSurcharge: zod.number().optional(),
+  commercialAdjustment: zod
+    .number()
+    .optional()
+    .describe("Amount added above residential estimate for commercial moves"),
+  mountedTVFee: zod
+    .number()
+    .optional()
+    .describe(
+      "Per-TV wall-mounted TV dismount\/remount surcharge (count × $50\/TV); included in totalEstimate",
+    ),
+  totalEstimate: zod.number().optional(),
+  depositAmount: zod.number().optional(),
+  serviceType: zod
+    .enum(["moving", "junk_removal"])
+    .optional()
+    .describe("Service type: moving or junk_removal"),
+  junkLoadSize: zod.enum(["small", "medium", "large", "full_truck"]).optional(),
+  junkStairsFlights: zod.number().optional(),
+  junkHeavyItemsCount: zod.number().optional(),
+  junkConstructionDebris: zod.boolean().optional(),
+  junkSameDay: zod.boolean().optional(),
+  junkHazardousItems: zod.boolean().optional(),
+  junkBasePrice: zod.number().optional(),
+  junkAddonsTotal: zod.number().optional(),
+  estimatedPriceLow: zod.number().optional(),
+  estimatedPriceHigh: zod.number().optional(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
+  quoteRequest: zod
+    .object({
+      contactName: zod.string().optional(),
+      phone: zod.string().optional(),
+      email: zod.string().optional(),
+      moveDate: zod.string().optional(),
+      arrivalTimeWindow: zod.string().optional(),
+      pickupAddress: zod.string().optional(),
+      dropoffAddress: zod.string().optional(),
+      secondStop: zod.string().optional(),
+      storageNeeded: zod.boolean().optional(),
+      storageUnitChoice: zod.string().optional(),
+      additionalNotes: zod.string().optional(),
+      moveType: zod.string().optional(),
+      residentialOrCommercial: zod.string().optional(),
+      originAddress: zod.string().optional(),
+      destinationAddress: zod.string().optional(),
+      numberOfBedrooms: zod.number().optional(),
+      numberOfLivingRooms: zod.number().optional(),
+      isFullyFurnished: zod.boolean().optional(),
+      hasGarage: zod.boolean().optional(),
+      hasOutdoorFurniture: zod.boolean().optional(),
+      hasStairs: zod.boolean().optional(),
+      hasHeavyItems: zod.boolean().optional(),
+      pianoType: zod.enum(["none", "upright", "grand"]).optional(),
+      pianoFloor: zod.enum(["ground", "stairs"]).optional(),
+      isCommercial: zod.boolean().optional(),
+      commercialBusinessType: zod.string().optional(),
+      commercialSizeTier: zod
+        .enum(["small", "medium", "large", "enterprise"])
+        .optional(),
+      inventory: zod
+        .record(zod.string(), zod.number())
+        .optional()
+        .describe(
+          "Map of item name to quantity. Keys are item names, values are quantities.",
+        ),
+      boxesAlreadyPacked: zod.number().optional(),
+      needsPackingMaterials: zod.boolean().optional(),
+      smallBoxes: zod.number().optional(),
+      mediumBoxes: zod.number().optional(),
+      serviceType: zod.enum(["moving", "junk_removal"]).optional(),
+      junkLoadSize: zod
+        .enum(["small", "medium", "large", "full_truck"])
+        .optional(),
+      junkStairsFlights: zod.number().optional(),
+      junkHeavyItemsCount: zod.number().optional(),
+      junkConstructionDebris: zod.boolean().optional(),
+      junkSameDay: zod.boolean().optional(),
+      junkHazardousItems: zod.boolean().optional(),
+      moveSize: zod.string().optional(),
+      numberOfRooms: zod.number().optional(),
+      packingHelpNeeded: zod.string().optional(),
+      specialItems: zod.string().optional(),
+    })
+    .describe("Echo of the quote request fields as stored"),
+});
+
+/**
+ * @summary List the customer's jobs
+ */
+export const ListCustomerJobsResponseItem = zod.object({
+  id: zod.string().optional(),
+  jobId: zod.string().optional(),
+  status: zod.string().optional(),
+  paymentStatus: zod.string().nullish(),
+  moveDate: zod.string().nullish(),
+  arrivalWindow: zod.string().nullish(),
+  pickupAddress: zod.string().optional(),
+  dropoffAddress: zod.string().optional(),
+  finalTotal: zod.number().nullish(),
+  depositPaid: zod.number().nullish(),
+  remainingBalance: zod.number().nullish(),
+  crewSize: zod.number().nullish(),
+  estimatedHours: zod.number().nullish(),
+  hourlyRate: zod.number().nullish(),
+  createdAt: zod.string().nullish(),
+  completedAt: zod.string().nullish(),
+});
+export const ListCustomerJobsResponse = zod.array(ListCustomerJobsResponseItem);
+
+/**
+ * @summary Get full detail for a customer job
+ */
+export const GetCustomerJobParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetCustomerJobResponse = zod.object({
+  job: zod.object({}).passthrough().optional(),
+  quote: zod.object({}).passthrough().nullish(),
+  invoice: zod.object({}).passthrough().nullish(),
+  payments: zod.array(zod.object({}).passthrough()).optional(),
+});
+
+/**
+ * @summary Download contract PDF for the customer's job
+ */
+export const DownloadCustomerContractPdfParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Download invoice PDF
+ */
+export const DownloadCustomerInvoicePdfParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+/**
+ * @summary Customer's payment history
+ */
+export const ListCustomerPaymentsResponseItem = zod.object({
+  id: zod.number().optional(),
+  jobId: zod.number().nullish(),
+  amount: zod.number().optional(),
+  type: zod.string().optional(),
+  method: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  paymentRequestId: zod.number().nullish(),
+  paidAt: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+export const ListCustomerPaymentsResponse = zod.array(
+  ListCustomerPaymentsResponseItem,
+);
+
+/**
+ * @summary Customer's pending and historical payment requests
+ */
+export const ListCustomerPaymentRequestsResponseItem = zod.object({
+  id: zod.number().optional(),
+  customerId: zod.number().optional(),
+  amountCents: zod.number().optional(),
+  description: zod.string().optional(),
+  status: zod.string().optional(),
+  stripeSessionId: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  paidAt: zod.string().nullish(),
+  payUrl: zod.string().nullish(),
+});
+export const ListCustomerPaymentRequestsResponse = zod.array(
+  ListCustomerPaymentRequestsResponseItem,
+);
+
+/**
+ * @summary Get one of the customer's payment requests
+ */
+export const GetCustomerPaymentRequestParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetCustomerPaymentRequestResponse = zod.object({
+  id: zod.number().optional(),
+  customerId: zod.number().optional(),
+  amountCents: zod.number().optional(),
+  description: zod.string().optional(),
+  status: zod.string().optional(),
+  stripeSessionId: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  paidAt: zod.string().nullish(),
+  payUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Start Stripe checkout for a payment request
+ */
+export const PayCustomerPaymentRequestParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const PayCustomerPaymentRequestResponse = zod.object({
+  url: zod.string().nullish(),
+  sessionId: zod.string().optional(),
+});
+
+/**
+ * @summary Start Stripe checkout for the customer's outstanding balance
+ */
+export const PayCustomerJobBalanceParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const PayCustomerJobBalanceResponse = zod.object({
+  url: zod.string().nullish(),
+  sessionId: zod.string().optional(),
+});
+
+/**
+ * @summary Look up customers by name, email, phone, or username
+ */
+export const LookupCustomersQueryParams = zod.object({
+  q: zod.coerce.string(),
+});
+
+export const LookupCustomersResponseItem = zod.object({
+  id: zod.number().optional(),
+  fullName: zod.string().optional(),
+  email: zod.string().optional(),
+  phone: zod.string().optional(),
+  username: zod.string().nullish(),
+  hasAccount: zod.boolean().optional(),
+});
+export const LookupCustomersResponse = zod.array(LookupCustomersResponseItem);
+
+/**
+ * @summary List all payment requests
+ */
+export const ListAdminPaymentRequestsQueryParams = zod.object({
+  status: zod.coerce.string().optional(),
+});
+
+export const ListAdminPaymentRequestsResponseItem = zod.object({
+  id: zod.number().optional(),
+  customerId: zod.number().optional(),
+  amountCents: zod.number().optional(),
+  description: zod.string().optional(),
+  status: zod.string().optional(),
+  stripeSessionId: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  paidAt: zod.string().nullish(),
+  payUrl: zod.string().nullish(),
+  customer: zod
+    .object({
+      id: zod.number().optional(),
+      fullName: zod.string().optional(),
+      email: zod.string().optional(),
+      username: zod.string().nullish(),
+    })
+    .nullish(),
+});
+export const ListAdminPaymentRequestsResponse = zod.array(
+  ListAdminPaymentRequestsResponseItem,
+);
+
+/**
+ * @summary Send a payment request to a customer
+ */
+export const createAdminPaymentRequestBodyAmountCentsMin = 100;
+
+export const CreateAdminPaymentRequestBody = zod.object({
+  username: zod.string().nullish(),
+  customerId: zod.number().nullish(),
+  amountCents: zod.number().min(createAdminPaymentRequestBodyAmountCentsMin),
+  description: zod.string(),
+});
+
+/**
+ * @summary List all payments (admin Payments view)
+ */
+export const ListAdminPaymentsQueryParams = zod.object({
+  method: zod.coerce.string().optional(),
+  search: zod.coerce.string().optional(),
+});
+
+export const ListAdminPaymentsResponseItem = zod.object({
+  id: zod.number().optional(),
+  jobId: zod.number().nullish(),
+  customerId: zod.number().nullish(),
+  paymentRequestId: zod.number().nullish(),
+  type: zod.string().optional(),
+  method: zod.string().nullish(),
+  amount: zod.number().optional(),
+  reference: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  paidAt: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  job: zod.object({}).passthrough().nullish(),
+  quote: zod.object({}).passthrough().nullish(),
+  customer: zod.object({}).passthrough().nullish(),
+});
+export const ListAdminPaymentsResponse = zod.array(
+  ListAdminPaymentsResponseItem,
+);

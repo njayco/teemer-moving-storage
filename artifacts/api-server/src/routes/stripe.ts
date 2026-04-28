@@ -1,14 +1,25 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { quoteRequestsTable, paymentsTable, revenueLedgerTable, jobsTable, invoicesTable, discountCodesTable } from "@workspace/db/schema";
+import {
+  quoteRequestsTable,
+  paymentsTable,
+  revenueLedgerTable,
+  jobsTable,
+  invoicesTable,
+  discountCodesTable,
+  paymentRequestsTable,
+  customersTable,
+} from "@workspace/db/schema";
 import { eq, and, notInArray, isNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 import {
   sendDepositConfirmationEmail,
   sendAdminNewJobNotification,
+  sendPaymentReceiptEmail,
 } from "../lib/email-service";
 import { recordTimelineEvent } from "../lib/timeline";
 import { getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
+import { buildConfirmationNumber } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -38,10 +49,12 @@ function getAppBaseUrl(): string {
 interface FinalizeDepositParams {
   parsedQuoteId: number;
   stripeSessionId: string;
+  paymentIntentId?: string | null;
   logger: Request["log"];
 }
 
-async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: FinalizeDepositParams): Promise<{ updated: boolean; alreadyProcessed: boolean }> {
+async function finalizeDeposit({ parsedQuoteId, stripeSessionId, paymentIntentId, logger }: FinalizeDepositParams): Promise<{ updated: boolean; alreadyProcessed: boolean }> {
+  const confirmationNumber = paymentIntentId ? buildConfirmationNumber(paymentIntentId) : null;
   const trackingToken = crypto.randomUUID();
 
   const [updatedQuote] = await db
@@ -69,10 +82,12 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
         await db.transaction(async (tx) => {
           await tx.insert(paymentsTable).values({
             jobId: existingJob.id,
+            customerId: existingJob.customerId ?? quote?.customerId ?? null,
             type: "deposit",
             method: "stripe",
             amount: depositPaid,
             reference: stripeSessionId,
+            confirmationNumber,
             notes: `Stripe deposit for quote #${parsedQuoteId}`,
           });
           await tx.insert(revenueLedgerTable).values({
@@ -81,7 +96,7 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
             amount: depositPaid,
           });
         });
-        logger.info({ jobId: existingJob.id, amount: depositPaid }, "Late deposit payment recorded for already-processed quote");
+        logger.info({ jobId: existingJob.id, amount: depositPaid, confirmationNumber }, "Late deposit payment recorded for already-processed quote");
 
         // Also count the discount-code redemption for this newly-recorded
         // late payment, mirroring the main path below. The redemption-claim
@@ -197,10 +212,12 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
       await db.transaction(async (tx) => {
         await tx.insert(paymentsTable).values({
           jobId: existingJob.id,
+          customerId: existingJob.customerId ?? updatedQuote.customerId ?? null,
           type: "deposit",
           method: "stripe",
           amount: depositPaid,
           reference: stripeSessionId,
+          confirmationNumber,
           notes: `Stripe deposit for quote #${parsedQuoteId}`,
         });
         await tx.insert(revenueLedgerTable).values({
@@ -216,7 +233,7 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
         visibleToCustomer: true,
         notes: `Deposit of $${depositPaid.toFixed(2)} recorded via Stripe`,
       }).catch(() => {});
-      logger.info({ jobId: existingJob.id, amount: depositPaid }, "Deposit payment and revenue ledger recorded");
+      logger.info({ jobId: existingJob.id, amount: depositPaid, confirmationNumber }, "Deposit payment and revenue ledger recorded");
     }
   }
 
@@ -295,50 +312,214 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
 
       const paymentType = session.metadata?.paymentType;
 
-      if (paymentType === "balance_payment") {
-        const jobIdMeta = session.metadata?.jobId;
+      if (paymentType === "balance_payment" || paymentType === "customer_balance_payment") {
+        const jobIdMeta = session.metadata?.jobId ?? session.metadata?.customerJobId;
         if (!jobIdMeta || isNaN(parseInt(jobIdMeta, 10))) {
           req.log.error({ metadata: session.metadata }, "Balance payment webhook missing valid jobId");
           res.json({ received: true });
           return;
         }
         const parsedJobId = parseInt(jobIdMeta, 10);
+        const customerIdMeta = session.metadata?.customerId
+          ? parseInt(session.metadata.customerId, 10)
+          : null;
         const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, parsedJobId)).limit(1);
-        if (job && (job.status === "finished" || job.status === "awaiting_remaining_balance")) {
-          const existingPayment = await db.select().from(paymentsTable)
+        const isCustomerSelfPay = paymentType === "customer_balance_payment";
+        if (
+          job &&
+          (isCustomerSelfPay ||
+            job.status === "finished" ||
+            job.status === "awaiting_remaining_balance")
+        ) {
+          const existingPayment = await db
+            .select()
+            .from(paymentsTable)
             .where(and(eq(paymentsTable.jobId, job.id), eq(paymentsTable.reference, session.id)))
             .limit(1);
           if (existingPayment.length === 0) {
             const amountPaid = (session.amount_total ?? 0) / 100;
+            // Resolve confirmation number from PaymentIntent
+            let confirmationNumber: string | null = null;
+            try {
+              const piId =
+                typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+              if (piId) confirmationNumber = buildConfirmationNumber(piId);
+            } catch {
+              /* ignore */
+            }
+
             await db.transaction(async (tx) => {
               await tx.insert(paymentsTable).values({
                 jobId: job.id,
+                customerId: customerIdMeta && Number.isFinite(customerIdMeta) ? customerIdMeta : null,
                 amount: amountPaid,
                 method: "stripe",
                 type: "remaining_balance",
                 reference: session.id,
+                confirmationNumber,
               });
-              await tx.update(jobsTable).set({
-                status: "complete",
-                completedAt: new Date(),
-                paymentStatus: "paid",
-                remainingBalance: 0,
-                updatedAt: new Date(),
-              }).where(eq(jobsTable.id, job.id));
-              const [existingInvoice] = await tx.select().from(invoicesTable)
-                .where(eq(invoicesTable.jobId, job.id)).limit(1);
-              if (existingInvoice) {
-                await tx.update(invoicesTable).set({
-                  status: "paid",
-                  paidAt: new Date(),
-                  remainingBalanceDue: 0,
+              const newStatus =
+                job.status === "finished" || job.status === "awaiting_remaining_balance"
+                  ? "complete"
+                  : job.status;
+              await tx
+                .update(jobsTable)
+                .set({
+                  status: newStatus,
+                  completedAt: newStatus === "complete" ? new Date() : job.completedAt,
+                  paymentStatus: "paid",
+                  remainingBalance: 0,
                   updatedAt: new Date(),
-                }).where(eq(invoicesTable.id, existingInvoice.id));
+                })
+                .where(eq(jobsTable.id, job.id));
+              const [existingInvoice] = await tx
+                .select()
+                .from(invoicesTable)
+                .where(eq(invoicesTable.jobId, job.id))
+                .limit(1);
+              if (existingInvoice) {
+                await tx
+                  .update(invoicesTable)
+                  .set({
+                    status: "paid",
+                    paidAt: new Date(),
+                    remainingBalanceDue: 0,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(invoicesTable.id, existingInvoice.id));
               }
             });
-            req.log.info({ jobId: job.id, amount: amountPaid }, "Balance payment received via Stripe — job auto-completed");
+            req.log.info(
+              { jobId: job.id, amount: amountPaid, confirmationNumber },
+              "Balance payment received via Stripe — job auto-completed",
+            );
+            // Send receipt email (best-effort)
+            try {
+              const [q] = job.quoteId
+                ? await db
+                    .select({
+                      contactName: quoteRequestsTable.contactName,
+                      email: quoteRequestsTable.email,
+                    })
+                    .from(quoteRequestsTable)
+                    .where(eq(quoteRequestsTable.id, job.quoteId))
+                    .limit(1)
+                : [];
+              const customerEmailLookup = customerIdMeta
+                ? (
+                    await db
+                      .select({ email: customersTable.email, fullName: customersTable.fullName })
+                      .from(customersTable)
+                      .where(eq(customersTable.id, customerIdMeta))
+                      .limit(1)
+                  )[0]
+                : undefined;
+              const recipientEmail = q?.email ?? customerEmailLookup?.email;
+              const recipientName = q?.contactName ?? customerEmailLookup?.fullName ?? "Customer";
+              if (recipientEmail && confirmationNumber) {
+                sendPaymentReceiptEmail({
+                  email: recipientEmail,
+                  customerName: recipientName,
+                  amount: amountPaid,
+                  confirmationNumber,
+                  description: `Remaining balance for Job #${job.id}`,
+                  paidAt: new Date().toLocaleString(),
+                  jobId: String(job.id),
+                }).catch((err) => req.log.error({ err }, "Failed to send payment receipt email"));
+              }
+            } catch (err) {
+              req.log.error({ err }, "Failed to fetch info for receipt email");
+            }
           } else {
             req.log.info({ jobId: job.id }, "Balance payment already processed for this session");
+          }
+        }
+      } else if (paymentType === "payment_request") {
+        const prIdMeta = session.metadata?.paymentRequestId;
+        const customerIdMeta = session.metadata?.customerId
+          ? parseInt(session.metadata.customerId, 10)
+          : null;
+        if (!prIdMeta || isNaN(parseInt(prIdMeta, 10))) {
+          req.log.error({ metadata: session.metadata }, "Payment-request webhook missing valid id");
+          res.json({ received: true });
+          return;
+        }
+        const prId = parseInt(prIdMeta, 10);
+        const [pr] = await db
+          .select()
+          .from(paymentRequestsTable)
+          .where(eq(paymentRequestsTable.id, prId))
+          .limit(1);
+        if (pr && pr.status !== "paid") {
+          const existingPayment = await db
+            .select()
+            .from(paymentsTable)
+            .where(
+              and(eq(paymentsTable.paymentRequestId, pr.id), eq(paymentsTable.reference, session.id)),
+            )
+            .limit(1);
+          if (existingPayment.length === 0) {
+            const amountPaid = (session.amount_total ?? 0) / 100;
+            let confirmationNumber: string | null = null;
+            try {
+              const piId =
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : session.payment_intent?.id;
+              if (piId) confirmationNumber = buildConfirmationNumber(piId);
+            } catch {
+              /* ignore */
+            }
+
+            await db.transaction(async (tx) => {
+              await tx.insert(paymentsTable).values({
+                jobId: null,
+                customerId: pr.customerId,
+                paymentRequestId: pr.id,
+                amount: amountPaid,
+                method: "stripe",
+                type: "payment_request",
+                reference: session.id,
+                confirmationNumber,
+                notes: pr.description,
+              });
+              await tx
+                .update(paymentRequestsTable)
+                .set({
+                  status: "paid",
+                  paidAt: new Date(),
+                  stripeSessionId: session.id,
+                  stripePaymentIntentId:
+                    typeof session.payment_intent === "string"
+                      ? session.payment_intent
+                      : session.payment_intent?.id ?? null,
+                  confirmationNumber,
+                  updatedAt: new Date(),
+                })
+                .where(eq(paymentRequestsTable.id, pr.id));
+            });
+            // Send receipt
+            try {
+              const [c] = await db
+                .select({ email: customersTable.email, fullName: customersTable.fullName })
+                .from(customersTable)
+                .where(eq(customersTable.id, pr.customerId))
+                .limit(1);
+              if (c?.email && confirmationNumber) {
+                sendPaymentReceiptEmail({
+                  email: c.email,
+                  customerName: c.fullName,
+                  amount: amountPaid,
+                  confirmationNumber,
+                  description: pr.description,
+                  paidAt: new Date().toLocaleString(),
+                  paymentRequestId: pr.id,
+                }).catch((err) => req.log.error({ err }, "Failed to send PR receipt email"));
+              }
+            } catch (err) {
+              req.log.error({ err }, "Failed to send payment-request receipt email");
+            }
+            req.log.info({ paymentRequestId: pr.id, confirmationNumber }, "Payment request paid via Stripe");
           }
         }
       } else {
@@ -350,9 +531,14 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
         }
 
         const parsedQuoteId = parseInt(quoteId, 10);
+        const depositPaymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null;
         const result = await finalizeDeposit({
           parsedQuoteId,
           stripeSessionId: session.id,
+          paymentIntentId: depositPaymentIntentId,
           logger: req.log,
         });
 
@@ -393,9 +579,14 @@ router.post("/stripe/verify-session", async (req: Request, res: Response) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status === "paid" && session.metadata?.quoteId === quoteId) {
+      const verifyPaymentIntentId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id ?? null;
       const result = await finalizeDeposit({
         parsedQuoteId,
         stripeSessionId: sessionId,
+        paymentIntentId: verifyPaymentIntentId,
         logger: req.log,
       });
 

@@ -133,7 +133,7 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
     const logoPath = resolveLogoPath();
     if (logoPath) {
       try {
-        doc.image(logoPath, margin, 12, { fit: [62, 62], align: "left", valign: "center" });
+        doc.image(logoPath, margin, 12, { fit: [62, 62], valign: "center" });
       } catch {
         /* ignore image errors and fall back to text */
       }

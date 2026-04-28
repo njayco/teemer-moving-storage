@@ -64,6 +64,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { useAuth } from "@/lib/auth";
+import { PaymentsTab } from "./payments-tab";
+import { SendPaymentRequestModal } from "./send-payment-request-modal";
 
 type QuoteStatus = "quote_requested" | "deposit_paid" | "booked";
 
@@ -2358,8 +2360,9 @@ function SettingsTab() {
 
 export default function AdminDashboard() {
   const { data: stats } = useGetAdminStats();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs" | "discounts" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs" | "discounts" | "payments" | "settings">("dashboard");
   const [jobsFilter, setJobsFilter] = useState("all");
+  const [showPRModal, setShowPRModal] = useState(false);
   const { user, logout } = useAuth();
 
   const { data: allJobs = [] } = useListJobs(
@@ -2375,6 +2378,7 @@ export default function AdminDashboard() {
     { icon: FileText, label: "Quotes", tab: "quotes" as const },
     { icon: Package, label: "All Jobs", tab: "jobs" as const },
     { icon: Tag, label: "Discounts", tab: "discounts" as const },
+    { icon: CreditCard, label: "Payments", tab: "payments" as const },
     { icon: Settings, label: "Settings", tab: "settings" as const },
   ];
 
@@ -2552,6 +2556,26 @@ export default function AdminDashboard() {
                         <div className="text-xs text-slate-400">{stats?.totalJobs ?? 0} total</div>
                       </div>
                     </button>
+                    <button
+                      onClick={() => setShowPRModal(true)}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+                    >
+                      <CreditCard className="w-5 h-5 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium text-secondary">Send Payment Request</div>
+                        <div className="text-xs text-slate-400">Bill any customer</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("payments")}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+                    >
+                      <DollarSign className="w-5 h-5 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium text-secondary">View Payments</div>
+                        <div className="text-xs text-slate-400">All transactions</div>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
@@ -2587,9 +2611,12 @@ export default function AdminDashboard() {
           {activeTab === "quotes" && <QuotesTab />}
           {activeTab === "jobs" && <JobsTab key={jobsFilter} defaultFilter={jobsFilter} />}
           {activeTab === "discounts" && <DiscountCodesTab />}
+          {activeTab === "payments" && <PaymentsTab onSendPaymentRequest={() => setShowPRModal(true)} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
       </div>
+
+      <SendPaymentRequestModal open={showPRModal} onClose={() => setShowPRModal(false)} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ export * from "./jobs";
 export * from "./contacts";
 export * from "./users";
 export * from "./customers";
+export * from "./payment-requests";
 export * from "./invoices";
 export * from "./payments";
 export * from "./revenue-ledger";

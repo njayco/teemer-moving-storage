@@ -6,6 +6,7 @@ import { useSubmitQuoteRequest } from "@workspace/api-client-react";
 import type { QuoteResponse } from "@workspace/api-client-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useCustomerAuth } from "@/lib/customer-auth";
 import {
   CheckCircle2, Loader2, ArrowRight, ArrowLeft, Minus, Plus,
   Sparkles, Users, Clock, DollarSign, Calendar, Package,
@@ -340,8 +341,167 @@ function ProgressBar({ currentStep, stepLabels }: { currentStep: number; stepLab
 }
 
 
-function QuoteResultsScreen({ result, moveDate, onReserve }: {
-  result: QuoteResponse; moveDate: string; onReserve: () => void;
+function SaveForLaterModal({
+  open,
+  onClose,
+  prefill,
+  quoteId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  prefill: { fullName: string; email: string; phone: string };
+  quoteId: string | number;
+}) {
+  const [, navigate] = useLocation();
+  const [fullName, setFullName] = useState(prefill.fullName);
+  const [email, setEmail] = useState(prefill.email);
+  const [phone, setPhone] = useState(prefill.phone);
+  const [username, setUsername] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setFullName(prefill.fullName);
+      setEmail(prefill.email);
+      setPhone(prefill.phone);
+      setUsername("");
+      setError(null);
+      setNeedsLogin(false);
+    }
+  }, [open, prefill]);
+
+  if (!open) return null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const apiBase = `${import.meta.env.BASE_URL}api`.replace(/\/+/g, "/");
+      const res = await fetch(`${apiBase}/customer-auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          fullName,
+          email,
+          phone,
+          username: username.trim() || undefined,
+          attachQuoteId: quoteId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409 && /sign in/i.test(data.error || "")) {
+          setNeedsLogin(true);
+        }
+        setError(data.error || "Couldn't save your quote.");
+        return;
+      }
+      navigate(`/account/quotes/${quoteId}`);
+    } catch {
+      setError("Network error.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-xl font-bold text-slate-900 mb-1">Save Your Quote</h3>
+        <p className="text-sm text-slate-500 mb-4">
+          Create a quick account so you can come back later, edit details, and reserve when you're ready.
+        </p>
+
+        {error && (
+          <div className="mb-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 flex gap-2 items-start">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              {error}
+              {needsLogin && (
+                <a href={`/account/login?next=/account/quotes/${quoteId}`} className="block mt-1 text-primary font-semibold underline">
+                  Sign in to your existing account →
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Full Name</label>
+            <input
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border border-slate-200 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border border-slate-200 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Phone (optional)</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border border-slate-200 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Username (optional)</label>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="+yourname"
+              className="w-full px-3 py-2 mt-1 border border-slate-200 rounded-lg text-sm font-mono"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">We'll auto-generate one if you leave this blank.</p>
+          </div>
+          <div className="text-[11px] text-slate-500 bg-slate-50 rounded-lg p-2">
+            We'll email you a temporary password so you can sign in any time to view, edit, or pay for this quote.
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
+            >
+              {submitting ? "Saving…" : "Save Quote"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function QuoteResultsScreen({ result, moveDate, onReserve, onSaveForLater, loggedInCustomerName, oneClickAttaching, oneClickError }: {
+  result: QuoteResponse; moveDate: string; onReserve: () => void; onSaveForLater: () => void;
+  loggedInCustomerName?: string | null;
+  oneClickAttaching?: boolean;
+  oneClickError?: string | null;
 }) {
   const q = result;
   const isCommercialResult = (q.commercialAdjustment ?? 0) > 0 || q.quoteRequest?.isCommercial;
@@ -497,12 +657,12 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
                   <span className="font-semibold text-slate-800">{fmt(q.pianoSurcharge)}</span>
                 </div>
               )}
-              {((q as Record<string, unknown>).distanceSurcharge as number ?? 0) > 0 && (
+              {((q as unknown as Record<string, unknown>).distanceSurcharge as number ?? 0) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600 flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5 text-primary" /> Long-Distance Travel ({(q as Record<string, unknown>).distanceMiles as number} mi × $3.00/mi)
+                    <Truck className="w-3.5 h-3.5 text-primary" /> Long-Distance Travel ({(q as unknown as Record<string, unknown>).distanceMiles as number} mi × $3.00/mi)
                   </span>
-                  <span className="font-semibold text-slate-800">{fmt((q as Record<string, unknown>).distanceSurcharge as number)}</span>
+                  <span className="font-semibold text-slate-800">{fmt((q as unknown as Record<string, unknown>).distanceSurcharge as number)}</span>
                 </div>
               )}
               {(q.mountedTVFee ?? 0) > 0 && (
@@ -635,6 +795,24 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
         </a>
       </div>
 
+      <div className="text-center pt-1 space-y-1">
+        <button
+          type="button"
+          onClick={onSaveForLater}
+          disabled={oneClickAttaching}
+          className="text-sm text-primary font-semibold hover:underline disabled:opacity-60"
+        >
+          {oneClickAttaching
+            ? "Saving to your account…"
+            : loggedInCustomerName
+              ? `Save this quote to ${loggedInCustomerName}'s account →`
+              : "Not ready to book? Save this quote for later →"}
+        </button>
+        {oneClickError && (
+          <p className="text-xs text-rose-600">{oneClickError}</p>
+        )}
+      </div>
+
       <p className="text-center text-xs text-slate-400">
         Quote #: {q.id} · Submitted on {new Date(q.createdAt).toLocaleDateString()}
       </p>
@@ -645,9 +823,13 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
 
 export default function QuotePage() {
   const [, navigate] = useLocation();
+  const { customer: currentCustomer } = useCustomerAuth();
   const [step, setStep] = useState(1);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isSameDayMove, setIsSameDayMove] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [oneClickAttaching, setOneClickAttaching] = useState(false);
+  const [oneClickError, setOneClickError] = useState<string | null>(null);
 
   // Step 1 (React Hook Form)
   const {
@@ -1023,11 +1205,52 @@ export default function QuotePage() {
 
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-6 md:p-10 border border-slate-100">
             {quoteResult ? (
-              <QuoteResultsScreen
-                result={quoteResult}
-                moveDate={watchStep1("moveDate")}
-                onReserve={handleReserve}
-              />
+              <>
+                <QuoteResultsScreen
+                  result={quoteResult}
+                  moveDate={watchStep1("moveDate")}
+                  onReserve={handleReserve}
+                  onSaveForLater={async () => {
+                    setOneClickError(null);
+                    if (currentCustomer) {
+                      // Logged-in customer → one-click attach to their account
+                      setOneClickAttaching(true);
+                      try {
+                        const apiBase = `${import.meta.env.BASE_URL}api`.replace(/\/+/g, "/");
+                        const res = await fetch(
+                          `${apiBase}/customer/quotes/${quoteResult.id}/attach`,
+                          { method: "POST", credentials: "include" },
+                        );
+                        if (!res.ok) {
+                          const data = await res.json().catch(() => ({}));
+                          setOneClickError(data.error || "Couldn't save to your account.");
+                          return;
+                        }
+                        navigate(`/account/quotes/${quoteResult.id}`);
+                      } catch {
+                        setOneClickError("Network error. Please try again.");
+                      } finally {
+                        setOneClickAttaching(false);
+                      }
+                    } else {
+                      setSaveOpen(true);
+                    }
+                  }}
+                  loggedInCustomerName={currentCustomer?.fullName ?? null}
+                  oneClickAttaching={oneClickAttaching}
+                  oneClickError={oneClickError}
+                />
+                <SaveForLaterModal
+                  open={saveOpen}
+                  onClose={() => setSaveOpen(false)}
+                  quoteId={quoteResult.id}
+                  prefill={{
+                    fullName: getStep1Values("contactName") || "",
+                    email: getStep1Values("email") || "",
+                    phone: getStep1Values("phone") || "",
+                  }}
+                />
+              </>
             ) : (
               <>
                 <ProgressBar

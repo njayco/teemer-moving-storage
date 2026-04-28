@@ -15,6 +15,9 @@ import {
   bookingConfirmationHtml,
   dayBeforeReminderHtml,
   sameDayCaptainAlertHtml,
+  accountCredentialsHtml,
+  paymentRequestNotificationHtml,
+  paymentReceiptHtml,
   type DepositConfirmationData,
   type AdminNewJobData,
   type StatusUpdateData,
@@ -25,6 +28,9 @@ import {
   type BookingConfirmationData,
   type DayBeforeReminderData,
   type SameDayCaptainAlertData,
+  type AccountCredentialsData,
+  type PaymentRequestNotificationData,
+  type PaymentReceiptData,
 } from "./email-templates";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Teemer Moving <noreply@teemer.com>";
@@ -369,4 +375,39 @@ export async function sendContactNotificationEmail(data: {
 
 function formatCurrency(amount: number): string {
   return `$${amount.toFixed(2)}`;
+}
+
+// ─── Customer accounts (Task #44) ───────────────────────────────────────────
+
+export async function sendAccountCredentialsEmail(
+  data: AccountCredentialsData,
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: data.email,
+    subject: `Your Teemer Moving Account — Sign-in Details`,
+    html: accountCredentialsHtml(data),
+    emailType: "account_credentials",
+  });
+}
+
+export async function sendPaymentRequestNotificationEmail(
+  data: PaymentRequestNotificationData & { email: string },
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: data.email,
+    subject: `Payment Request — ${formatCurrency(data.amount)} (Teemer Moving)`,
+    html: paymentRequestNotificationHtml(data),
+    emailType: "payment_request_notification",
+  });
+}
+
+export async function sendPaymentReceiptEmail(
+  data: PaymentReceiptData & { email: string },
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: data.email,
+    subject: `Payment Receipt — ${data.confirmationNumber} (${formatCurrency(data.amount)})`,
+    html: paymentReceiptHtml(data),
+    emailType: "payment_receipt",
+  });
 }
