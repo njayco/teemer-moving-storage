@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import type { Page } from "@playwright/test";
 
 /**
  * Build a unique tag for this test run. We use this to namespace every
@@ -19,6 +20,80 @@ export interface CustomerSeed {
 }
 
 const apiBase = (): string => process.env.API_URL ?? "http://localhost:8080";
+
+/**
+ * Forward all `/api/**` requests the page makes to the API server. The
+ * teemer-web Vite dev server doesn't proxy `/api`, so without this any
+ * fetch the React app makes (e.g. quote submission, save-for-later signup)
+ * 404s when the test drives the live UI. Production deploys are reached
+ * through the path-based proxy and don't need this.
+ */
+export async function routeApiToServer(page: Page): Promise<void> {
+  await page.route("**/api/**", async (route) => {
+    const original = route.request();
+    const incoming = new URL(original.url());
+    const target = `${apiBase()}${incoming.pathname}${incoming.search}`;
+
+    const headers: Record<string, string> = { ...original.headers() };
+    delete headers.host;
+    delete headers[":authority"];
+
+    const method = original.method();
+    const hasBody = method !== "GET" && method !== "HEAD";
+
+    let response: Response;
+    try {
+      response = await fetch(target, {
+        method,
+        headers,
+        body: hasBody ? (original.postData() ?? undefined) : undefined,
+        redirect: "manual",
+      });
+    } catch (err) {
+      await route.abort("failed");
+      throw err;
+    }
+
+    const respHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      // `content-encoding` lies once we've already decoded the body; drop it.
+      if (key.toLowerCase() === "content-encoding") return;
+      if (key.toLowerCase() === "content-length") return;
+      respHeaders[key] = value;
+    });
+
+    const buf = Buffer.from(await response.arrayBuffer());
+    await route.fulfill({
+      status: response.status,
+      headers: respHeaders,
+      body: buf,
+    });
+  });
+}
+
+/**
+ * Seed a customer who already has a password (so a second `/customer-auth/
+ * signup` for the same email returns the 409 "Please sign in instead"
+ * error). Unlike `seedSavedQuoteCustomer`, this does NOT create a quote —
+ * use it when the test will create the quote itself through the UI.
+ */
+export async function seedCustomerWithPassword(
+  tag: string,
+): Promise<{ fullName: string; email: string }> {
+  const fullName = `Existing Customer ${tag}`;
+  const email = `existing+${tag}@teemer-tests.local`;
+  const res = await fetch(`${apiBase()}/api/customer-auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fullName, email }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Failed to seed customer: ${res.status} ${await res.text()}`,
+    );
+  }
+  return { fullName, email };
+}
 
 /**
  * Seed a customer + quote via the public APIs so the UI flow has something
