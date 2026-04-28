@@ -764,6 +764,14 @@ export default function QuotePage() {
 
 
   const handleFinalSubmit = () => {
+    // If inventory/box changes in later steps pushed the estimate over the
+    // pre-pack threshold, the window selector on step 2 may be unfilled.
+    // Bounce the user back rather than letting the server reject them.
+    if (!isJunkRemoval && requiresPackDay && !packingArrivalWindow) {
+      setPackingWindowError("Your move now requires a pre-pack day — please pick an arrival window.");
+      goToStep(2);
+      return;
+    }
     const step1Data = getStep1Values();
     const basePayload = {
       contactName: step1Data.contactName,

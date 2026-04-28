@@ -1118,10 +1118,12 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       + (travelFee ?? 0) + (stairFee ?? 0) + (storageFee ?? 0) + (packingFee ?? 0)
       + suppliesTotal;
     const extras = extraCharges ?? job.extraCharges ?? 0;
+    // adminDisc is the only discount written back to jobsTable.discounts; the
+    // promo (jobs.discountAmount) is a separate, immutable column. Send-invoice
+    // recombines the two, so persisting the sum here would double-count.
     const adminDisc = discounts ?? job.discounts ?? 0;
     const promoDisc = job.discountAmount ?? 0;
-    const disc = adminDisc + promoDisc;
-    const finalTotal = Math.max(0, subtotal + extras - disc);
+    const finalTotal = Math.max(0, subtotal + extras - adminDisc - promoDisc);
     const depositApplied = job.depositPaid ?? 0;
 
     const { remainingBalance: remainingBalanceDue } = await computeTotalPaidAndRemaining(
@@ -1171,7 +1173,7 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
     let invoice;
     if (existing) {
       [invoice] = await db.update(invoicesTable).set({
-        subtotal, extraCharges: extras, discounts: disc, finalTotal,
+        subtotal, extraCharges: extras, discounts: adminDisc, finalTotal,
         depositApplied, remainingBalanceDue, dueDate: dueDate ?? existing.dueDate,
         editableSnapshotJson: snapshot, updatedAt: new Date(),
       }).where(eq(invoicesTable.id, existing.id)).returning();
@@ -1179,13 +1181,13 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       const invoiceNumber = `INV-${job.jobId || job.id}-${Date.now().toString(36).toUpperCase()}`;
       [invoice] = await db.insert(invoicesTable).values({
         jobId: job.id, invoiceNumber, subtotal, extraCharges: extras,
-        discounts: disc, finalTotal, depositApplied, remainingBalanceDue,
+        discounts: adminDisc, finalTotal, depositApplied, remainingBalanceDue,
         dueDate: dueDate ?? null, status: "draft", editableSnapshotJson: snapshot,
       }).returning();
     }
 
     await db.update(jobsTable).set({
-      extraCharges: extras, discounts: disc, finalTotal,
+      extraCharges: extras, discounts: adminDisc, finalTotal,
       remainingBalance: remainingBalanceDue,
       // Sync admin-edited crew size back to the job so dispatcher/captain
       // views and downstream invoice emails reflect the same number.
