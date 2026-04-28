@@ -136,19 +136,12 @@ export default function QuoteDepositPage() {
                   {quote.depositAmount != null && (
                     <div className="px-5 py-4 text-center">
                       <p className="text-xs text-slate-400 font-medium mb-1">Deposit Amount</p>
-                      {isDiscounted ? (
-                        <div>
-                          <p className="text-sm text-slate-400 line-through">
-                            ${(displayDeposit / (1 - 0.10)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-2xl font-bold text-primary">
-                            ${displayDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-xs text-green-700 font-semibold mt-0.5">{serverTotals?.label ?? "Discount applied"}</p>
-                        </div>
-                      ) : (
-                        <p className="text-2xl font-bold text-primary">
-                          ${displayDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      <p className="text-2xl font-bold text-primary">
+                        ${displayDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                      {isDiscounted && (
+                        <p className="text-xs text-green-700 font-semibold mt-0.5">
+                          {serverTotals?.label ?? "Discount applied"} — saves ${(serverTotals?.discountAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} off your total estimate
                         </p>
                       )}
                     </div>

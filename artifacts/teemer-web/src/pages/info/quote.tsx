@@ -889,6 +889,8 @@ export default function QuotePage() {
   const [serverEstimatedHours, setServerEstimatedHours] = useState<number | null>(null);
   const [serverPackingDayRequired, setServerPackingDayRequired] = useState<boolean>(false);
   const previewHoursTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Watch step-1 distance so the live preview recomputes when the user edits it.
+  const watchedDistanceMiles = watchStep1("distanceMiles");
   useEffect(() => {
     if (isJunkRemoval) {
       setServerEstimatedHours(null);
@@ -898,8 +900,7 @@ export default function QuotePage() {
     if (previewHoursTimerRef.current) clearTimeout(previewHoursTimerRef.current);
     previewHoursTimerRef.current = setTimeout(async () => {
       try {
-        const step1 = (() => { try { return getStep1Values(); } catch { return null; } })();
-        const liveDistanceMiles = step1?.distanceMiles ? Number(step1.distanceMiles) : 0;
+        const liveDistanceMiles = watchedDistanceMiles ? Number(watchedDistanceMiles) : 0;
         const res = await fetch("/api/quotes/preview-hours", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -952,6 +953,35 @@ export default function QuotePage() {
   ]);
 
   const requiresPackDay = !isJunkRemoval && serverPackingDayRequired;
+
+  // Shared mounted-TVs question used in both residential and commercial step 2.
+  const mountedTVsBlock = (
+    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+      <div>
+        <p className="font-semibold text-slate-800 text-sm mb-1">Wall-Mounted TVs?</p>
+        <p className="text-xs text-slate-500">If yes, our crew will safely dismount, wrap, and (if requested) re-mount at the new home. Lets us bring the right tools.</p>
+      </div>
+      <ToggleCard
+        checked={hasMountedTVs}
+        onChange={(v) => setHasMountedTVs(v)}
+        label="Yes, I have wall-mounted TVs"
+        description="Includes dismounting, wrapping, and bracket transport"
+      />
+      {hasMountedTVs && (
+        <div className="flex items-center gap-3 pt-1">
+          <label className="text-sm font-medium text-slate-700">How many?</label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={mountedTVCount}
+            onChange={(e) => setMountedTVCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+            className="w-20 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+          />
+        </div>
+      )}
+    </div>
+  );
 
   const nextFromStep2 = () => {
     if (requiresPackDay && !packingArrivalWindow) {
@@ -1496,6 +1526,8 @@ export default function QuotePage() {
                           </div>
                         )}
 
+                        {mountedTVsBlock}
+
                         {/* Commercial info box */}
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                           <div className="flex items-start gap-3">
@@ -1596,32 +1628,7 @@ export default function QuotePage() {
                           />
                         </div>
 
-                        {/* Mounted TVs question (Task #43) */}
-                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-                          <div>
-                            <p className="font-semibold text-slate-800 text-sm mb-1">Wall-Mounted TVs?</p>
-                            <p className="text-xs text-slate-500">If yes, our crew will safely dismount, wrap, and (if requested) re-mount at the new home. Lets us bring the right tools.</p>
-                          </div>
-                          <ToggleCard
-                            checked={hasMountedTVs}
-                            onChange={(v) => setHasMountedTVs(v)}
-                            label="Yes, I have wall-mounted TVs"
-                            description="Includes dismounting, wrapping, and bracket transport"
-                          />
-                          {hasMountedTVs && (
-                            <div className="flex items-center gap-3 pt-1">
-                              <label className="text-sm font-medium text-slate-700">How many?</label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={20}
-                                value={mountedTVCount}
-                                onChange={(e) => setMountedTVCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-                                className="w-20 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-primary/30 outline-none"
-                              />
-                            </div>
-                          )}
-                        </div>
+                        {mountedTVsBlock}
 
                         {/* Pre-pack day selector — required for moves estimated 5+ hours */}
                         {requiresPackDay && (
