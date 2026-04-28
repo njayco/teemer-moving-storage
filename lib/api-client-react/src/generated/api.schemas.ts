@@ -1027,6 +1027,17 @@ export type AdminPaymentRowQuote = { [key: string]: unknown } | null;
 
 export type AdminPaymentRowCustomer = { [key: string]: unknown } | null;
 
+export interface PaymentRefund {
+  id?: number;
+  paymentId?: number;
+  amount?: number;
+  reason?: string | null;
+  status?: string;
+  stripeRefundId?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+}
+
 export interface AdminPaymentRow {
   id?: number;
   jobId?: number | null;
@@ -1039,9 +1050,33 @@ export interface AdminPaymentRow {
   confirmationNumber?: string | null;
   paidAt?: string | null;
   notes?: string | null;
+  refundedAmount?: number;
+  refundedAt?: string | null;
+  refunds?: PaymentRefund[];
   job?: AdminPaymentRowJob;
   quote?: AdminPaymentRowQuote;
   customer?: AdminPaymentRowCustomer;
+}
+
+/**
+ * Stripe refund reason. Defaults to requested_by_customer.
+ */
+export type RefundPaymentRequestReason =
+  (typeof RefundPaymentRequestReason)[keyof typeof RefundPaymentRequestReason];
+
+export const RefundPaymentRequestReason = {
+  duplicate: "duplicate",
+  fraudulent: "fraudulent",
+  requested_by_customer: "requested_by_customer",
+} as const;
+
+export interface RefundPaymentRequest {
+  /** Amount in dollars to refund. Omit or set to 0 to refund the full remaining amount. */
+  amount?: number;
+  /** Stripe refund reason. Defaults to requested_by_customer. */
+  reason?: RefundPaymentRequestReason;
+  /** Internal note about the refund (not sent to customer). */
+  notes?: string;
 }
 
 export type ListJobsParams = {

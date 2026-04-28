@@ -1400,6 +1400,46 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminPaymentRow"
+  /admin/payments/{id}/refund:
+    post:
+      operationId: refundAdminPayment
+      tags: [admin]
+      summary: Issue a full or partial refund against a Stripe payment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundPaymentRequest"
+      responses:
+        "200":
+          description: Refund recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaymentRow"
+  /admin/payment-requests/{id}/cancel:
+    post:
+      operationId: cancelAdminPaymentRequest
+      tags: [admin]
+      summary: Cancel a pending payment request so the customer can no longer pay it
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Cancelled payment request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaymentRequest"
 
 components:
   schemas:
@@ -2984,6 +3024,12 @@ components:
         confirmationNumber: { type: string, nullable: true }
         paidAt: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        refundedAmount: { type: number }
+        refundedAt: { type: string, nullable: true }
+        refunds:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentRefund"
         job:
           type: object
           nullable: true
@@ -2993,3 +3039,29 @@ components:
         customer:
           type: object
           nullable: true
+
+    PaymentRefund:
+      type: object
+      properties:
+        id: { type: integer }
+        paymentId: { type: integer }
+        amount: { type: number }
+        reason: { type: string, nullable: true }
+        status: { type: string }
+        stripeRefundId: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, nullable: true }
+
+    RefundPaymentRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          description: Amount in dollars to refund. Omit or set to 0 to refund the full remaining amount.
+        reason:
+          type: string
+          enum: [duplicate, fraudulent, requested_by_customer]
+          description: Stripe refund reason. Defaults to requested_by_customer.
+        notes:
+          type: string
+          description: Internal note about the refund (not sent to customer).

@@ -2258,6 +2258,22 @@ export const ListAdminPaymentsResponseItem = zod.object({
   confirmationNumber: zod.string().nullish(),
   paidAt: zod.string().nullish(),
   notes: zod.string().nullish(),
+  refundedAmount: zod.number().optional(),
+  refundedAt: zod.string().nullish(),
+  refunds: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        paymentId: zod.number().optional(),
+        amount: zod.number().optional(),
+        reason: zod.string().nullish(),
+        status: zod.string().optional(),
+        stripeRefundId: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        createdAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
   job: zod.object({}).passthrough().nullish(),
   quote: zod.object({}).passthrough().nullish(),
   customer: zod.object({}).passthrough().nullish(),
@@ -2265,3 +2281,88 @@ export const ListAdminPaymentsResponseItem = zod.object({
 export const ListAdminPaymentsResponse = zod.array(
   ListAdminPaymentsResponseItem,
 );
+
+/**
+ * @summary Issue a full or partial refund against a Stripe payment
+ */
+export const RefundAdminPaymentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RefundAdminPaymentBody = zod.object({
+  amount: zod
+    .number()
+    .optional()
+    .describe(
+      "Amount in dollars to refund. Omit or set to 0 to refund the full remaining amount.",
+    ),
+  reason: zod
+    .enum(["duplicate", "fraudulent", "requested_by_customer"])
+    .optional()
+    .describe("Stripe refund reason. Defaults to requested_by_customer."),
+  notes: zod
+    .string()
+    .optional()
+    .describe("Internal note about the refund (not sent to customer)."),
+});
+
+export const RefundAdminPaymentResponse = zod.object({
+  id: zod.number().optional(),
+  jobId: zod.number().nullish(),
+  customerId: zod.number().nullish(),
+  paymentRequestId: zod.number().nullish(),
+  type: zod.string().optional(),
+  method: zod.string().nullish(),
+  amount: zod.number().optional(),
+  reference: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  paidAt: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  refundedAmount: zod.number().optional(),
+  refundedAt: zod.string().nullish(),
+  refunds: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        paymentId: zod.number().optional(),
+        amount: zod.number().optional(),
+        reason: zod.string().nullish(),
+        status: zod.string().optional(),
+        stripeRefundId: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        createdAt: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  job: zod.object({}).passthrough().nullish(),
+  quote: zod.object({}).passthrough().nullish(),
+  customer: zod.object({}).passthrough().nullish(),
+});
+
+/**
+ * @summary Cancel a pending payment request so the customer can no longer pay it
+ */
+export const CancelAdminPaymentRequestParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CancelAdminPaymentRequestResponse = zod.object({
+  id: zod.number().optional(),
+  customerId: zod.number().optional(),
+  amountCents: zod.number().optional(),
+  description: zod.string().optional(),
+  status: zod.string().optional(),
+  stripeSessionId: zod.string().nullish(),
+  confirmationNumber: zod.string().nullish(),
+  createdAt: zod.string().nullish(),
+  paidAt: zod.string().nullish(),
+  payUrl: zod.string().nullish(),
+  customer: zod
+    .object({
+      id: zod.number().optional(),
+      fullName: zod.string().optional(),
+      email: zod.string().optional(),
+      username: zod.string().nullish(),
+    })
+    .nullish(),
+});

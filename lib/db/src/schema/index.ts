@@ -6,6 +6,7 @@ export * from "./customers";
 export * from "./payment-requests";
 export * from "./invoices";
 export * from "./payments";
+export * from "./payment-refunds";
 export * from "./revenue-ledger";
 export * from "./job-status-events";
 export * from "./email-logs";

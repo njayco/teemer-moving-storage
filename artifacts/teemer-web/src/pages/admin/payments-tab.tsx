@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useListAdminPayments,
   useListAdminPaymentRequests,
+  useRefundAdminPayment,
+  useCancelAdminPaymentRequest,
   type AdminPaymentRow,
   type AdminPaymentRequest,
 } from "@workspace/api-client-react";
@@ -15,6 +18,9 @@ import {
   Copy,
   CheckCircle2,
   Clock,
+  RotateCcw,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 const fmt = (n: number | null | undefined) =>
@@ -29,23 +35,46 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
   const [search, setSearch] = useState("");
   const [prStatusFilter, setPrStatusFilter] = useState<string>("");
   const [section, setSection] = useState<"payments" | "requests">("payments");
+  const [refundTarget, setRefundTarget] = useState<AdminPaymentRow | null>(null);
+  const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const qc = useQueryClient();
+  const paymentsKey = ["/api/admin/payments", methodFilter, search] as const;
+  const prsKey = ["/api/admin/payment-requests", prStatusFilter] as const;
 
   const paymentsQ = useListAdminPayments(
     methodFilter || search ? { method: methodFilter || undefined, search: search || undefined } : undefined,
-    { query: { queryKey: ["/api/admin/payments", methodFilter, search] } },
+    { query: { queryKey: [...paymentsKey] } },
   );
   const prsQ = useListAdminPaymentRequests(
     prStatusFilter ? { status: prStatusFilter } : undefined,
-    { query: { queryKey: ["/api/admin/payment-requests", prStatusFilter] } },
+    { query: { queryKey: [...prsKey] } },
   );
+
+  const cancelM = useCancelAdminPaymentRequest({
+    mutation: {
+      onSuccess: () => {
+        setCancelTargetId(null);
+        setCancelError(null);
+        qc.invalidateQueries({ queryKey: [...prsKey] });
+        qc.invalidateQueries({ queryKey: ["/api/admin/payment-requests"] });
+      },
+      onError: (err: Error) => {
+        setCancelError(err?.message ?? "Could not cancel payment request.");
+      },
+    },
+  });
 
   const totals = useMemo(() => {
     const rows = (paymentsQ.data ?? []) as AdminPaymentRow[];
+    const refundedTotal = rows.reduce((s, p) => s + Number(p.refundedAmount ?? 0), 0);
     return {
       count: rows.length,
       total: rows.reduce((s, p) => s + Number(p.amount ?? 0), 0),
       stripe: rows.filter((p) => p.method === "stripe").reduce((s, p) => s + Number(p.amount ?? 0), 0),
       cash: rows.filter((p) => p.method === "cash").reduce((s, p) => s + Number(p.amount ?? 0), 0),
+      refunded: refundedTotal,
     };
   }, [paymentsQ.data]);
 
@@ -64,11 +93,12 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiCard label="Payments" value={totals.count.toString()} icon={CreditCard} color="text-primary" />
         <KpiCard label="Total Collected" value={fmt(totals.total)} icon={DollarSign} color="text-emerald-600" />
         <KpiCard label="via Stripe" value={fmt(totals.stripe)} icon={CreditCard} color="text-violet-600" />
         <KpiCard label="via Cash" value={fmt(totals.cash)} icon={DollarSign} color="text-amber-600" />
+        <KpiCard label="Refunded" value={fmt(totals.refunded)} icon={RotateCcw} color="text-rose-600" />
       </div>
 
       <div className="flex gap-1 border-b border-slate-200">
@@ -133,6 +163,8 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
                       <th className="text-left px-3 py-2">Job / PR</th>
                       <th className="text-left px-3 py-2">When</th>
                       <th className="text-right px-3 py-2">Amount</th>
+                      <th className="text-right px-3 py-2">Refunded</th>
+                      <th className="text-right px-3 py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -141,8 +173,12 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
                         | { fullName?: string; email?: string; username?: string | null }
                         | null;
                       const job = p.job as { jobId?: string } | null;
+                      const refundedAmount = Number(p.refundedAmount ?? 0);
+                      const amount = Number(p.amount ?? 0);
+                      const fullyRefunded = refundedAmount > 0 && refundedAmount + 0.001 >= amount;
+                      const refundable = p.method === "stripe" && refundedAmount + 0.001 < amount;
                       return (
-                        <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50 align-top">
                           <td className="px-3 py-2 font-mono text-xs">
                             <CopyButton text={p.confirmationNumber ?? `#${p.id}`} />
                           </td>
@@ -161,7 +197,33 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
                           <td className="px-3 py-2 text-slate-500 text-xs">
                             {p.paidAt ? new Date(p.paidAt).toLocaleString() : "—"}
                           </td>
-                          <td className="px-3 py-2 text-right font-bold">{fmt(Number(p.amount ?? 0))}</td>
+                          <td className="px-3 py-2 text-right font-bold">{fmt(amount)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {refundedAmount > 0 ? (
+                              <div>
+                                <div className="font-semibold text-rose-700">−{fmt(refundedAmount)}</div>
+                                <div className="text-[10px] uppercase tracking-wide text-rose-500">
+                                  {fullyRefunded ? "Fully refunded" : "Partial"}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {refundable ? (
+                              <button
+                                onClick={() => setRefundTarget(p)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:text-rose-900 border border-rose-200 hover:border-rose-300 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded"
+                              >
+                                <RotateCcw className="w-3 h-3" /> Refund
+                              </button>
+                            ) : p.method === "stripe" && fullyRefunded ? (
+                              <span className="text-[10px] uppercase text-slate-400">No balance</span>
+                            ) : (
+                              <span className="text-[10px] uppercase text-slate-300">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -221,6 +283,20 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
                       {pr.payUrl && pr.status === "pending" && (
                         <CopyButton text={pr.payUrl} label="Copy Pay Link" icon />
                       )}
+                      {pr.status === "pending" && (
+                        <div>
+                          <button
+                            onClick={() => {
+                              setCancelError(null);
+                              setCancelTargetId(pr.id ?? null);
+                            }}
+                            disabled={cancelM.isPending}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:text-rose-900 border border-rose-200 hover:border-rose-300 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded disabled:opacity-50"
+                          >
+                            <XCircle className="w-3 h-3" /> Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -229,6 +305,244 @@ export function PaymentsTab({ onSendPaymentRequest }: Props) {
           </div>
         </>
       )}
+
+      {refundTarget && (
+        <RefundModal
+          payment={refundTarget}
+          onClose={() => setRefundTarget(null)}
+          onRefunded={() => {
+            setRefundTarget(null);
+            qc.invalidateQueries({ queryKey: [...paymentsKey] });
+            qc.invalidateQueries({ queryKey: ["/api/admin/payments"] });
+          }}
+        />
+      )}
+
+      {cancelTargetId !== null && (
+        <ConfirmCancelModal
+          onCancel={() => {
+            setCancelTargetId(null);
+            setCancelError(null);
+          }}
+          onConfirm={() => {
+            cancelM.mutate({ id: cancelTargetId });
+          }}
+          isPending={cancelM.isPending}
+          error={cancelError}
+        />
+      )}
+    </div>
+  );
+}
+
+function RefundModal({
+  payment,
+  onClose,
+  onRefunded,
+}: {
+  payment: AdminPaymentRow;
+  onClose: () => void;
+  onRefunded: () => void;
+}) {
+  const amount = Number(payment.amount ?? 0);
+  const alreadyRefunded = Number(payment.refundedAmount ?? 0);
+  const remaining = Math.max(0, Number((amount - alreadyRefunded).toFixed(2)));
+  const [amountInput, setAmountInput] = useState<string>(remaining.toFixed(2));
+  const [reason, setReason] = useState<string>("requested_by_customer");
+  const [notes, setNotes] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+
+  const refundM = useRefundAdminPayment({
+    mutation: {
+      onSuccess: () => onRefunded(),
+      onError: (err: Error) => setError(err?.message ?? "Refund failed."),
+    },
+  });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const dollars = Number(amountInput);
+    if (!Number.isFinite(dollars) || dollars <= 0) {
+      setError("Enter a refund amount greater than $0.");
+      return;
+    }
+    if (dollars > remaining + 0.001) {
+      setError(`Cannot refund more than ${fmt(remaining)} remaining.`);
+      return;
+    }
+    refundM.mutate({
+      id: payment.id ?? 0,
+      data: {
+        amount: dollars,
+        reason: reason as "duplicate" | "fraudulent" | "requested_by_customer",
+        notes: notes.trim() || undefined,
+      },
+    });
+  };
+
+  const customer = payment.customer as { fullName?: string; email?: string } | null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+      <form
+        onSubmit={submit}
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+      >
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+          <RotateCcw className="w-5 h-5 text-rose-600" />
+          <h3 className="font-bold text-slate-900">Refund Stripe payment</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm">
+            <p className="text-slate-500 text-xs uppercase tracking-wide">Customer</p>
+            <p className="font-semibold text-slate-900">{customer?.fullName ?? "—"}</p>
+            <p className="text-xs text-slate-500">{customer?.email ?? ""}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <p className="text-slate-500 uppercase">Charged</p>
+                <p className="font-bold">{fmt(amount)}</p>
+              </div>
+              <div>
+                <p className="text-slate-500 uppercase">Refunded</p>
+                <p className="font-bold text-rose-700">{fmt(alreadyRefunded)}</p>
+              </div>
+              <div>
+                <p className="text-slate-500 uppercase">Remaining</p>
+                <p className="font-bold text-emerald-700">{fmt(remaining)}</p>
+              </div>
+            </div>
+            {payment.confirmationNumber && (
+              <p className="text-[10px] font-mono text-slate-400 mt-2">{payment.confirmationNumber}</p>
+            )}
+          </div>
+
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Refund amount (USD)</span>
+            <div className="mt-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={remaining}
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+                className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
+                required
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setAmountInput(remaining.toFixed(2))}
+              className="text-xs text-primary hover:underline mt-1"
+            >
+              Refund full remaining ({fmt(remaining)})
+            </button>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Reason</span>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            >
+              <option value="requested_by_customer">Requested by customer</option>
+              <option value="duplicate">Duplicate charge</option>
+              <option value="fraudulent">Fraudulent</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Internal note (optional)</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder="Why is this refund being issued? (admin only)"
+              className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            />
+          </label>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg p-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <p>{error}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={refundM.isPending}
+            className="px-3 py-2 text-sm rounded-lg text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={refundM.isPending || remaining <= 0}
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            {refundM.isPending ? "Refunding…" : "Issue refund"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ConfirmCancelModal({
+  onCancel,
+  onConfirm,
+  isPending,
+  error,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  isPending: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+          <XCircle className="w-5 h-5 text-rose-600" />
+          <h3 className="font-bold text-slate-900">Cancel payment request?</h3>
+        </div>
+        <div className="p-5 space-y-3 text-sm text-slate-700">
+          <p>
+            The customer will no longer be able to pay this request. This cannot be undone — you'd
+            need to send a new request.
+          </p>
+          {error && (
+            <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg p-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <p>{error}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={isPending}
+            className="px-3 py-2 text-sm rounded-lg text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+          >
+            Keep request
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isPending}
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+          >
+            {isPending ? "Cancelling…" : "Yes, cancel"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -251,7 +565,7 @@ function PrStatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: React.ReactNode }> = {
     pending: { cls: "bg-amber-100 text-amber-700", icon: <Clock className="w-3 h-3" /> },
     paid: { cls: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3 h-3" /> },
-    cancelled: { cls: "bg-rose-100 text-rose-700", icon: null },
+    cancelled: { cls: "bg-rose-100 text-rose-700", icon: <XCircle className="w-3 h-3" /> },
   };
   const cur = map[status] ?? { cls: "bg-slate-100 text-slate-700", icon: null };
   return (

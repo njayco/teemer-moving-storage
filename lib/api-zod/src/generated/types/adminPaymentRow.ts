@@ -8,6 +8,7 @@
 import type { AdminPaymentRowCustomer } from "./adminPaymentRowCustomer";
 import type { AdminPaymentRowJob } from "./adminPaymentRowJob";
 import type { AdminPaymentRowQuote } from "./adminPaymentRowQuote";
+import type { PaymentRefund } from "./paymentRefund";
 
 export interface AdminPaymentRow {
   id?: number;
@@ -21,6 +22,9 @@ export interface AdminPaymentRow {
   confirmationNumber?: string | null;
   paidAt?: string | null;
   notes?: string | null;
+  refundedAmount?: number;
+  refundedAt?: string | null;
+  refunds?: PaymentRefund[];
   job?: AdminPaymentRowJob;
   quote?: AdminPaymentRowQuote;
   customer?: AdminPaymentRowCustomer;

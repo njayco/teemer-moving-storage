@@ -68,6 +68,7 @@ import type {
   LookupCustomersParams,
   QuoteRequest,
   QuoteResponse,
+  RefundPaymentRequest,
   RevenueReportResponse,
   SaveInvoiceRequest,
   SendJobInvoice200,
@@ -5774,3 +5775,174 @@ export function useListAdminPayments<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Issue a full or partial refund against a Stripe payment
+ */
+export const getRefundAdminPaymentUrl = (id: number) => {
+  return `/api/admin/payments/${id}/refund`;
+};
+
+export const refundAdminPayment = async (
+  id: number,
+  refundPaymentRequest: RefundPaymentRequest,
+  options?: RequestInit,
+): Promise<AdminPaymentRow> => {
+  return customFetch<AdminPaymentRow>(getRefundAdminPaymentUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(refundPaymentRequest),
+  });
+};
+
+export const getRefundAdminPaymentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refundAdminPayment>>,
+    TError,
+    { id: number; data: BodyType<RefundPaymentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refundAdminPayment>>,
+  TError,
+  { id: number; data: BodyType<RefundPaymentRequest> },
+  TContext
+> => {
+  const mutationKey = ["refundAdminPayment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refundAdminPayment>>,
+    { id: number; data: BodyType<RefundPaymentRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return refundAdminPayment(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefundAdminPaymentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refundAdminPayment>>
+>;
+export type RefundAdminPaymentMutationBody = BodyType<RefundPaymentRequest>;
+export type RefundAdminPaymentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Issue a full or partial refund against a Stripe payment
+ */
+export const useRefundAdminPayment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refundAdminPayment>>,
+    TError,
+    { id: number; data: BodyType<RefundPaymentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refundAdminPayment>>,
+  TError,
+  { id: number; data: BodyType<RefundPaymentRequest> },
+  TContext
+> => {
+  return useMutation(getRefundAdminPaymentMutationOptions(options));
+};
+
+/**
+ * @summary Cancel a pending payment request so the customer can no longer pay it
+ */
+export const getCancelAdminPaymentRequestUrl = (id: number) => {
+  return `/api/admin/payment-requests/${id}/cancel`;
+};
+
+export const cancelAdminPaymentRequest = async (
+  id: number,
+  options?: RequestInit,
+): Promise<AdminPaymentRequest> => {
+  return customFetch<AdminPaymentRequest>(getCancelAdminPaymentRequestUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCancelAdminPaymentRequestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelAdminPaymentRequest>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelAdminPaymentRequest>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["cancelAdminPaymentRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelAdminPaymentRequest>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return cancelAdminPaymentRequest(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelAdminPaymentRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelAdminPaymentRequest>>
+>;
+
+export type CancelAdminPaymentRequestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Cancel a pending payment request so the customer can no longer pay it
+ */
+export const useCancelAdminPaymentRequest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelAdminPaymentRequest>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelAdminPaymentRequest>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getCancelAdminPaymentRequestMutationOptions(options));
+};

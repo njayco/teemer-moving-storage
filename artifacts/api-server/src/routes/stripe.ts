@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import {
   quoteRequestsTable,
   paymentsTable,
+  paymentRefundsTable,
   revenueLedgerTable,
   jobsTable,
   invoicesTable,
@@ -10,7 +11,7 @@ import {
   paymentRequestsTable,
   customersTable,
 } from "@workspace/db/schema";
-import { eq, and, notInArray, isNull, sql } from "drizzle-orm";
+import { eq, and, or, notInArray, isNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 import {
   sendDepositConfirmationEmail,
@@ -450,7 +451,57 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
           .from(paymentRequestsTable)
           .where(eq(paymentRequestsTable.id, prId))
           .limit(1);
-        if (pr && pr.status !== "paid") {
+        if (pr && pr.status === "cancelled") {
+          // The session should have been expired on cancel, but if a charge
+          // still came through we MUST record it (don't lose accounting) and
+          // surface a critical alert so an admin can refund. PR status stays
+          // "cancelled".
+          const amountPaid = (session.amount_total ?? 0) / 100;
+          const existingAnomaly = await db
+            .select()
+            .from(paymentsTable)
+            .where(
+              and(
+                eq(paymentsTable.paymentRequestId, pr.id),
+                eq(paymentsTable.reference, session.id),
+              ),
+            )
+            .limit(1);
+          if (existingAnomaly.length === 0) {
+            let confirmationNumber: string | null = null;
+            try {
+              const piId =
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : session.payment_intent?.id;
+              if (piId) confirmationNumber = buildConfirmationNumber(piId);
+            } catch {
+              /* ignore */
+            }
+            await db.insert(paymentsTable).values({
+              customerId: pr.customerId,
+              type: "payment_request",
+              method: "stripe",
+              amount: amountPaid,
+              reference: session.id,
+              confirmationNumber,
+              paymentRequestId: pr.id,
+              notes: "ANOMALY: charge completed after payment request was cancelled — refund required.",
+            });
+          }
+          req.log.error(
+            {
+              paymentRequestId: pr.id,
+              sessionId: session.id,
+              amount: amountPaid,
+              customerId: pr.customerId,
+            },
+            "ALERT: customer paid a cancelled payment request — admin should refund",
+          );
+          res.json({ received: true, anomaly: "paid_after_cancel" });
+          return;
+        }
+        if (pr && pr.status === "pending") {
           const existingPayment = await db
             .select()
             .from(paymentsTable)
@@ -546,6 +597,86 @@ router.post("/stripe/webhook", async (req: Request, res: Response) => {
           req.log.info({ quoteId }, "Quote already processed, webhook ensured side effects present");
         }
       }
+    } else if (event.type === "charge.refunded") {
+      // Refunds initiated either via this app's admin UI OR directly in the
+      // Stripe dashboard arrive here. We record any refunds we don't already
+      // have rows for, keyed by the unique stripe_refund_id.
+      const charge = event.data.object;
+      const paymentIntentId =
+        typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : charge.payment_intent?.id ?? null;
+      const sessionId = (charge.metadata?.checkout_session_id as string | undefined) ?? null;
+
+      // Find the matching payment row. Try by reference (which holds either
+      // the checkout session id or the payment intent id).
+      const candidates = await db
+        .select()
+        .from(paymentsTable)
+        .where(
+          or(
+            paymentIntentId ? eq(paymentsTable.reference, paymentIntentId) : sql`false`,
+            sessionId ? eq(paymentsTable.reference, sessionId) : sql`false`,
+            eq(paymentsTable.reference, charge.id),
+          ),
+        );
+
+      // If reference is a checkout session, look it up via Stripe to match.
+      let matchedPayment = candidates[0];
+      if (!matchedPayment && paymentIntentId) {
+        // Search session-prefixed references and match via Stripe lookup.
+        const sessionRows = await db
+          .select()
+          .from(paymentsTable)
+          .where(eq(paymentsTable.method, "stripe"));
+        for (const p of sessionRows) {
+          if (!p.reference?.startsWith("cs_")) continue;
+          try {
+            const sess = await stripe.checkout.sessions.retrieve(p.reference);
+            const pi =
+              typeof sess.payment_intent === "string"
+                ? sess.payment_intent
+                : sess.payment_intent?.id ?? null;
+            if (pi === paymentIntentId) {
+              matchedPayment = p;
+              break;
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      if (!matchedPayment) {
+        req.log.warn(
+          { chargeId: charge.id, paymentIntentId },
+          "charge.refunded webhook received but no matching payment row found",
+        );
+        res.json({ received: true });
+        return;
+      }
+
+      // List refunds on this charge from Stripe and upsert any we don't have.
+      const refundList = await stripe.refunds.list({ charge: charge.id, limit: 100 });
+      for (const r of refundList.data) {
+        await db
+          .insert(paymentRefundsTable)
+          .values({
+            paymentId: matchedPayment.id,
+            stripeRefundId: r.id,
+            stripeChargeId: charge.id,
+            amount: (r.amount ?? 0) / 100,
+            reason: r.reason ?? null,
+            status: r.status ?? "succeeded",
+            createdByUserId: null,
+            notes: "Recorded via charge.refunded webhook",
+          })
+          .onConflictDoNothing({ target: paymentRefundsTable.stripeRefundId });
+      }
+      req.log.info(
+        { paymentId: matchedPayment.id, chargeId: charge.id, count: refundList.data.length },
+        "Refunds reconciled via charge.refunded webhook",
+      );
     }
 
     res.json({ received: true });
