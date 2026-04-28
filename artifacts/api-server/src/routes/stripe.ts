@@ -148,6 +148,13 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
     depositPaid,
     remainingBalance,
     trackingUrl,
+    // Task #43: propagate booking details so the customer's confirmation
+    // email mirrors what they entered in the wizard.
+    packingDate: updatedQuote.packingDate ?? null,
+    packingArrivalWindow: updatedQuote.packingArrivalWindow ?? null,
+    hasMountedTVs: Boolean(updatedQuote.hasMountedTVs),
+    mountedTVCount: updatedQuote.mountedTVCount ?? 0,
+    parkingInstructions: updatedQuote.parkingInstructions ?? null,
   }).catch((err) => logger.error({ err }, "Failed to send deposit confirmation email"));
 
   sendAdminNewJobNotification({
@@ -351,6 +358,13 @@ router.post("/stripe/resend-deposit-emails", async (req: Request, res: Response)
       depositPaid,
       remainingBalance,
       trackingUrl,
+      // Task #43: include booking details on resend so manual re-sends match
+      // what the customer entered.
+      packingDate: quote.packingDate ?? null,
+      packingArrivalWindow: quote.packingArrivalWindow ?? null,
+      hasMountedTVs: Boolean(quote.hasMountedTVs),
+      mountedTVCount: quote.mountedTVCount ?? 0,
+      parkingInstructions: quote.parkingInstructions ?? null,
     });
 
     const adminResult = await sendAdminNewJobNotification({

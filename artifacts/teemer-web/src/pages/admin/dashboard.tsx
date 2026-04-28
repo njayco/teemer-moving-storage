@@ -189,6 +189,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Array<{ description: string; quantity: number; unitPrice: number }>>([]);
   const [numTrucks, setNumTrucks] = useState(1);
+  const [crewSize, setCrewSize] = useState(0);
   const [freeformText, setFreeformText] = useState("");
   const [suppliesItems, setSuppliesItems] = useState<Array<{ name: string; quantity: number; unitPrice: number }>>([]);
 
@@ -211,6 +212,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
             setDueDate(data.dueDate ?? "");
             setNotes(snap.notes ?? "");
             setNumTrucks(snap.numTrucks ?? (job?.crewSize ? Math.ceil(job.crewSize / 3) : 1));
+            setCrewSize(snap.crewSize ?? job?.crewSize ?? 0);
             setFreeformText(snap.freeformText ?? "");
             if (Array.isArray(snap.suppliesItems)) {
               setSuppliesItems(snap.suppliesItems.map((s: { name?: string; quantity?: number; unitPrice?: number }) => ({
@@ -232,6 +234,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
             setExtraCharges(job?.extraCharges ?? 0);
             setDiscounts(job?.discounts ?? 0);
             setNumTrucks(job?.crewSize ? Math.ceil(job.crewSize / 3) : 1);
+            setCrewSize(job?.crewSize ?? 0);
           }
         }
       } catch (_e) {
@@ -258,7 +261,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
         body: JSON.stringify({
           laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
           extraCharges, discounts, dueDate: dueDate || undefined, notes, items,
-          numTrucks, freeformText, suppliesItems,
+          numTrucks, crewSize, freeformText, suppliesItems,
         }),
       });
       if (!res.ok) {
@@ -299,9 +302,17 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1">Crew Size (read-only)</label>
-              <input type="text" value={`${job?.crewSize ?? "—"} movers`} readOnly
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500" />
+              <label className="text-xs font-medium text-slate-500 block mb-1">Crew Size (movers)</label>
+              <input
+                type="number"
+                step="1"
+                min={1}
+                max={20}
+                value={crewSize || ""}
+                onChange={(e) => setCrewSize(Math.max(0, Math.min(20, Math.floor(Number(e.target.value) || 0))))}
+                placeholder={`${job?.crewSize ?? 1}`}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+              />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 block mb-1">Labor Hours</label>

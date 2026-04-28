@@ -103,6 +103,12 @@ export interface DepositConfirmationData {
   depositPaid: number;
   remainingBalance: number;
   trackingUrl: string;
+  // Task #43: surface booking details so customer & dispatch see the same info.
+  packingDate?: string | null;
+  packingArrivalWindow?: string | null;
+  hasMountedTVs?: boolean;
+  mountedTVCount?: number;
+  parkingInstructions?: string | null;
 }
 
 export function depositConfirmationHtml(data: DepositConfirmationData): string {
@@ -117,6 +123,19 @@ export function depositConfirmationHtml(data: DepositConfirmationData): string {
   if (data.secondStop) rows.push(["Second Stop", data.secondStop]);
   if (data.crewSize) rows.push(["Crew Size", `${data.crewSize} movers`]);
   if (data.estimatedHours) rows.push(["Est. Hours", `${data.estimatedHours} hrs`]);
+  if (data.packingDate) {
+    rows.push(["Pre-Pack Day", data.packingDate]);
+    if (data.packingArrivalWindow) {
+      rows.push(["Packing Arrival", data.packingArrivalWindow]);
+    }
+  }
+  if (data.hasMountedTVs && (data.mountedTVCount ?? 0) > 0) {
+    rows.push(["Wall-Mounted TVs", `${data.mountedTVCount} (dismount/remount)`]);
+  }
+  if (data.parkingInstructions && data.parkingInstructions.trim()) {
+    const trimmed = data.parkingInstructions.trim();
+    rows.push(["Parking / Access", trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed]);
+  }
 
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Deposit Confirmed!</h2>

@@ -391,8 +391,19 @@ router.post("/quotes", async (req, res) => {
         return null;
       }
     })();
+    // Strict requirement: when the live pricing engine says pre-pack day is
+     // required, the customer must explicitly pick a window — we no longer
+     // silently default it. This matches the wizard's blocking validation on
+     // Step 2 and ensures captains/dispatchers see the customer's actual
+     // preference rather than an arbitrary fallback.
+    if (packingRequired && !body.packingArrivalWindow) {
+      res.status(400).json({
+        error: "Please select a preferred pre-pack day arrival window before submitting your quote.",
+      });
+      return;
+    }
     const computedPackingWindow = packingRequired
-      ? (body.packingArrivalWindow || "9:00 AM – 11:00 AM")
+      ? String(body.packingArrivalWindow)
       : null;
 
     const hasMountedTVsBool = Boolean(body.hasMountedTVs);

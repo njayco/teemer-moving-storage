@@ -895,6 +895,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
 
     const editableSnapshot = (existingInvoice?.editableSnapshotJson ?? null) as {
       numTrucks?: number;
+      crewSize?: number;
       freeformText?: string;
       suppliesItems?: Array<{ name: string; quantity: number; unitPrice: number }>;
     } | null;
@@ -919,7 +920,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       invoiceNumber,
       dueDate: dueDateStr,
       payLink,
-      crewSize: job.crewSize ?? undefined,
+      crewSize: editableSnapshot?.crewSize ?? job.crewSize ?? undefined,
       numTrucks: editableSnapshot?.numTrucks ?? (job.crewSize ? Math.ceil(job.crewSize / 3) : undefined),
       freeformText: editableSnapshot?.freeformText ?? "",
       suppliesItems: finalSuppliesItems,
@@ -1093,7 +1094,7 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
       extraCharges, discounts, dueDate, notes: invoiceNotes, items,
       // Task #43 additions
-      numTrucks, freeformText, suppliesItems,
+      numTrucks, crewSize, freeformText, suppliesItems,
     } = req.body;
 
     const validatedSupplies: Array<{ name: string; quantity: number; unitPrice: number; total: number }> = Array.isArray(suppliesItems)
@@ -1136,6 +1137,14 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       ? Math.max(1, Math.min(10, Math.floor(Number(numTrucks))))
       : (job.crewSize ? Math.ceil(job.crewSize / 3) : 1);
 
+    // Admin-editable crew size for the invoice. We persist it both in the
+    // snapshot (for replay/auditing of what the invoice email said) and back
+    // onto jobsTable.crewSize so dispatch / captain views stay in sync with
+    // the post-move actuals.
+    const crewSizeValidated = Number.isFinite(Number(crewSize)) && Number(crewSize) > 0
+      ? Math.max(1, Math.min(20, Math.floor(Number(crewSize))))
+      : (job.crewSize ?? 0);
+
     const snapshot = {
       laborHours: laborHours ?? job.estimatedHours ?? 0,
       hourlyRate: hourlyRate ?? job.hourlyRate ?? 0,
@@ -1147,6 +1156,7 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       items: validatedItems,
       // Task #43 additions
       numTrucks: numTrucksValidated,
+      crewSize: crewSizeValidated,
       freeformText: typeof freeformText === "string" ? freeformText.slice(0, 4000) : "",
       suppliesItems: validatedSupplies,
       suppliesTotal,
@@ -1173,7 +1183,11 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
 
     await db.update(jobsTable).set({
       extraCharges: extras, discounts: disc, finalTotal,
-      remainingBalance: remainingBalanceDue, updatedAt: new Date(),
+      remainingBalance: remainingBalanceDue,
+      // Sync admin-edited crew size back to the job so dispatcher/captain
+      // views and downstream invoice emails reflect the same number.
+      ...(crewSizeValidated > 0 ? { crewSize: crewSizeValidated } : {}),
+      updatedAt: new Date(),
     }).where(eq(jobsTable.id, job.id));
 
     res.json({
@@ -1223,6 +1237,7 @@ router.get("/invoices/:jobId", requireAdmin, async (req, res) => {
         dueDate: null, status: "none",
         editableSnapshot: {
           numTrucks: job.crewSize ? Math.ceil(job.crewSize / 3) : 1,
+          crewSize: job.crewSize ?? 0,
           freeformText: "",
           suppliesItems: seededSupplies,
         },
@@ -1230,14 +1245,18 @@ router.get("/invoices/:jobId", requireAdmin, async (req, res) => {
       });
     }
 
-    // Merge seeded defaults into the existing snapshot when supplies are blank.
+    // Merge seeded defaults into the existing snapshot when supplies are blank,
+    // and surface the admin-edited crew size when present (otherwise fall back
+    // to the job's current crew size so the editor isn't blank on first open).
     const existingSnapshot = (invoice.editableSnapshotJson ?? null) as {
       numTrucks?: number;
+      crewSize?: number;
       freeformText?: string;
       suppliesItems?: Array<{ name: string; quantity: number; unitPrice: number }>;
     } | null;
     const editableSnapshot = {
       numTrucks: existingSnapshot?.numTrucks ?? (job.crewSize ? Math.ceil(job.crewSize / 3) : 1),
+      crewSize: existingSnapshot?.crewSize ?? job.crewSize ?? 0,
       freeformText: existingSnapshot?.freeformText ?? "",
       suppliesItems: (existingSnapshot?.suppliesItems && existingSnapshot.suppliesItems.length > 0)
         ? existingSnapshot.suppliesItems
