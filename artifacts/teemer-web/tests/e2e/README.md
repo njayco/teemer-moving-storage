@@ -1,7 +1,9 @@
 # Teemer end-to-end tests
 
-This directory contains the Playwright e2e suite covering the full customer
-payment journey:
+This directory contains the Playwright e2e suite covering both production
+customer-payment paths:
+
+**`customer-payment-flow.spec.ts` — admin-initiated payment request**
 
 - Save-for-later signup attaches the in-flight quote to a brand-new customer.
 - The customer logs in and sees the quote on their dashboard.
@@ -9,6 +11,20 @@ payment journey:
   the **Send Payment Request** modal.
 - The customer opens the pay page and (via a signed Stripe webhook simulation)
   the request is marked paid with a `TM-XXXXXXXXXX` confirmation number.
+
+**`customer-balance-payment.spec.ts` — customer self-pay of remaining balance**
+
+- Same seeded customer + saved quote.
+- An admin logs in and creates a booked job for the customer with an
+  outstanding balance via `POST /api/jobs`.
+- The customer logs in, opens the job detail page, sees the
+  **Pay Remaining $X** button.
+- A signed Stripe webhook with
+  `paymentType: "customer_balance_payment"` is POSTed to the API server,
+  driving the same code path Stripe would after a successful checkout.
+- Reloading the job detail page with `?paid=1` flips it to the success
+  state and shows the `TM-XXXXXXXXXX` confirmation number on the
+  Payments table.
 
 ## Prerequisites
 
