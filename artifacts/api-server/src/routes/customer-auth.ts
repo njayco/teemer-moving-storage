@@ -13,8 +13,17 @@ import {
   normalizeUsername,
   suggestUsernameFromName,
   generateRandomPassword,
+  signEmailVerificationToken,
+  verifyEmailVerificationToken,
+  signPasswordResetToken,
+  verifyPasswordResetToken,
+  passwordResetHashKey,
 } from "../lib/auth";
-import { sendAccountCredentialsEmail } from "../lib/email-service";
+import {
+  sendAccountCredentialsEmail,
+  sendEmailVerificationEmail,
+  sendPasswordResetEmail,
+} from "../lib/email-service";
 
 const router: IRouter = Router();
 
@@ -191,6 +200,17 @@ router.post("/customer-auth/signup", async (req, res) => {
       loginUrl,
     }).catch((err) => req.log.error({ err }, "Failed to send account credentials email"));
 
+    // Fire off a verification email so the customer can confirm ownership of
+    // the address. This is a separate email so the credentials email stays
+    // focused on sign-in details.
+    const verificationToken = signEmailVerificationToken(customerId, email);
+    const verificationUrl = `${baseUrl}/account/verify-email?token=${encodeURIComponent(verificationToken)}`;
+    sendEmailVerificationEmail({
+      customerName: fullName,
+      email,
+      verificationUrl,
+    }).catch((err) => req.log.error({ err }, "Failed to send email verification email"));
+
     const payload = { customerId, email, username, fullName };
     const token = signCustomerToken(payload);
     setCustomerAuthCookie(res, token);
@@ -266,6 +286,7 @@ router.get("/customer-auth/me", requireCustomer, async (req, res) => {
       email: customersTable.email,
       phone: customersTable.phone,
       username: customersTable.username,
+      emailVerifiedAt: customersTable.emailVerifiedAt,
     })
     .from(customersTable)
     .where(eq(customersTable.id, req.customer!.customerId))
@@ -281,8 +302,263 @@ router.get("/customer-auth/me", requireCustomer, async (req, res) => {
       email: c.email,
       phone: c.phone,
       username: c.username ?? `+customer${c.id}`,
+      emailVerified: c.emailVerifiedAt != null,
+      emailVerifiedAt: c.emailVerifiedAt,
     },
   });
+});
+
+// ─── Email verification ─────────────────────────────────────────────────────
+
+/**
+ * Confirm the JWT in the link is valid AND still matches the customer's
+ * current email address, then stamp `emailVerifiedAt`. Idempotent: re-verifying
+ * an already-verified account succeeds silently.
+ */
+router.post("/customer-auth/verify-email", async (req, res) => {
+  try {
+    const tokenRaw = req.body?.token;
+    const token = typeof tokenRaw === "string" ? tokenRaw.trim() : "";
+    if (!token) {
+      res.status(400).json({ error: "Missing verification token." });
+      return;
+    }
+
+    const decoded = verifyEmailVerificationToken(token);
+    if (!decoded) {
+      res.status(400).json({ error: "This verification link is invalid or has expired." });
+      return;
+    }
+
+    const [customer] = await db
+      .select({
+        id: customersTable.id,
+        email: customersTable.email,
+        emailVerifiedAt: customersTable.emailVerifiedAt,
+      })
+      .from(customersTable)
+      .where(eq(customersTable.id, decoded.customerId))
+      .limit(1);
+
+    if (!customer) {
+      res.status(400).json({ error: "This verification link is invalid or has expired." });
+      return;
+    }
+
+    // The email on the token must still match the one on the account — this
+    // prevents an old token from verifying a new email after the customer
+    // changed their address.
+    if ((customer.email ?? "").toLowerCase() !== decoded.email.toLowerCase()) {
+      res.status(400).json({ error: "This verification link is no longer valid for this account." });
+      return;
+    }
+
+    if (!customer.emailVerifiedAt) {
+      await db
+        .update(customersTable)
+        .set({ emailVerifiedAt: new Date() })
+        .where(eq(customersTable.id, customer.id));
+    }
+
+    res.json({ success: true, alreadyVerified: customer.emailVerifiedAt != null });
+  } catch (err) {
+    req.log.error({ err }, "Email verification failed");
+    res.status(500).json({ error: "Verification failed." });
+  }
+});
+
+/**
+ * Re-send a verification email to the currently signed-in customer. Useful
+ * for accounts whose first email expired or got lost.
+ */
+router.post("/customer-auth/resend-verification", requireCustomer, async (req, res) => {
+  try {
+    const [customer] = await db
+      .select({
+        id: customersTable.id,
+        email: customersTable.email,
+        fullName: customersTable.fullName,
+        emailVerifiedAt: customersTable.emailVerifiedAt,
+      })
+      .from(customersTable)
+      .where(eq(customersTable.id, req.customer!.customerId))
+      .limit(1);
+
+    if (!customer) {
+      res.status(404).json({ error: "Account not found." });
+      return;
+    }
+
+    if (customer.emailVerifiedAt) {
+      res.json({ success: true, alreadyVerified: true });
+      return;
+    }
+
+    const baseUrl = getAppBaseUrl();
+    const verificationToken = signEmailVerificationToken(customer.id, customer.email);
+    const verificationUrl = `${baseUrl}/account/verify-email?token=${encodeURIComponent(verificationToken)}`;
+    sendEmailVerificationEmail({
+      customerName: customer.fullName,
+      email: customer.email,
+      verificationUrl,
+    }).catch((err) => req.log.error({ err }, "Failed to resend email verification email"));
+
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Resend verification failed");
+    res.status(500).json({ error: "Could not resend verification email." });
+  }
+});
+
+// ─── Password reset ─────────────────────────────────────────────────────────
+
+/**
+ * Always responds 200 with the same body, regardless of whether the email
+ * exists, so attackers can't enumerate registered addresses.
+ */
+router.post("/customer-auth/forgot-password", async (req, res) => {
+  try {
+    const emailRaw = String(req.body?.email ?? "").trim();
+    const email = emailRaw.toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      // Still respond 200 to avoid leaking information about which addresses
+      // are valid, but log a hint for ourselves.
+      req.log.info({ email: emailRaw }, "Forgot-password: invalid email shape, ignoring");
+      res.json({ success: true });
+      return;
+    }
+
+    const [customer] = await db
+      .select({
+        id: customersTable.id,
+        email: customersTable.email,
+        fullName: customersTable.fullName,
+        passwordHash: customersTable.passwordHash,
+      })
+      .from(customersTable)
+      .where(sql`lower(${customersTable.email}) = ${email}`)
+      .limit(1);
+
+    if (customer && customer.passwordHash) {
+      const baseUrl = getAppBaseUrl();
+      const token = signPasswordResetToken(customer.id, customer.passwordHash);
+      const resetUrl = `${baseUrl}/account/reset-password?token=${encodeURIComponent(token)}`;
+      sendPasswordResetEmail({
+        email: customer.email,
+        customerName: customer.fullName,
+        resetUrl,
+      }).catch((err) => req.log.error({ err }, "Failed to send password reset email"));
+    } else {
+      req.log.info({ email }, "Forgot-password: no matching account with a password");
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Forgot-password handler failed");
+    // Even on internal errors return success to avoid info leakage.
+    res.json({ success: true });
+  }
+});
+
+/**
+ * Validate a reset token without consuming it — used by the reset page so we
+ * can show "this link is expired" before the user types a new password.
+ */
+router.get("/customer-auth/reset-password/check", async (req, res) => {
+  const tokenRaw = typeof req.query.token === "string" ? req.query.token : "";
+  if (!tokenRaw) {
+    res.status(400).json({ valid: false, error: "Missing token." });
+    return;
+  }
+  const decoded = verifyPasswordResetToken(tokenRaw);
+  if (!decoded) {
+    res.json({ valid: false, error: "This reset link is invalid or has expired." });
+    return;
+  }
+  const [customer] = await db
+    .select({ id: customersTable.id, passwordHash: customersTable.passwordHash, email: customersTable.email })
+    .from(customersTable)
+    .where(eq(customersTable.id, decoded.customerId))
+    .limit(1);
+  if (!customer || !customer.passwordHash) {
+    res.json({ valid: false, error: "This reset link is invalid or has expired." });
+    return;
+  }
+  if (passwordResetHashKey(customer.passwordHash) !== decoded.hashKey) {
+    res.json({ valid: false, error: "This reset link has already been used." });
+    return;
+  }
+  res.json({ valid: true, email: customer.email });
+});
+
+router.post("/customer-auth/reset-password", async (req, res) => {
+  try {
+    const tokenRaw = req.body?.token;
+    const passwordRaw = req.body?.password;
+    const token = typeof tokenRaw === "string" ? tokenRaw.trim() : "";
+    const password = typeof passwordRaw === "string" ? passwordRaw : "";
+
+    if (!token) {
+      res.status(400).json({ error: "Missing reset token." });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters." });
+      return;
+    }
+
+    const decoded = verifyPasswordResetToken(token);
+    if (!decoded) {
+      res.status(400).json({ error: "This reset link is invalid or has expired." });
+      return;
+    }
+
+    const [customer] = await db
+      .select({
+        id: customersTable.id,
+        email: customersTable.email,
+        username: customersTable.username,
+        fullName: customersTable.fullName,
+        passwordHash: customersTable.passwordHash,
+      })
+      .from(customersTable)
+      .where(eq(customersTable.id, decoded.customerId))
+      .limit(1);
+
+    if (!customer || !customer.passwordHash) {
+      res.status(400).json({ error: "This reset link is invalid or has expired." });
+      return;
+    }
+
+    // Single-use guard: if the password hash on the account no longer matches
+    // the hashKey embedded in the token, the token has been spent (or the
+    // password was changed by some other path).
+    if (passwordResetHashKey(customer.passwordHash) !== decoded.hashKey) {
+      res.status(400).json({ error: "This reset link has already been used." });
+      return;
+    }
+
+    const newHash = await hashPassword(password);
+    await db
+      .update(customersTable)
+      .set({ passwordHash: newHash })
+      .where(eq(customersTable.id, customer.id));
+
+    // Log the customer in so they don't have to re-enter their fresh password.
+    const payload = {
+      customerId: customer.id,
+      email: customer.email,
+      username: customer.username ?? `+customer${customer.id}`,
+      fullName: customer.fullName,
+    };
+    const sessionToken = signCustomerToken(payload);
+    setCustomerAuthCookie(res, sessionToken);
+
+    res.json({ success: true, customer: payload });
+  } catch (err) {
+    req.log.error({ err }, "Password reset failed");
+    res.status(500).json({ error: "Could not reset password." });
+  }
 });
 
 router.get("/customer-auth/check-username", async (req, res) => {

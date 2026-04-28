@@ -16,6 +16,8 @@ import {
   dayBeforeReminderHtml,
   sameDayCaptainAlertHtml,
   accountCredentialsHtml,
+  emailVerificationHtml,
+  passwordResetHtml,
   paymentRequestNotificationHtml,
   paymentReceiptHtml,
   type DepositConfirmationData,
@@ -29,6 +31,8 @@ import {
   type DayBeforeReminderData,
   type SameDayCaptainAlertData,
   type AccountCredentialsData,
+  type EmailVerificationData,
+  type PasswordResetEmailData,
   type PaymentRequestNotificationData,
   type PaymentReceiptData,
 } from "./email-templates";
@@ -387,6 +391,28 @@ export async function sendAccountCredentialsEmail(
     subject: `Your Teemer Moving Account — Sign-in Details`,
     html: accountCredentialsHtml(data),
     emailType: "account_credentials",
+  });
+}
+
+export async function sendEmailVerificationEmail(
+  data: EmailVerificationData,
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: data.email,
+    subject: `Confirm your Teemer Moving email`,
+    html: emailVerificationHtml(data),
+    emailType: "email_verification",
+  });
+}
+
+export async function sendPasswordResetEmail(
+  params: { email: string } & PasswordResetEmailData,
+): Promise<{ success: boolean; resendId?: string }> {
+  return sendEmail({
+    to: params.email,
+    subject: `Reset your Teemer Moving password`,
+    html: passwordResetHtml(params),
+    emailType: "password_reset",
   });
 }
 

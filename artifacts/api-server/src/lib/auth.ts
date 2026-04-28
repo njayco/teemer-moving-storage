@@ -17,6 +17,9 @@ const TOKEN_COOKIE = "teemer_auth";
 const CUSTOMER_TOKEN_COOKIE = "teemer_customer_auth";
 const TOKEN_EXPIRY = "7d";
 
+const USER_SESSION_PURPOSE = "user_session";
+const CUSTOMER_SESSION_PURPOSE = "customer_session";
+
 export interface AuthPayload {
   userId: number;
   email: string;
@@ -24,11 +27,19 @@ export interface AuthPayload {
   name: string;
 }
 
+interface SignedAuthPayload extends AuthPayload {
+  purpose: typeof USER_SESSION_PURPOSE;
+}
+
 export interface CustomerAuthPayload {
   customerId: number;
   email: string;
   username: string;
   fullName: string;
+}
+
+interface SignedCustomerAuthPayload extends CustomerAuthPayload {
+  purpose: typeof CUSTOMER_SESSION_PURPOSE;
 }
 
 declare global {
@@ -49,12 +60,28 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  const signed: SignedAuthPayload = { ...payload, purpose: USER_SESSION_PURPOSE };
+  return jwt.sign(signed, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 }
 
 export function verifyToken(token: string): AuthPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as Partial<SignedAuthPayload>;
+    // Strict purpose check prevents token-confusion: tokens minted for any other
+    // purpose (customer session, email verification, password reset) must not
+    // satisfy admin/captain auth. Tokens missing the purpose claim are also
+    // rejected — legacy admin sessions should re-login after this upgrade.
+    if (decoded?.purpose !== USER_SESSION_PURPOSE) return null;
+    if (typeof decoded.userId !== "number") return null;
+    if (typeof decoded.email !== "string") return null;
+    if (typeof decoded.role !== "string") return null;
+    if (typeof decoded.name !== "string") return null;
+    return {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      name: decoded.name,
+    };
   } catch {
     return null;
   }
@@ -133,14 +160,28 @@ export function requireCaptainOrAdmin(req: Request, res: Response, next: NextFun
 // ─── Customer auth ─────────────────────────────────────────────────────────
 
 export function signCustomerToken(payload: CustomerAuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  const signed: SignedCustomerAuthPayload = { ...payload, purpose: CUSTOMER_SESSION_PURPOSE };
+  return jwt.sign(signed, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 }
 
 export function verifyCustomerToken(token: string): CustomerAuthPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as CustomerAuthPayload;
-    if (typeof decoded?.customerId !== "number") return null;
-    return decoded;
+    const decoded = jwt.verify(token, JWT_SECRET) as Partial<SignedCustomerAuthPayload>;
+    // Strict purpose check: a JWT minted as an email-verification token or
+    // password-reset token also contains `customerId` and is signed with the
+    // same secret. Without this guard, a one-time token could be replayed as
+    // a long-lived session via the `x-customer-authorization` header.
+    if (decoded?.purpose !== CUSTOMER_SESSION_PURPOSE) return null;
+    if (typeof decoded.customerId !== "number") return null;
+    if (typeof decoded.email !== "string") return null;
+    if (typeof decoded.username !== "string") return null;
+    if (typeof decoded.fullName !== "string") return null;
+    return {
+      customerId: decoded.customerId,
+      email: decoded.email,
+      username: decoded.username,
+      fullName: decoded.fullName,
+    };
   } catch {
     return null;
   }
@@ -234,6 +275,85 @@ export function generateRandomPassword(length: number = 12): string {
     out += alphabet[buf[i] % alphabet.length];
   }
   return out;
+}
+
+// ─── Email verification + password reset tokens ────────────────────────────
+//
+// We use short-lived signed JWTs (stateless — no extra DB table needed).
+// • Verification tokens encode { purpose, customerId, email } and expire in 24h.
+//   Embedding the email means the token is invalidated if the address changes
+//   before it's used.
+// • Reset tokens encode { purpose, customerId, hashKey } and expire in 1h.
+//   `hashKey` is the first 16 chars of the current bcrypt hash. Once the user
+//   actually changes their password, the hash (and thus hashKey) changes, so
+//   any previously issued reset tokens are automatically invalidated — this
+//   gives us single-use semantics without any DB writes.
+
+const EMAIL_VERIFICATION_PURPOSE = "customer_email_verification";
+const PASSWORD_RESET_PURPOSE = "customer_password_reset";
+const EMAIL_VERIFICATION_TOKEN_EXPIRY = "24h";
+const PASSWORD_RESET_TOKEN_EXPIRY = "1h";
+
+interface EmailVerificationTokenPayload {
+  purpose: typeof EMAIL_VERIFICATION_PURPOSE;
+  customerId: number;
+  email: string;
+}
+
+interface PasswordResetTokenPayload {
+  purpose: typeof PASSWORD_RESET_PURPOSE;
+  customerId: number;
+  hashKey: string;
+}
+
+export function signEmailVerificationToken(customerId: number, email: string): string {
+  const payload: EmailVerificationTokenPayload = {
+    purpose: EMAIL_VERIFICATION_PURPOSE,
+    customerId,
+    email: email.toLowerCase(),
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: EMAIL_VERIFICATION_TOKEN_EXPIRY });
+}
+
+export function verifyEmailVerificationToken(
+  token: string,
+): { customerId: number; email: string } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as EmailVerificationTokenPayload;
+    if (decoded?.purpose !== EMAIL_VERIFICATION_PURPOSE) return null;
+    if (typeof decoded.customerId !== "number") return null;
+    if (typeof decoded.email !== "string") return null;
+    return { customerId: decoded.customerId, email: decoded.email };
+  } catch {
+    return null;
+  }
+}
+
+export function passwordResetHashKey(passwordHash: string | null | undefined): string {
+  return (passwordHash ?? "").slice(0, 16);
+}
+
+export function signPasswordResetToken(customerId: number, passwordHash: string): string {
+  const payload: PasswordResetTokenPayload = {
+    purpose: PASSWORD_RESET_PURPOSE,
+    customerId,
+    hashKey: passwordResetHashKey(passwordHash),
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: PASSWORD_RESET_TOKEN_EXPIRY });
+}
+
+export function verifyPasswordResetToken(
+  token: string,
+): { customerId: number; hashKey: string } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as PasswordResetTokenPayload;
+    if (decoded?.purpose !== PASSWORD_RESET_PURPOSE) return null;
+    if (typeof decoded.customerId !== "number") return null;
+    if (typeof decoded.hashKey !== "string") return null;
+    return { customerId: decoded.customerId, hashKey: decoded.hashKey };
+  } catch {
+    return null;
+  }
 }
 
 /**

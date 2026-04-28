@@ -103,7 +103,7 @@ A full-featured moving company web app with two distinct experiences:
 
 ### Database Schema
 - `users` — Admin/Captain user accounts (bcrypt-hashed passwords, roles: admin/move_captain)
-- `customers` — Customer records
+- `customers` — Customer records (includes `password_hash`, `email_verified_at` for self-service accounts)
 - `quote_requests` — Customer move quote requests
 - `jobs` — Moving jobs (extended with trackingToken, assignedCaptainId, arrivalWindow, finalTotal, remainingBalance, paymentStatus, invoiceStatus)
 - `job_status_events` — Job lifecycle timeline events
@@ -129,6 +129,12 @@ A full-featured moving company web app with two distinct experiences:
 - `GET /api/auth/me` — Get current authenticated user
 - `POST /api/auth/users` — Create user (admin only)
 - `GET /api/auth/users` — List users (admin only)
+- `POST /api/customer-auth/signup|login|logout` — Customer self-service account auth (cookie `teemer_customer_auth`)
+- `GET /api/customer-auth/me` — Current customer (includes `emailVerified`)
+- `POST /api/customer-auth/verify-email` — Confirm email via signed token (24h, sets `email_verified_at`)
+- `POST /api/customer-auth/resend-verification` — Re-send verification email (auth required)
+- `POST /api/customer-auth/forgot-password` — Always returns 200 (no enumeration); emails reset link if account exists
+- `GET /api/customer-auth/reset-password/check` / `POST /api/customer-auth/reset-password` — JWT reset token (1h, single-use via bcrypt-hash binding); successful reset logs the customer in
 - `GET/POST /api/quotes` — Quote requests
 - `POST /api/quotes/estimate-boxes` — AI box estimation (OpenAI via Replit AI proxy)
 - `POST /api/quotes/:id/checkout` — Stripe Checkout Session for deposit

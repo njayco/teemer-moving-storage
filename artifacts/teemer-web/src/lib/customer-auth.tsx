@@ -6,6 +6,8 @@ export interface CustomerUser {
   username: string;
   fullName: string;
   phone?: string | null;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string | null;
 }
 
 interface CustomerAuthContextType {

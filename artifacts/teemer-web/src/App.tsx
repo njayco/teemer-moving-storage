@@ -33,6 +33,9 @@ import CaptainAuthGuard from "@/pages/admin/captain-auth-guard";
 
 import CustomerLoginPage from "@/pages/account/login";
 import CustomerSignupPage from "@/pages/account/signup";
+import CustomerForgotPasswordPage from "@/pages/account/forgot-password";
+import CustomerResetPasswordPage from "@/pages/account/reset-password";
+import CustomerVerifyEmailPage from "@/pages/account/verify-email";
 import CustomerDashboardPage from "@/pages/account/dashboard";
 import CustomerQuoteDetailPage from "@/pages/account/quote-detail";
 import CustomerJobDetailPage from "@/pages/account/job-detail";
@@ -97,6 +100,9 @@ function Router() {
       {/* Customer Account */}
       <Route path="/account/login" component={CustomerLoginPage} />
       <Route path="/account/signup" component={CustomerSignupPage} />
+      <Route path="/account/forgot-password" component={CustomerForgotPasswordPage} />
+      <Route path="/account/reset-password" component={CustomerResetPasswordPage} />
+      <Route path="/account/verify-email" component={CustomerVerifyEmailPage} />
       <Route path="/account/quotes/:id" component={CustomerQuoteDetailPage} />
       <Route path="/account/jobs/:id" component={CustomerJobDetailPage} />
       <Route path="/account/payment-requests/:id/pay" component={CustomerPaymentRequestPayPage} />

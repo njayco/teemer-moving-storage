@@ -609,6 +609,67 @@ export function accountCredentialsHtml(data: AccountCredentialsData): string {
   return baseLayout("Your Teemer Moving Account", body);
 }
 
+// ─── Email verification (Task #51) ──────────────────────────────────────────
+export interface EmailVerificationData {
+  customerName: string;
+  email: string;
+  verificationUrl: string;
+}
+
+export function emailVerificationHtml(data: EmailVerificationData): string {
+  const body = `
+    <h2 style="margin:0 0 12px;color:${SECONDARY_COLOR};font-size:22px;">Confirm your email</h2>
+    <p style="margin:0 0 12px;color:#475569;font-size:15px;line-height:1.6;">
+      Hi ${escapeHtml(data.customerName)}, please confirm that
+      <strong>${escapeHtml(data.email)}</strong> is your email address so we can
+      send you move updates, receipts, and account notifications.
+    </p>
+    ${ctaButton("Verify My Email", data.verificationUrl)}
+    <p style="margin:18px 0 0;color:#475569;font-size:13px;line-height:1.6;">
+      This link is valid for <strong>24 hours</strong>. If the button doesn't work,
+      copy and paste this URL into your browser:
+    </p>
+    <p style="margin:6px 0 0;word-break:break-all;color:#94a3b8;font-size:12px;">
+      ${escapeHtml(data.verificationUrl)}
+    </p>
+    <p style="margin:18px 0 0;color:#94a3b8;font-size:12px;">
+      If you didn't create a Teemer Moving account, you can safely ignore this email.
+    </p>
+  `;
+  return baseLayout("Verify your Teemer Moving email", body);
+}
+
+// ─── Password reset (Task #51) ──────────────────────────────────────────────
+export interface PasswordResetEmailData {
+  customerName: string;
+  resetUrl: string;
+}
+
+export function passwordResetHtml(data: PasswordResetEmailData): string {
+  const body = `
+    <h2 style="margin:0 0 12px;color:${SECONDARY_COLOR};font-size:22px;">Reset your password</h2>
+    <p style="margin:0 0 12px;color:#475569;font-size:15px;line-height:1.6;">
+      Hi ${escapeHtml(data.customerName)}, we received a request to reset the
+      password on your Teemer Moving customer account. Click the button below to
+      choose a new password.
+    </p>
+    ${ctaButton("Reset My Password", data.resetUrl)}
+    <p style="margin:18px 0 0;color:#475569;font-size:13px;line-height:1.6;">
+      This link is valid for <strong>1 hour</strong>. For your security, it can
+      only be used once. If the button doesn't work, copy and paste this URL
+      into your browser:
+    </p>
+    <p style="margin:6px 0 0;word-break:break-all;color:#94a3b8;font-size:12px;">
+      ${escapeHtml(data.resetUrl)}
+    </p>
+    <p style="margin:18px 0 0;color:#94a3b8;font-size:12px;">
+      If you didn't request a password reset, you can safely ignore this email —
+      your password will stay the same.
+    </p>
+  `;
+  return baseLayout("Reset your Teemer Moving password", body);
+}
+
 // ─── Payment request notification (Task #44) ────────────────────────────────
 export interface PaymentRequestNotificationData {
   customerName: string;

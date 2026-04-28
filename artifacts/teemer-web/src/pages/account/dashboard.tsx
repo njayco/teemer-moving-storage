@@ -15,6 +15,8 @@ import {
   DollarSign,
   Clock,
   AlertCircle,
+  MailWarning,
+  CheckCircle2,
 } from "lucide-react";
 
 interface QuoteSummary {
@@ -84,8 +86,24 @@ function statusBadge(status: string) {
 }
 
 function CustomerDashboardContent() {
-  const { customer } = useCustomerAuth();
+  const { customer, refresh } = useCustomerAuth();
   const [tab, setTab] = useState<"overview" | "quotes" | "jobs" | "payments" | "profile">("overview");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  const resendVerification = async () => {
+    setResendState("sending");
+    try {
+      const res = await customerApi.fetch("/customer-auth/resend-verification", { method: "POST" });
+      if (res.ok) {
+        setResendState("sent");
+        refresh().catch(() => {});
+      } else {
+        setResendState("error");
+      }
+    } catch {
+      setResendState("error");
+    }
+  };
 
   // Sync from URL hash on mount
   useEffect(() => {
@@ -128,6 +146,39 @@ function CustomerDashboardContent() {
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{customer?.fullName}</h1>
         <p className="text-slate-500 text-sm mt-1 font-mono">{customer?.username}</p>
       </div>
+
+      {customer && customer.emailVerified === false && (
+        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-xl p-4 flex items-start gap-3">
+          {resendState === "sent" ? (
+            <CheckCircle2 className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
+          ) : (
+            <MailWarning className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="font-semibold text-sky-900">
+              {resendState === "sent" ? "Verification email sent" : "Verify your email address"}
+            </p>
+            <p className="text-sm text-sky-800">
+              {resendState === "sent"
+                ? `We just sent a fresh verification link to ${customer.email}. Click it to confirm your address.`
+                : `We sent a verification link to ${customer.email}. Click it to confirm your address.`}
+            </p>
+            {resendState === "error" && (
+              <p className="text-xs text-rose-700 mt-1">Couldn't send the email. Please try again.</p>
+            )}
+          </div>
+          {resendState !== "sent" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={resendVerification}
+              disabled={resendState === "sending"}
+            >
+              {resendState === "sending" ? "Sending…" : "Resend"}
+            </Button>
+          )}
+        </div>
+      )}
 
       {(pendingPRs.length > 0 || balanceJobs.length > 0) && (
         <div className="mb-6 space-y-2">
@@ -398,7 +449,20 @@ function ProfileCard() {
         </div>
         <div>
           <dt className="text-slate-500 text-xs uppercase">Email</dt>
-          <dd className="text-slate-900">{customer.email}</dd>
+          <dd className="text-slate-900 flex items-center gap-2">
+            <span>{customer.email}</span>
+            {customer.emailVerified ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                <CheckCircle2 className="w-3 h-3" />
+                Verified
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                <MailWarning className="w-3 h-3" />
+                Unverified
+              </span>
+            )}
+          </dd>
         </div>
         {customer.phone && (
           <div>
