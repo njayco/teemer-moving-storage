@@ -565,6 +565,105 @@ const APP_DISCOUNT_CODES: Record<string, { type: "percent"; value: number; label
   SANDV10: { type: "percent", value: 10, label: "SANDV10 — 10% off" },
 };
 
+// Canonical deposit policy — must match pricing-engine.ts: $50 minimum below
+// $1,000 total, otherwise 50% of total.
+function canonicalDeposit(total: number): number {
+  return total < 1000 ? 50 : Math.round(total * 0.5 * 100) / 100;
+}
+
+// Pure helper: compute the (totalEstimate, depositAmount, discountAmount, label)
+// that WOULD apply for a given baseline total and requested code. Returns
+// `error` if the code is invalid. Does not mutate the database.
+function computeDiscountedTotals(baseTotal: number, requestedCode: string): {
+  applied: boolean;
+  discountAmount: number;
+  totalEstimate: number;
+  depositAmount: number;
+  label?: string;
+  error?: string;
+} {
+  if (!requestedCode) {
+    return {
+      applied: false,
+      discountAmount: 0,
+      totalEstimate: baseTotal,
+      depositAmount: canonicalDeposit(baseTotal),
+    };
+  }
+  const discount = APP_DISCOUNT_CODES[requestedCode];
+  if (!discount) {
+    return {
+      applied: false,
+      discountAmount: 0,
+      totalEstimate: baseTotal,
+      depositAmount: canonicalDeposit(baseTotal),
+      error: `Discount code "${requestedCode}" is not valid.`,
+    };
+  }
+  const discountAmount = discount.type === "percent"
+    ? Math.round(baseTotal * (discount.value / 100) * 100) / 100
+    : discount.value;
+  const newTotal = Math.max(0, Math.round((baseTotal - discountAmount) * 100) / 100);
+  return {
+    applied: true,
+    discountAmount,
+    totalEstimate: newTotal,
+    depositAmount: canonicalDeposit(newTotal),
+    label: discount.label,
+  };
+}
+
+// Server-validate (preview) a discount code BEFORE Stripe checkout. This lets
+// the deposit page show the recomputed total + deposit live, without trusting
+// the client's price math. INTENTIONALLY READ-ONLY: it does not mutate the
+// quote — actual application happens inside POST /quotes/:id/checkout, which
+// is where the user confirms intent. This avoids unauthenticated mutation by
+// quote ID.
+router.post("/quotes/:id/apply-discount", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid quote ID" });
+    return;
+  }
+  const requestedCode = typeof req.body?.discountCode === "string"
+    ? req.body.discountCode.trim().toUpperCase()
+    : "";
+
+  try {
+    const [quote] = await db
+      .select({
+        totalEstimate: quoteRequestsTable.totalEstimate,
+        discountAmount: quoteRequestsTable.discountAmount,
+      })
+      .from(quoteRequestsTable)
+      .where(eq(quoteRequestsTable.id, id));
+    if (!quote) {
+      res.status(404).json({ error: "Quote not found" });
+      return;
+    }
+
+    // Baseline = totals BEFORE any discount, so the preview is stable across
+    // multiple typings of the same code.
+    const previouslyAppliedDiscount = Number(quote.discountAmount ?? 0);
+    const baseTotal = Math.round(((Number(quote.totalEstimate ?? 0)) + previouslyAppliedDiscount) * 100) / 100;
+
+    const preview = computeDiscountedTotals(baseTotal, requestedCode);
+    const status = preview.error ? 400 : 200;
+    res.status(status).json({
+      discountApplied: preview.applied,
+      discountCode: preview.applied ? requestedCode : null,
+      discountAmount: preview.discountAmount,
+      totalEstimate: preview.totalEstimate,
+      depositAmount: preview.depositAmount,
+      ...(preview.label ? { label: preview.label } : {}),
+      ...(preview.error ? { error: preview.error } : {}),
+    });
+  } catch (err) {
+    req.log.error({ err }, "apply-discount failed");
+    res.status(500).json({ error: "Failed to validate discount code." });
+  }
+});
+
 router.post("/quotes/:id/checkout", async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
@@ -599,31 +698,32 @@ router.post("/quotes/:id/checkout", async (req, res) => {
       ? req.body.discountCode.trim().toUpperCase()
       : "";
     if (requestedCode && requestedCode !== (quote.discountCode || "").toUpperCase()) {
-      const discount = APP_DISCOUNT_CODES[requestedCode];
-      if (!discount) {
-        res.status(400).json({ error: `Invalid discount code "${requestedCode}".`, discountApplied: false });
+      // Use the shared helper so deposit math stays in lock-step with both
+      // pricing-engine.ts (50% deposit ≥$1k, $50 minimum) and the read-only
+      // /apply-discount preview endpoint above.
+      const baseTotal = Number(quote.totalEstimate ?? 0);
+      const preview = computeDiscountedTotals(baseTotal, requestedCode);
+      if (preview.error || !preview.applied) {
+        res.status(400).json({ error: preview.error ?? `Invalid discount code "${requestedCode}".`, discountApplied: false });
         return;
       }
-      const baseTotal = Number(quote.totalEstimate ?? 0);
-      const discountAmount = discount.type === "percent"
-        ? Math.round(baseTotal * (discount.value / 100) * 100) / 100
-        : discount.value;
-      const newTotal = Math.max(0, Math.round((baseTotal - discountAmount) * 100) / 100);
-      const newDeposit = Math.max(50, Math.round(newTotal * 0.10 * 100) / 100);
 
       const [updatedQuote] = await db
         .update(quoteRequestsTable)
         .set({
           discountCode: requestedCode,
-          discountAmount,
-          totalEstimate: newTotal,
-          depositAmount: newDeposit,
+          discountAmount: preview.discountAmount,
+          totalEstimate: preview.totalEstimate,
+          depositAmount: preview.depositAmount,
         })
         .where(eq(quoteRequestsTable.id, id))
         .returning();
       if (updatedQuote) quote = updatedQuote;
       discountApplied = true;
-      logger.info({ id, requestedCode, discountAmount, newTotal, newDeposit }, "Applied discount code to quote");
+      logger.info(
+        { id, requestedCode, discountAmount: preview.discountAmount, newTotal: preview.totalEstimate, newDeposit: preview.depositAmount },
+        "Applied discount code to quote",
+      );
     }
 
     const depositCents = Math.round((quote.depositAmount ?? 50) * 100);

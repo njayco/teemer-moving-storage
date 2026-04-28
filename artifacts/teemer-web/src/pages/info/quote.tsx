@@ -699,7 +699,8 @@ export default function QuotePage() {
   // Task #43: mounted TVs + preferred packing-day window
   const [hasMountedTVs, setHasMountedTVs] = useState(false);
   const [mountedTVCount, setMountedTVCount] = useState(1);
-  const [packingArrivalWindow, setPackingArrivalWindow] = useState<string>("9:00 AM – 11:00 AM");
+  const [packingArrivalWindow, setPackingArrivalWindow] = useState<string>("");
+  const [packingWindowError, setPackingWindowError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiEstimate, setAiEstimate] = useState<{ small: number; medium: number; note: string } | null>(null);
@@ -874,6 +875,40 @@ export default function QuotePage() {
     if (m <= 2) return 165;
     if (m === 3) return 200;
     return 300;
+  };
+
+  // Live preview of estimated hours — mirrors pricing-engine's hour-calc logic
+  // using only the inputs available at step 2 (room counts + structural flags).
+  // Inventory effects are added later, so this is a conservative lower bound.
+  const previewEstimatedHours = () => {
+    const bedrooms = Math.max(0, Math.round(homeSize.numberOfBedrooms));
+    const livingRooms = Math.max(0, Math.round(homeSize.numberOfLivingRooms));
+    const totalRooms = bedrooms + livingRooms;
+    let hours: number;
+    if (totalRooms <= 2) hours = 5;
+    else if (totalRooms === 3) hours = 6;
+    else if (totalRooms === 4) hours = 8;
+    else hours = 8;
+    if (homeSize.hasHeavyItems) hours += 1;
+    if (homeSize.hasStairs) hours += 0.5;
+    const extraLivingRooms = Math.max(0, livingRooms - 1);
+    hours += extraLivingRooms * 0.5;
+    return Math.max(4, Math.min(10, Math.round(hours * 2) / 2));
+  };
+
+  // Per Task #43: pre-pack day is mandatory for moves ≥5 hours, and always
+  // for commercial. The customer MUST pick a window — no default is set.
+  const requiresPackDay = !isJunkRemoval && (isCommercial || previewEstimatedHours() >= 5);
+
+  const nextFromStep2 = () => {
+    if (requiresPackDay && !packingArrivalWindow) {
+      setPackingWindowError("Please select a preferred pre-pack day arrival window before continuing.");
+      // Scroll up to the panel so the user sees the error
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setPackingWindowError(null);
+    goToStep(3);
   };
 
 
@@ -1378,27 +1413,35 @@ export default function QuotePage() {
                           </div>
                         </div>
 
-                        {/* Pre-pack day for commercial — always shown (commercial moves typically run 5+ hours) */}
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
-                          <div>
-                            <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Included</p>
-                            <p className="text-xs text-slate-600">
-                              Commercial relocations qualify for our complimentary pre-pack service the day before — our crew arrives to pack your office so move day stays on schedule.
-                            </p>
+                        {/* Pre-pack day for commercial — always required */}
+                        {requiresPackDay && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                            <div>
+                              <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Required</p>
+                              <p className="text-xs text-slate-600">
+                                Commercial relocations qualify for our complimentary pre-pack service the day before — our crew arrives to pack your office so move day stays on schedule. Please pick a window below.
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-slate-600 block mb-1">
+                                Preferred Pre-Pack Day Arrival Window <span className="text-red-600">*</span>
+                              </label>
+                              <select
+                                value={packingArrivalWindow}
+                                onChange={(e) => { setPackingArrivalWindow(e.target.value); if (e.target.value) setPackingWindowError(null); }}
+                                className={inputCls()}
+                              >
+                                <option value="">— Select a window —</option>
+                                {PACKING_ARRIVAL_WINDOWS.map((w) => (
+                                  <option key={w} value={w}>{w}</option>
+                                ))}
+                              </select>
+                              {packingWindowError && (
+                                <p className="text-xs text-red-600 mt-1">{packingWindowError}</p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <label className="text-xs font-medium text-slate-600 block mb-1">Preferred Pre-Pack Day Arrival Window</label>
-                            <select
-                              value={packingArrivalWindow}
-                              onChange={(e) => setPackingArrivalWindow(e.target.value)}
-                              className={inputCls()}
-                            >
-                              {PACKING_ARRIVAL_WINDOWS.map((w) => (
-                                <option key={w} value={w}>{w}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
+                        )}
 
                         {/* Commercial info box */}
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
@@ -1420,7 +1463,7 @@ export default function QuotePage() {
                           <button type="button" onClick={() => goToStep(1)} className="flex items-center gap-2 text-slate-500 font-semibold px-4 py-3 hover:bg-slate-100 rounded-xl transition-colors">
                             <ArrowLeft className="w-4 h-4" /> Back
                           </button>
-                          <button type="button" onClick={() => goToStep(3)} className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
+                          <button type="button" onClick={nextFromStep2} className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
                             Next: Inventory <ArrowRight className="w-5 h-5" />
                           </button>
                         </div>
@@ -1527,26 +1570,32 @@ export default function QuotePage() {
                           )}
                         </div>
 
-                        {/* Pre-pack day selector — only shown for moves likely 5+ hours */}
-                        {(homeSize.numberOfBedrooms >= 3 || homeSize.hasStairs || homeSize.hasHeavyItems) && (
+                        {/* Pre-pack day selector — required for moves estimated 5+ hours */}
+                        {requiresPackDay && (
                           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
                             <div>
-                              <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Included</p>
+                              <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Required</p>
                               <p className="text-xs text-slate-600">
-                                Your move qualifies for our complimentary pre-pack service the day before — our crew will arrive to pack your belongings so move day runs smoothly.
+                                Your move is estimated at {previewEstimatedHours()} hours, so it qualifies for our complimentary pre-pack service the day before — our crew will arrive to pack your belongings so move day runs smoothly. Please pick a window below.
                               </p>
                             </div>
                             <div>
-                              <label className="text-xs font-medium text-slate-600 block mb-1">Preferred Pre-Pack Day Arrival Window</label>
+                              <label className="text-xs font-medium text-slate-600 block mb-1">
+                                Preferred Pre-Pack Day Arrival Window <span className="text-red-600">*</span>
+                              </label>
                               <select
                                 value={packingArrivalWindow}
-                                onChange={(e) => setPackingArrivalWindow(e.target.value)}
+                                onChange={(e) => { setPackingArrivalWindow(e.target.value); if (e.target.value) setPackingWindowError(null); }}
                                 className={inputCls()}
                               >
+                                <option value="">— Select a window —</option>
                                 {PACKING_ARRIVAL_WINDOWS.map((w) => (
                                   <option key={w} value={w}>{w}</option>
                                 ))}
                               </select>
+                              {packingWindowError && (
+                                <p className="text-xs text-red-600 mt-1">{packingWindowError}</p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1629,7 +1678,7 @@ export default function QuotePage() {
                           <button type="button" onClick={() => goToStep(1)} className="flex items-center gap-2 text-slate-500 font-semibold px-4 py-3 hover:bg-slate-100 rounded-xl transition-colors">
                             <ArrowLeft className="w-4 h-4" /> Back
                           </button>
-                          <button type="button" onClick={() => goToStep(3)} className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
+                          <button type="button" onClick={nextFromStep2} className="bg-primary text-white px-8 py-4 rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
                             Next: Inventory <ArrowRight className="w-5 h-5" />
                           </button>
                         </div>

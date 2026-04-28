@@ -2,14 +2,24 @@ import { InfoLayout } from "@/components/layout/info-layout";
 import { useRoute } from "wouter";
 import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users, FileText, Tag } from "lucide-react";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
+
+interface ApplyDiscountResponse {
+  discountApplied: boolean;
+  discountCode: string | null;
+  discountAmount: number;
+  totalEstimate: number;
+  depositAmount: number;
+  label?: string;
+  error?: string;
+}
 
 export default function QuoteDepositPage() {
   const [, params] = useRoute("/info/quote/deposit/:quoteId");
   const quoteId = params?.quoteId ?? "";
 
-  const { data: quote } = useGetQuoteRequest(quoteId, {
+  const { data: quote, refetch: refetchQuote } = useGetQuoteRequest(quoteId, {
     query: { enabled: !!quoteId, queryKey: ["deposit-quote", quoteId] },
   });
 
@@ -18,30 +28,80 @@ export default function QuoteDepositPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
   const [discountStatus, setDiscountStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [applying, setApplying] = useState(false);
+  // Server-validated totals (live, before checkout). Falls back to stored values.
+  const [serverTotals, setServerTotals] = useState<{ totalEstimate: number; depositAmount: number; discountAmount: number; label?: string } | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const baseDeposit = quote?.depositAmount ?? 0;
-  const codeUpper = discountCode.trim().toUpperCase();
-  const isSandvCode = codeUpper === "SANDV10";
-  const discountedDeposit = isSandvCode ? Math.round(baseDeposit * 90) / 100 : baseDeposit;
+  const baseTotal = quote?.totalEstimate ?? 0;
+  const displayDeposit = serverTotals?.depositAmount ?? baseDeposit;
+  const displayTotal = serverTotals?.totalEstimate ?? baseTotal;
+  const isDiscounted = (serverTotals?.discountAmount ?? 0) > 0;
+
+  // Live server-side validate as the user types (debounced).
+  useEffect(() => {
+    if (!quoteId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const trimmed = discountCode.trim();
+      setApplying(true);
+      try {
+        const res = await fetch(`/api/quotes/${quoteId}/apply-discount`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(trimmed ? { discountCode: trimmed } : {}),
+        });
+        const data = (await res.json()) as ApplyDiscountResponse;
+        if (!res.ok) {
+          setServerTotals({
+            totalEstimate: data.totalEstimate ?? baseTotal,
+            depositAmount: data.depositAmount ?? baseDeposit,
+            discountAmount: 0,
+          });
+          setDiscountStatus({ ok: false, msg: data.error || "That code is not valid." });
+          return;
+        }
+        setServerTotals({
+          totalEstimate: data.totalEstimate,
+          depositAmount: data.depositAmount,
+          discountAmount: data.discountAmount,
+          label: data.label,
+        });
+        if (trimmed && data.discountApplied) {
+          setDiscountStatus({ ok: true, msg: data.label ?? "Discount applied." });
+        } else if (!trimmed) {
+          setDiscountStatus(null);
+        }
+        // Keep RQ cache in sync so other parts of the page show the new totals.
+        refetchQuote().catch(() => {});
+      } catch {
+        // Network error — keep showing previous values, no scary message.
+      } finally {
+        setApplying(false);
+      }
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discountCode, quoteId]);
 
   const handlePayDeposit = async () => {
     setLoading(true);
     setError(null);
-    setDiscountStatus(null);
     try {
-      const trimmed = discountCode.trim();
+      // The /apply-discount endpoint is preview-only (does not mutate). Send
+      // the trimmed code on checkout so the canonical pricing engine applies
+      // it and persists the new totals atomically with starting Stripe.
+      const trimmedCode = discountCode.trim();
       const res = await fetch(`/api/quotes/${quoteId}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(trimmed ? { discountCode: trimmed } : {}),
+        body: JSON.stringify(trimmedCode ? { discountCode: trimmedCode } : {}),
       });
-      const data = await res.json() as { url?: string; error?: string; discountApplied?: boolean };
+      const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) {
         setError(data.error ?? "Unable to start checkout. Please call us to pay the deposit.");
         return;
-      }
-      if (trimmed && data.discountApplied === false) {
-        setDiscountStatus({ ok: false, msg: "That code wasn't valid — proceeding without a discount." });
       }
       window.location.href = data.url;
     } catch {
@@ -76,19 +136,19 @@ export default function QuoteDepositPage() {
                   {quote.depositAmount != null && (
                     <div className="px-5 py-4 text-center">
                       <p className="text-xs text-slate-400 font-medium mb-1">Deposit Amount</p>
-                      {isSandvCode ? (
+                      {isDiscounted ? (
                         <div>
                           <p className="text-sm text-slate-400 line-through">
-                            ${baseDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            ${(displayDeposit / (1 - 0.10)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                           <p className="text-2xl font-bold text-primary">
-                            ${discountedDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            ${displayDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                           </p>
-                          <p className="text-xs text-green-700 font-semibold mt-0.5">SANDV10 — 10% off</p>
+                          <p className="text-xs text-green-700 font-semibold mt-0.5">{serverTotals?.label ?? "Discount applied"}</p>
                         </div>
                       ) : (
                         <p className="text-2xl font-bold text-primary">
-                          ${baseDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          ${displayDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </p>
                       )}
                     </div>
@@ -185,15 +245,19 @@ export default function QuoteDepositPage() {
                       className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white border border-green-300 text-slate-800 text-sm font-medium uppercase tracking-wide placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:ring-2 focus:ring-primary/30 outline-none"
                     />
                   </div>
-                  {isSandvCode && (
+                  {applying ? (
+                    <span className="inline-flex items-center px-3 py-2.5 rounded-lg bg-slate-200 text-slate-600 text-xs font-bold">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    </span>
+                  ) : isDiscounted && discountCode.trim() ? (
                     <span className="inline-flex items-center px-3 py-2.5 rounded-lg bg-primary text-white text-xs font-bold">
                       Applied ✓
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                {discountCode.trim() && !isSandvCode && (
-                  <p className="text-xs text-amber-700">
-                    Code will be validated at checkout. Only valid codes apply a discount.
+                {discountStatus && discountStatus.ok && (
+                  <p className="text-xs text-green-700 font-semibold">
+                    {discountStatus.msg} — new total ${displayTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
                 )}
                 {discountStatus && !discountStatus.ok && (

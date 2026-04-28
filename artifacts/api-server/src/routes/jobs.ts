@@ -15,6 +15,25 @@ import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail, sendSameDayCaptainAlert } from "../lib/email-service";
 
+// Seed packing-supplies line items from a quote's pricing inputs so the admin
+// invoice editor isn't blank — pre-fills small/medium boxes, tape, and stretch
+// wrap using the same per-unit prices as the public pricing engine.
+function seedSuppliesItemsFromQuote(quote: typeof quoteRequestsTable.$inferSelect | null | undefined): Array<{ name: string; quantity: number; unitPrice: number }> {
+  if (!quote) return [];
+  const items: Array<{ name: string; quantity: number; unitPrice: number }> = [];
+  const smallBoxes = quote.smallBoxes ?? 0;
+  const mediumBoxes = quote.mediumBoxes ?? 0;
+  if (smallBoxes > 0) items.push({ name: "Small Boxes", quantity: smallBoxes, unitPrice: 3.5 });
+  if (mediumBoxes > 0) items.push({ name: "Medium Boxes", quantity: mediumBoxes, unitPrice: 6.5 });
+  if (quote.needsPackingMaterials) {
+    const bedrooms = Math.max(1, quote.numberOfBedrooms ?? 1);
+    const stretchWrapPerBedroom = quote.isFullyFurnished ? 2 : 1;
+    items.push({ name: "Stretch Wrap (rolls)", quantity: stretchWrapPerBedroom * bedrooms, unitPrice: 55 });
+    items.push({ name: "Packing Tape (rolls)", quantity: bedrooms, unitPrice: 13.5 });
+  }
+  return items;
+}
+
 async function computeTotalPaidAndRemaining(
   jobId: number,
   depositPaidOnJob: number,
@@ -842,6 +861,11 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
     const now = new Date();
     const dueDateStr = existingInvoice?.dueDate ?? new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
 
+    // Invoice discounts row: combine admin-applied discounts and the customer's
+    // discount-code amount (e.g. SANDV10) so the invoice always reflects the
+    // savings the customer actually received.
+    const invoiceDiscounts = (job.discounts ?? 0) + (job.discountAmount ?? 0);
+
     let invoiceNumber = existingInvoice?.invoiceNumber ?? "";
     if (!existingInvoice) {
       invoiceNumber = `INV-${job.jobId || job.id}-${Date.now().toString(36).toUpperCase()}`;
@@ -850,7 +874,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
         invoiceNumber,
         subtotal: job.estimateSubtotal ?? finalTotal,
         extraCharges: job.extraCharges ?? 0,
-        discounts: job.discounts ?? 0,
+        discounts: invoiceDiscounts,
         finalTotal,
         depositApplied: job.depositPaid ?? 0,
         remainingBalanceDue: remainingBalance,
@@ -874,6 +898,12 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       freeformText?: string;
       suppliesItems?: Array<{ name: string; quantity: number; unitPrice: number }>;
     } | null;
+    // If the admin hasn't edited supplies yet, seed them from the quote's
+    // pricing breakdown so the customer's invoice email includes the boxes,
+    // tape, and stretch-wrap line items they were already quoted for.
+    const finalSuppliesItems = (editableSnapshot?.suppliesItems && editableSnapshot.suppliesItems.length > 0)
+      ? editableSnapshot.suppliesItems
+      : seedSuppliesItemsFromQuote(quote);
 
     const result = await sendRemainingBalanceInvoiceEmail({
       email,
@@ -882,7 +912,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       totalEstimate: job.estimateSubtotal ?? job.estimatedPayout ?? 0,
       depositPaid: job.depositPaid ?? 0,
       extraCharges: job.extraCharges ?? 0,
-      discounts: job.discounts ?? 0,
+      discounts: invoiceDiscounts,
       finalTotal,
       remainingBalance,
       moveDate: quote?.moveDate ?? job.dateTime ?? "",
@@ -892,7 +922,7 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       crewSize: job.crewSize ?? undefined,
       numTrucks: editableSnapshot?.numTrucks ?? (job.crewSize ? Math.ceil(job.crewSize / 3) : undefined),
       freeformText: editableSnapshot?.freeformText ?? "",
-      suppliesItems: editableSnapshot?.suppliesItems ?? [],
+      suppliesItems: finalSuppliesItems,
     });
 
     if (!result.success) {
@@ -1170,10 +1200,18 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
 router.get("/invoices/:jobId", requireAdmin, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const [job] = await db.select({ id: jobsTable.id }).from(jobsTable)
+    const [job] = await db.select().from(jobsTable)
       .where(sql`${jobsTable.jobId} = ${String(jobId)} OR CAST(${jobsTable.id} AS TEXT) = ${String(jobId)}`)
       .limit(1);
     if (!job) return res.status(404).json({ error: "Job not found" });
+
+    let quote: typeof quoteRequestsTable.$inferSelect | null = null;
+    if (job.quoteId) {
+      const [q] = await db.select().from(quoteRequestsTable)
+        .where(eq(quoteRequestsTable.id, job.quoteId)).limit(1);
+      quote = q ?? null;
+    }
+    const seededSupplies = seedSuppliesItemsFromQuote(quote);
 
     const [invoice] = await db.select().from(invoicesTable)
       .where(eq(invoicesTable.jobId, job.id)).limit(1);
@@ -1182,10 +1220,29 @@ router.get("/invoices/:jobId", requireAdmin, async (req, res) => {
       return res.json({
         id: 0, invoiceNumber: "", subtotal: 0, extraCharges: 0, discounts: 0,
         finalTotal: 0, depositApplied: 0, remainingBalanceDue: 0,
-        dueDate: null, status: "none", editableSnapshot: null,
+        dueDate: null, status: "none",
+        editableSnapshot: {
+          numTrucks: job.crewSize ? Math.ceil(job.crewSize / 3) : 1,
+          freeformText: "",
+          suppliesItems: seededSupplies,
+        },
         sentAt: null, createdAt: null, updatedAt: null,
       });
     }
+
+    // Merge seeded defaults into the existing snapshot when supplies are blank.
+    const existingSnapshot = (invoice.editableSnapshotJson ?? null) as {
+      numTrucks?: number;
+      freeformText?: string;
+      suppliesItems?: Array<{ name: string; quantity: number; unitPrice: number }>;
+    } | null;
+    const editableSnapshot = {
+      numTrucks: existingSnapshot?.numTrucks ?? (job.crewSize ? Math.ceil(job.crewSize / 3) : 1),
+      freeformText: existingSnapshot?.freeformText ?? "",
+      suppliesItems: (existingSnapshot?.suppliesItems && existingSnapshot.suppliesItems.length > 0)
+        ? existingSnapshot.suppliesItems
+        : seededSupplies,
+    };
 
     res.json({
       id: invoice.id,
@@ -1198,7 +1255,7 @@ router.get("/invoices/:jobId", requireAdmin, async (req, res) => {
       remainingBalanceDue: invoice.remainingBalanceDue,
       dueDate: invoice.dueDate,
       status: invoice.status,
-      editableSnapshot: invoice.editableSnapshotJson,
+      editableSnapshot,
       sentAt: invoice.sentAt?.toISOString() ?? null,
       createdAt: invoice.createdAt?.toISOString() ?? null,
       updatedAt: invoice.updatedAt?.toISOString() ?? null,
