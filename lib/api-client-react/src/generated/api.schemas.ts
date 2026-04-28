@@ -288,6 +288,11 @@ export interface QuoteResponse {
   junkAddonsTotal?: number;
   estimatedPriceLow?: number;
   estimatedPriceHigh?: number;
+  packingDate?: string | null;
+  packingArrivalWindow?: string | null;
+  hasMountedTVs?: boolean;
+  mountedTVCount?: number;
+  parkingInstructions?: string | null;
   quoteRequest: QuoteRequestEcho;
 }
 

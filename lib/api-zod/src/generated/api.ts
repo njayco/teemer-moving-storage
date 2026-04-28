@@ -207,6 +207,11 @@ export const ListQuoteRequestsResponseItem = zod.object({
   junkAddonsTotal: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
   estimatedPriceHigh: zod.number().optional(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
   quoteRequest: zod
     .object({
       contactName: zod.string().optional(),
@@ -307,6 +312,11 @@ export const GetQuoteRequestResponse = zod.object({
   junkAddonsTotal: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
   estimatedPriceHigh: zod.number().optional(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
   quoteRequest: zod
     .object({
       contactName: zod.string().optional(),
@@ -450,6 +460,11 @@ export const UpdateQuoteStatusResponse = zod.object({
   junkAddonsTotal: zod.number().optional(),
   estimatedPriceLow: zod.number().optional(),
   estimatedPriceHigh: zod.number().optional(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
   quoteRequest: zod
     .object({
       contactName: zod.string().optional(),

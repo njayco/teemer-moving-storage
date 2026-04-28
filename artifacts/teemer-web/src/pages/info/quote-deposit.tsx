@@ -1,6 +1,6 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { useRoute } from "wouter";
-import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users, FileText, Tag } from "lucide-react";
+import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users, FileText, Tag, Package, Tv, Car } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
@@ -186,6 +186,50 @@ export default function QuoteDepositPage() {
                       </p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {quote && (quote.packingDate || quote.packingArrivalWindow || quote.hasMountedTVs || quote.parkingInstructions) && (
+                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4 space-y-2.5">
+                  <p className="text-xs font-semibold text-emerald-900 uppercase tracking-wide">Booking Details</p>
+                  {(quote.packingDate || quote.packingArrivalWindow) && (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <Package className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-slate-800">Pre-Pack Day</p>
+                        <p className="text-slate-600 text-xs">
+                          {quote.packingDate
+                            ? new Date(quote.packingDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                            : "Day before your move"}
+                          {quote.packingArrivalWindow && <> · arrival {quote.packingArrivalWindow}</>}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {quote.hasMountedTVs && (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <Tv className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-slate-800">Mounted TV{(quote.mountedTVCount ?? 1) === 1 ? "" : "s"} to Dismount</p>
+                        <p className="text-slate-600 text-xs">
+                          {quote.mountedTVCount ?? 1} TV{(quote.mountedTVCount ?? 1) === 1 ? "" : "s"} — our crew will safely dismount and re-mount at your destination
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {quote.parkingInstructions && (
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <Car className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-slate-800">Parking Instructions</p>
+                        <p className="text-slate-600 text-xs whitespace-pre-line">{quote.parkingInstructions}</p>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-500 pt-1 border-t border-emerald-100">
+                    Need to update any of these? Call us at{" "}
+                    <a href="tel:+15162693724" className="font-semibold text-emerald-700 hover:underline">(516) 269-3724</a>.
+                  </p>
                 </div>
               )}
 

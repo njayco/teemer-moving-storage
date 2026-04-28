@@ -1156,6 +1156,21 @@ components:
           type: number
         estimatedPriceHigh:
           type: number
+        # Booking detail confirmations (echoed back so the deposit page can
+        # surface them for the customer)
+        packingDate:
+          type: string
+          nullable: true
+        packingArrivalWindow:
+          type: string
+          nullable: true
+        hasMountedTVs:
+          type: boolean
+        mountedTVCount:
+          type: integer
+        parkingInstructions:
+          type: string
+          nullable: true
         # Full request echo
         quoteRequest:
           $ref: "#/components/schemas/QuoteRequestEcho"

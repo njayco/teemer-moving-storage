@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSubmitQuoteRequest } from "@workspace/api-client-react";
 import type { QuoteResponse } from "@workspace/api-client-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import {
   CheckCircle2, Loader2, ArrowRight, ArrowLeft, Minus, Plus,
@@ -877,28 +877,78 @@ export default function QuotePage() {
     return 300;
   };
 
-  // Live preview of estimated hours — mirrors pricing-engine's hour-calc logic
-  // using only the inputs available at step 2 (room counts + structural flags).
-  // Inventory effects are added later, so this is a conservative lower bound.
-  const previewEstimatedHours = () => {
-    const bedrooms = Math.max(0, Math.round(homeSize.numberOfBedrooms));
-    const livingRooms = Math.max(0, Math.round(homeSize.numberOfLivingRooms));
-    const totalRooms = bedrooms + livingRooms;
-    let hours: number;
-    if (totalRooms <= 2) hours = 5;
-    else if (totalRooms === 3) hours = 6;
-    else if (totalRooms === 4) hours = 8;
-    else hours = 8;
-    if (homeSize.hasHeavyItems) hours += 1;
-    if (homeSize.hasStairs) hours += 0.5;
-    const extraLivingRooms = Math.max(0, livingRooms - 1);
-    hours += extraLivingRooms * 0.5;
-    return Math.max(4, Math.min(10, Math.round(hours * 2) / 2));
-  };
+  // Live estimated-hours preview from the canonical server pricing engine.
+  // We call POST /api/quotes/preview-hours whenever step-2 inputs change so
+  // the pre-pack-day requirement is driven by the same calculation the
+  // backend uses at submit time — no client/server drift, no heuristic.
+  const [serverEstimatedHours, setServerEstimatedHours] = useState<number | null>(null);
+  const [serverPackingDayRequired, setServerPackingDayRequired] = useState<boolean>(false);
+  const previewHoursTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isJunkRemoval) {
+      setServerEstimatedHours(null);
+      setServerPackingDayRequired(false);
+      return;
+    }
+    if (previewHoursTimerRef.current) clearTimeout(previewHoursTimerRef.current);
+    previewHoursTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/quotes/preview-hours", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            numberOfBedrooms: homeSize.numberOfBedrooms,
+            numberOfLivingRooms: homeSize.numberOfLivingRooms,
+            hasGarage: homeSize.hasGarage,
+            hasOutdoorFurniture: homeSize.hasOutdoorFurniture,
+            hasStairs: homeSize.hasStairs,
+            hasHeavyItems: homeSize.hasHeavyItems,
+            isFullyFurnished: homeSize.isFullyFurnished,
+            inventory: {},
+            smallBoxes: 0,
+            mediumBoxes: 0,
+            needsPackingMaterials: false,
+            isCommercial,
+            commercialSizeTier: isCommercial ? commercialSizeTier : undefined,
+            distanceMiles: 0,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { estimatedHours?: number; packingDayRequired?: boolean };
+          if (typeof data.estimatedHours === "number") {
+            setServerEstimatedHours(data.estimatedHours);
+          }
+          // Trust the server's packingDayRequired flag directly — that way
+          // any future change to the threshold rule (currently >=5h) lives
+          // in exactly one place: the API.
+          setServerPackingDayRequired(Boolean(data.packingDayRequired));
+        }
+      } catch {
+        // Network hiccup — fall back to false so we don't block the user;
+        // the server still strictly enforces the rule on submit, so this is safe.
+        setServerEstimatedHours(null);
+        setServerPackingDayRequired(false);
+      }
+    }, 250);
+    return () => { if (previewHoursTimerRef.current) clearTimeout(previewHoursTimerRef.current); };
+  }, [
+    isJunkRemoval,
+    isCommercial,
+    commercialSizeTier,
+    homeSize.numberOfBedrooms,
+    homeSize.numberOfLivingRooms,
+    homeSize.hasGarage,
+    homeSize.hasOutdoorFurniture,
+    homeSize.hasStairs,
+    homeSize.hasHeavyItems,
+    homeSize.isFullyFurnished,
+  ]);
 
-  // Per Task #43: pre-pack day is mandatory for moves ≥5 hours, and always
-  // for commercial. The customer MUST pick a window — no default is set.
-  const requiresPackDay = !isJunkRemoval && (isCommercial || previewEstimatedHours() >= 5);
+  // Single canonical rule: trust the server's packingDayRequired flag rather
+  // than recomputing on the client. The threshold lives in routes/quotes.ts
+  // (currently estimatedHours >= 5) and the preview endpoint returns the
+  // exact same boolean — so client and server can never disagree on the rule.
+  const requiresPackDay = !isJunkRemoval && serverPackingDayRequired;
 
   const nextFromStep2 = () => {
     if (requiresPackDay && !packingArrivalWindow) {
@@ -1576,7 +1626,7 @@ export default function QuotePage() {
                             <div>
                               <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Required</p>
                               <p className="text-xs text-slate-600">
-                                Your move is estimated at {previewEstimatedHours()} hours, so it qualifies for our complimentary pre-pack service the day before — our crew will arrive to pack your belongings so move day runs smoothly. Please pick a window below.
+                                Your move is estimated at {serverEstimatedHours ?? 5} hours, so it qualifies for our complimentary pre-pack service the day before — our crew will arrive to pack your belongings so move day runs smoothly. Please pick a window below.
                               </p>
                             </div>
                             <div>

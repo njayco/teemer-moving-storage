@@ -570,6 +570,48 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
   }
 });
 
+// Live preview of estimatedHours from the canonical pricing engine. The quote
+// wizard calls this on Step 2 to drive the pre-pack-day requirement (>=5h).
+// This guarantees client and server agree on the threshold rule and avoids
+// any heuristic drift between the two.
+router.post("/quotes/preview-hours", (req, res) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    // Defaults intentionally mirror POST /quotes' submit-time normalization
+    // (bedrooms/livingRooms default to 1, isFullyFurnished defaults to true)
+    // so the preview rule and the strict server enforcement always agree on
+    // identical inputs — no drift, even with sparse client payloads.
+    const pricing = calculatePricing({
+      numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
+      numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),
+      hasGarage: Boolean(body.hasGarage),
+      hasOutdoorFurniture: Boolean(body.hasOutdoorFurniture),
+      hasStairs: Boolean(body.hasStairs),
+      hasHeavyItems: Boolean(body.hasHeavyItems),
+      isFullyFurnished: body.isFullyFurnished !== false,
+      inventory: (body.inventory as Record<string, number>) ?? {},
+      smallBoxes: Number(body.smallBoxes ?? 0),
+      mediumBoxes: Number(body.mediumBoxes ?? 0),
+      needsPackingMaterials: Boolean(body.needsPackingMaterials),
+      pianoType: (body.pianoType as "none" | "upright" | "grand" | undefined) || undefined,
+      pianoFloor: (body.pianoFloor as "ground" | "stairs" | undefined) || undefined,
+      isCommercial: Boolean(body.isCommercial),
+      commercialBusinessType: (body.commercialBusinessType as string | undefined) || undefined,
+      commercialSizeTier: (body.commercialSizeTier as "small" | "medium" | "large" | "enterprise" | undefined) || undefined,
+      distanceMiles: Number(body.distanceMiles ?? 0),
+    });
+    res.json({
+      estimatedHours: pricing.estimatedHours,
+      crewSize: pricing.crewSize,
+      hourlyRate: pricing.hourlyRate,
+      packingDayRequired: pricing.estimatedHours >= 5,
+    });
+  } catch (err) {
+    req.log.error({ err }, "preview-hours failed");
+    res.status(500).json({ error: "Unable to preview pricing." });
+  }
+});
+
 // App-managed discount codes (case-insensitive). Applied to totalEstimate
 // BEFORE Stripe checkout so the deposit reflects the discount as well.
 const APP_DISCOUNT_CODES: Record<string, { type: "percent"; value: number; label: string }> = {
