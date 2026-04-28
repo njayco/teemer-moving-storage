@@ -1118,8 +1118,10 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       + (travelFee ?? 0) + (stairFee ?? 0) + (storageFee ?? 0) + (packingFee ?? 0)
       + suppliesTotal;
     const extras = extraCharges ?? job.extraCharges ?? 0;
-    const disc = discounts ?? job.discounts ?? 0;
-    const finalTotal = subtotal + extras - disc;
+    const adminDisc = discounts ?? job.discounts ?? 0;
+    const promoDisc = job.discountAmount ?? 0;
+    const disc = adminDisc + promoDisc;
+    const finalTotal = Math.max(0, subtotal + extras - disc);
     const depositApplied = job.depositPaid ?? 0;
 
     const { remainingBalance: remainingBalanceDue } = await computeTotalPaidAndRemaining(
@@ -1520,8 +1522,9 @@ router.patch("/jobs/:jobId/captain-status", requireCaptainOrAdmin, async (req, r
       const hourlyRate = job.hourlyRate ?? 0;
       const subtotal = laborHours * hourlyRate;
       const extras = job.extraCharges ?? 0;
-      const disc = job.discounts ?? 0;
-      const newFinalTotal = subtotal + extras - disc;
+      const adminDisc = job.discounts ?? 0;
+      const promoDisc = job.discountAmount ?? 0;
+      const newFinalTotal = Math.max(0, subtotal + extras - adminDisc - promoDisc);
 
       updates.estimatedHours = laborHours;
       updates.finalTotal = newFinalTotal;
