@@ -1060,6 +1060,111 @@ export const UpdateAlertEmailSettingsResponse = zod.object({
 });
 
 /**
+ * Returns every discount code in the system (admin only)
+ * @summary List all discount codes
+ */
+export const ListDiscountCodesResponseItem = zod.object({
+  id: zod.number(),
+  code: zod.string().describe("Uppercase, unique discount code (e.g. SANDV10)"),
+  type: zod.enum(["percent", "fixed"]),
+  value: zod
+    .number()
+    .describe(
+      "Percent (0-100) for type=percent, or dollar amount for type=fixed",
+    ),
+  label: zod
+    .string()
+    .describe("Human-readable description shown to customers and admins"),
+  active: zod.boolean(),
+  expiresAt: zod.date().nullish(),
+  usageLimit: zod
+    .number()
+    .nullish()
+    .describe(
+      "Maximum number of times this code may be redeemed (null = unlimited)",
+    ),
+  usageCount: zod
+    .number()
+    .describe("Number of times this code has been redeemed"),
+  createdAt: zod.date().nullish(),
+  updatedAt: zod.date().nullish(),
+});
+export const ListDiscountCodesResponse = zod.array(
+  ListDiscountCodesResponseItem,
+);
+
+/**
+ * Creates a new discount code (admin only)
+ * @summary Create a discount code
+ */
+export const CreateDiscountCodeBody = zod.object({
+  code: zod.string(),
+  type: zod.enum(["percent", "fixed"]),
+  value: zod.number(),
+  label: zod.string(),
+  active: zod.boolean().optional(),
+  expiresAt: zod.date().nullish(),
+  usageLimit: zod.number().nullish(),
+});
+
+/**
+ * Update an existing discount code (admin only)
+ * @summary Update a discount code
+ */
+export const UpdateDiscountCodeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDiscountCodeBody = zod.object({
+  type: zod.enum(["percent", "fixed"]).optional(),
+  value: zod.number().optional(),
+  label: zod.string().optional(),
+  active: zod.boolean().optional(),
+  expiresAt: zod.date().nullish(),
+  usageLimit: zod.number().nullish(),
+});
+
+export const UpdateDiscountCodeResponse = zod.object({
+  id: zod.number(),
+  code: zod.string().describe("Uppercase, unique discount code (e.g. SANDV10)"),
+  type: zod.enum(["percent", "fixed"]),
+  value: zod
+    .number()
+    .describe(
+      "Percent (0-100) for type=percent, or dollar amount for type=fixed",
+    ),
+  label: zod
+    .string()
+    .describe("Human-readable description shown to customers and admins"),
+  active: zod.boolean(),
+  expiresAt: zod.date().nullish(),
+  usageLimit: zod
+    .number()
+    .nullish()
+    .describe(
+      "Maximum number of times this code may be redeemed (null = unlimited)",
+    ),
+  usageCount: zod
+    .number()
+    .describe("Number of times this code has been redeemed"),
+  createdAt: zod.date().nullish(),
+  updatedAt: zod.date().nullish(),
+});
+
+/**
+ * Permanently removes a discount code (admin only)
+ * @summary Delete a discount code
+ */
+export const DeleteDiscountCodeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteDiscountCodeResponse = zod.object({
+  success: zod.boolean(),
+  id: zod.number(),
+});
+
+/**
  * @summary Get job timeline events (admin only)
  */
 export const GetJobEventsParams = zod.object({

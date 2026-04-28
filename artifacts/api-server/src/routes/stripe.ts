@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { quoteRequestsTable, paymentsTable, revenueLedgerTable, jobsTable, invoicesTable } from "@workspace/db/schema";
-import { eq, and, notInArray } from "drizzle-orm";
+import { quoteRequestsTable, paymentsTable, revenueLedgerTable, jobsTable, invoicesTable, discountCodesTable } from "@workspace/db/schema";
+import { eq, and, notInArray, isNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 import {
   sendDepositConfirmationEmail,
@@ -11,6 +11,20 @@ import { recordTimelineEvent } from "../lib/timeline";
 import { getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
 
 const router: IRouter = Router();
+
+// Atomically mark this quote's discount-code redemption as counted (only the
+// first call returns true). Callers should only increment the code's
+// `usageCount` when this returns true. This is the cross-path idempotency
+// guard that prevents Stripe webhook retries — or rare multiple-session
+// flows on the same quote — from over-counting redemptions.
+async function tryClaimDiscountRedemption(quoteId: number): Promise<boolean> {
+  const claimed = await db
+    .update(quoteRequestsTable)
+    .set({ discountRedeemedAt: new Date() })
+    .where(and(eq(quoteRequestsTable.id, quoteId), isNull(quoteRequestsTable.discountRedeemedAt)))
+    .returning({ id: quoteRequestsTable.id });
+  return claimed.length > 0;
+}
 
 function getAppBaseUrl(): string {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
@@ -68,12 +82,86 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
           });
         });
         logger.info({ jobId: existingJob.id, amount: depositPaid }, "Late deposit payment recorded for already-processed quote");
+
+        // Also count the discount-code redemption for this newly-recorded
+        // late payment, mirroring the main path below. The redemption-claim
+        // marker on the quote makes this idempotent across retries and
+        // multiple sessions; the conditional update on usageLimit keeps the
+        // limit enforcement atomic against concurrent redemptions of *other*
+        // quotes using the same code.
+        if (quote?.discountCode) {
+          try {
+            const claimed = await tryClaimDiscountRedemption(parsedQuoteId);
+            if (!claimed) {
+              logger.info(
+                { code: quote.discountCode, quoteId: parsedQuoteId },
+                "Discount redemption already counted for this quote; skipping increment",
+              );
+            } else {
+              const incremented = await db
+                .update(discountCodesTable)
+                .set({ usageCount: sql`${discountCodesTable.usageCount} + 1` })
+                .where(
+                  and(
+                    eq(discountCodesTable.code, quote.discountCode),
+                    sql`(${discountCodesTable.usageLimit} IS NULL OR ${discountCodesTable.usageCount} < ${discountCodesTable.usageLimit})`,
+                  ),
+                )
+                .returning({ id: discountCodesTable.id });
+              if (incremented.length === 0) {
+                logger.warn(
+                  { code: quote.discountCode, quoteId: parsedQuoteId },
+                  "Discount code already at usage limit at late-finalize time; not incrementing",
+                );
+              }
+            }
+          } catch (err) {
+            logger.error({ err, code: quote.discountCode }, "Failed to increment discount code usageCount on late payment");
+          }
+        }
       }
     }
     return { updated: false, alreadyProcessed: true };
   }
 
   logger.info({ quoteId: parsedQuoteId, sessionId: stripeSessionId }, "Quote marked deposit_paid");
+
+  // Now that the deposit is confirmed paid, count the discount-code redemption.
+  // We do this here (not in /quotes/:id/checkout) so abandoned/failed Stripe
+  // sessions do not consume the code's usageLimit.
+  // Conditional update guards against the usage-limit race window: only
+  // increment when the code is still under its limit. This is one atomic
+  // SQL statement, so concurrent webhooks cannot push past `usageLimit`.
+  if (updatedQuote.discountCode) {
+    try {
+      const claimed = await tryClaimDiscountRedemption(parsedQuoteId);
+      if (!claimed) {
+        logger.info(
+          { code: updatedQuote.discountCode, quoteId: parsedQuoteId },
+          "Discount redemption already counted for this quote; skipping increment",
+        );
+      } else {
+        const incremented = await db
+          .update(discountCodesTable)
+          .set({ usageCount: sql`${discountCodesTable.usageCount} + 1` })
+          .where(
+            and(
+              eq(discountCodesTable.code, updatedQuote.discountCode),
+              sql`(${discountCodesTable.usageLimit} IS NULL OR ${discountCodesTable.usageCount} < ${discountCodesTable.usageLimit})`,
+            ),
+          )
+          .returning({ id: discountCodesTable.id });
+        if (incremented.length === 0) {
+          logger.warn(
+            { code: updatedQuote.discountCode, quoteId: parsedQuoteId },
+            "Discount code already at usage limit at deposit-finalize time; not incrementing",
+          );
+        }
+      }
+    } catch (err) {
+      logger.error({ err, code: updatedQuote.discountCode }, "Failed to increment discount code usageCount after deposit");
+    }
+  }
 
   recordTimelineEvent({
     jobId: parsedQuoteId,

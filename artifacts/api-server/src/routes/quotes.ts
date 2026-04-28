@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { quoteRequestsTable, jobsTable } from "@workspace/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { quoteRequestsTable, jobsTable, discountCodesTable } from "@workspace/db/schema";
+import { desc, eq, sql } from "drizzle-orm";
 import { calculatePricing, calculateJunkRemovalPricing, getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendBookingConfirmationEmail } from "../lib/email-service";
@@ -622,50 +622,54 @@ router.post("/quotes/preview-hours", (req, res) => {
   }
 });
 
-// App-managed discount codes (case-insensitive). Applied to totalEstimate
-// BEFORE Stripe checkout so the deposit reflects the discount as well.
-const APP_DISCOUNT_CODES: Record<string, { type: "percent"; value: number; label: string }> = {
-  SANDV10: { type: "percent", value: 10, label: "SANDV10 — 10% off" },
-};
-
 // Canonical deposit policy — must match pricing-engine.ts: $50 minimum below
 // $1,000 total, otherwise 50% of total.
 function canonicalDeposit(total: number): number {
   return total < 1000 ? 50 : Math.round(total * 0.5 * 100) / 100;
 }
 
+type DiscountRow = typeof discountCodesTable.$inferSelect;
+
+// Look up a discount code in the database (case-insensitive). Returns the row
+// if it's valid AND active AND not expired AND under its usage limit.
+// Otherwise returns an error message. Does not mutate the database.
+async function findUsableDiscountCode(requestedCode: string): Promise<{ row?: DiscountRow; error?: string }> {
+  const code = requestedCode.trim().toUpperCase();
+  if (!code) return { error: `Discount code is required.` };
+
+  const [row] = await db
+    .select()
+    .from(discountCodesTable)
+    .where(eq(discountCodesTable.code, code))
+    .limit(1);
+
+  if (!row) {
+    return { error: `Discount code "${code}" is not valid.` };
+  }
+  if (!row.active) {
+    return { error: `Discount code "${code}" is no longer active.` };
+  }
+  if (row.expiresAt && row.expiresAt.getTime() < Date.now()) {
+    return { error: `Discount code "${code}" has expired.` };
+  }
+  if (row.usageLimit !== null && row.usageCount >= row.usageLimit) {
+    return { error: `Discount code "${code}" has reached its usage limit.` };
+  }
+  return { row };
+}
+
 // Pure helper: compute the (totalEstimate, depositAmount, discountAmount, label)
-// that WOULD apply for a given baseline total and requested code. Returns
-// `error` if the code is invalid. Does not mutate the database.
-function computeDiscountedTotals(baseTotal: number, requestedCode: string): {
-  applied: boolean;
+// that WOULD apply for a given baseline total and matched discount row.
+function computeDiscountedTotals(baseTotal: number, discount: DiscountRow): {
+  applied: true;
   discountAmount: number;
   totalEstimate: number;
   depositAmount: number;
-  label?: string;
-  error?: string;
+  label: string;
 } {
-  if (!requestedCode) {
-    return {
-      applied: false,
-      discountAmount: 0,
-      totalEstimate: baseTotal,
-      depositAmount: canonicalDeposit(baseTotal),
-    };
-  }
-  const discount = APP_DISCOUNT_CODES[requestedCode];
-  if (!discount) {
-    return {
-      applied: false,
-      discountAmount: 0,
-      totalEstimate: baseTotal,
-      depositAmount: canonicalDeposit(baseTotal),
-      error: `Discount code "${requestedCode}" is not valid.`,
-    };
-  }
   const discountAmount = discount.type === "percent"
     ? Math.round(baseTotal * (discount.value / 100) * 100) / 100
-    : discount.value;
+    : Math.min(baseTotal, discount.value);
   const newTotal = Math.max(0, Math.round((baseTotal - discountAmount) * 100) / 100);
   return {
     applied: true,
@@ -710,16 +714,38 @@ router.post("/quotes/:id/apply-discount", async (req, res) => {
     const previouslyAppliedDiscount = Number(quote.discountAmount ?? 0);
     const baseTotal = Math.round(((Number(quote.totalEstimate ?? 0)) + previouslyAppliedDiscount) * 100) / 100;
 
-    const preview = computeDiscountedTotals(baseTotal, requestedCode);
-    const status = preview.error ? 400 : 200;
-    res.status(status).json({
-      discountApplied: preview.applied,
-      discountCode: preview.applied ? requestedCode : null,
+    if (!requestedCode) {
+      res.json({
+        discountApplied: false,
+        discountCode: null,
+        discountAmount: 0,
+        totalEstimate: baseTotal,
+        depositAmount: canonicalDeposit(baseTotal),
+      });
+      return;
+    }
+
+    const lookup = await findUsableDiscountCode(requestedCode);
+    if (lookup.error || !lookup.row) {
+      res.status(400).json({
+        discountApplied: false,
+        discountCode: null,
+        discountAmount: 0,
+        totalEstimate: baseTotal,
+        depositAmount: canonicalDeposit(baseTotal),
+        error: lookup.error,
+      });
+      return;
+    }
+
+    const preview = computeDiscountedTotals(baseTotal, lookup.row);
+    res.json({
+      discountApplied: true,
+      discountCode: lookup.row.code,
       discountAmount: preview.discountAmount,
       totalEstimate: preview.totalEstimate,
       depositAmount: preview.depositAmount,
-      ...(preview.label ? { label: preview.label } : {}),
-      ...(preview.error ? { error: preview.error } : {}),
+      label: preview.label,
     });
   } catch (err) {
     req.log.error({ err }, "apply-discount failed");
@@ -757,24 +783,55 @@ router.post("/quotes/:id/checkout", async (req, res) => {
     let discountApplied = Boolean(quote.discountCode);
 
     // Apply discount code if provided (and not already applied)
-    const requestedCode = typeof req.body?.discountCode === "string"
-      ? req.body.discountCode.trim().toUpperCase()
+    const rawRequested = req.body?.discountCode;
+    const requestedCode = typeof rawRequested === "string"
+      ? rawRequested.trim().toUpperCase()
       : "";
+
+    // Explicit removal: if the client sent an empty string for discountCode
+    // (signaling "I no longer want a discount"), clear any applied code and
+    // restore the full-price totals.
+    if (typeof rawRequested === "string" && rawRequested.trim() === "" && quote.discountCode) {
+      const restoredTotal = Math.round(((Number(quote.totalEstimate ?? 0)) + Number(quote.discountAmount ?? 0)) * 100) / 100;
+      const restoredDeposit = canonicalDeposit(restoredTotal);
+      const [restored] = await db
+        .update(quoteRequestsTable)
+        .set({
+          discountCode: null,
+          discountAmount: 0,
+          totalEstimate: restoredTotal,
+          depositAmount: restoredDeposit,
+        })
+        .where(eq(quoteRequestsTable.id, id))
+        .returning();
+      if (restored) quote = restored;
+      discountApplied = false;
+      logger.info({ id, restoredTotal }, "Customer removed discount code at checkout time");
+    }
+
     if (requestedCode && requestedCode !== (quote.discountCode || "").toUpperCase()) {
       // Use the shared helper so deposit math stays in lock-step with both
       // pricing-engine.ts (50% deposit ≥$1k, $50 minimum) and the read-only
       // /apply-discount preview endpoint above.
-      const baseTotal = Number(quote.totalEstimate ?? 0);
-      const preview = computeDiscountedTotals(baseTotal, requestedCode);
-      if (preview.error || !preview.applied) {
-        res.status(400).json({ error: preview.error ?? `Invalid discount code "${requestedCode}".`, discountApplied: false });
+      // Baseline = totalEstimate BEFORE any previously-applied discount, so
+      // switching codes does not compound on top of an old discount.
+      const previouslyAppliedDiscount = Number(quote.discountAmount ?? 0);
+      const baseTotal = Math.round(((Number(quote.totalEstimate ?? 0)) + previouslyAppliedDiscount) * 100) / 100;
+      const lookup = await findUsableDiscountCode(requestedCode);
+      if (lookup.error || !lookup.row) {
+        res.status(400).json({
+          error: lookup.error ?? `Invalid discount code "${requestedCode}".`,
+          discountApplied: false,
+        });
         return;
       }
+
+      const preview = computeDiscountedTotals(baseTotal, lookup.row);
 
       const [updatedQuote] = await db
         .update(quoteRequestsTable)
         .set({
-          discountCode: requestedCode,
+          discountCode: lookup.row.code,
           discountAmount: preview.discountAmount,
           totalEstimate: preview.totalEstimate,
           depositAmount: preview.depositAmount,
@@ -782,11 +839,46 @@ router.post("/quotes/:id/checkout", async (req, res) => {
         .where(eq(quoteRequestsTable.id, id))
         .returning();
       if (updatedQuote) quote = updatedQuote;
+
+      // NOTE: usageCount is NOT incremented here. We only count a redemption
+      // once the deposit payment is confirmed by Stripe (see finalizeDeposit
+      // in routes/stripe.ts). Counting here would let abandoned/failed
+      // checkouts exhaust the usage limit and block real customers.
+
       discountApplied = true;
       logger.info(
-        { id, requestedCode, discountAmount: preview.discountAmount, newTotal: preview.totalEstimate, newDeposit: preview.depositAmount },
+        { id, requestedCode: lookup.row.code, discountAmount: preview.discountAmount, newTotal: preview.totalEstimate, newDeposit: preview.depositAmount },
         "Applied discount code to quote",
       );
+    }
+
+    // Final guard: the quote may have an applied discount code that was
+    // disabled or hit its usage limit between /apply-discount and now.
+    // Rather than hard-fail (which would block the customer from paying at
+    // all), clear the stale discount and restore the original full-price
+    // totals so the checkout can proceed at the undiscounted price.
+    if (quote.discountCode) {
+      const recheck = await findUsableDiscountCode(quote.discountCode);
+      if (recheck.error || !recheck.row) {
+        const restoredTotal = Math.round(((Number(quote.totalEstimate ?? 0)) + Number(quote.discountAmount ?? 0)) * 100) / 100;
+        const restoredDeposit = canonicalDeposit(restoredTotal);
+        const [restored] = await db
+          .update(quoteRequestsTable)
+          .set({
+            discountCode: null,
+            discountAmount: 0,
+            totalEstimate: restoredTotal,
+            depositAmount: restoredDeposit,
+          })
+          .where(eq(quoteRequestsTable.id, id))
+          .returning();
+        if (restored) quote = restored;
+        discountApplied = false;
+        logger.warn(
+          { id, staleCode: recheck.error, restoredTotal },
+          "Cleared stale discount on quote at checkout time and restored full price",
+        );
+      }
     }
 
     const depositCents = Math.round((quote.depositAmount ?? 50) * 100);

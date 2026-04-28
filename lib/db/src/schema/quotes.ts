@@ -34,6 +34,11 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   // Discount code applied at booking
   discountCode: text("discount_code"),
   discountAmount: real("discount_amount").default(0),
+  // Set the first time we count this quote's discount-code redemption against
+  // the code's `usage_count`. Acts as an idempotency marker so retried Stripe
+  // webhooks (or rare cases where the same quote produces multiple successful
+  // sessions) only consume one redemption.
+  discountRedeemedAt: timestamp("discount_redeemed_at"),
 
   // Legacy fields (kept for backward compat)
   moveType: text("move_type").notNull().default("local"),

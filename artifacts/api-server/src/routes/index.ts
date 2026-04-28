@@ -8,6 +8,7 @@ import emailLogsRouter from "./email-logs";
 import trackingRouter from "./tracking";
 import contractsRouter from "./contracts";
 import settingsRouter from "./settings";
+import discountCodesRouter from "./discount-codes";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(emailLogsRouter);
 router.use(trackingRouter);
 router.use(contractsRouter);
 router.use(settingsRouter);
+router.use(discountCodesRouter);
 
 export default router;

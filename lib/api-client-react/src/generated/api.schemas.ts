@@ -786,6 +786,73 @@ export interface AlertEmailSettings {
   emails: string[];
 }
 
+export type DiscountCodeType =
+  (typeof DiscountCodeType)[keyof typeof DiscountCodeType];
+
+export const DiscountCodeType = {
+  percent: "percent",
+  fixed: "fixed",
+} as const;
+
+export interface DiscountCode {
+  id: number;
+  /** Uppercase, unique discount code (e.g. SANDV10) */
+  code: string;
+  type: DiscountCodeType;
+  /** Percent (0-100) for type=percent, or dollar amount for type=fixed */
+  value: number;
+  /** Human-readable description shown to customers and admins */
+  label: string;
+  active: boolean;
+  expiresAt?: string | null;
+  /** Maximum number of times this code may be redeemed (null = unlimited) */
+  usageLimit?: number | null;
+  /** Number of times this code has been redeemed */
+  usageCount: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export type CreateDiscountCodeRequestType =
+  (typeof CreateDiscountCodeRequestType)[keyof typeof CreateDiscountCodeRequestType];
+
+export const CreateDiscountCodeRequestType = {
+  percent: "percent",
+  fixed: "fixed",
+} as const;
+
+export interface CreateDiscountCodeRequest {
+  code: string;
+  type: CreateDiscountCodeRequestType;
+  value: number;
+  label: string;
+  active?: boolean;
+  expiresAt?: string | null;
+  usageLimit?: number | null;
+}
+
+export type UpdateDiscountCodeRequestType =
+  (typeof UpdateDiscountCodeRequestType)[keyof typeof UpdateDiscountCodeRequestType];
+
+export const UpdateDiscountCodeRequestType = {
+  percent: "percent",
+  fixed: "fixed",
+} as const;
+
+export interface UpdateDiscountCodeRequest {
+  type?: UpdateDiscountCodeRequestType;
+  value?: number;
+  label?: string;
+  active?: boolean;
+  expiresAt?: string | null;
+  usageLimit?: number | null;
+}
+
+export interface DeleteDiscountCodeResponse {
+  success: boolean;
+  id: number;
+}
+
 export type ListJobsParams = {
   /**
    * Filter by job status (e.g. pending, scheduled, in_progress, complete, cancelled)

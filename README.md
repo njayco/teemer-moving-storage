@@ -325,7 +325,7 @@ pnpm --filter @workspace/teemer-web run dev
 - **Same Day Moves**: Date picker and arrival time disabled on quote form; triggers urgent captain alert email
 - **Same-Day Alert Deduplication**: Only one successful alert email per job — retries allowed only if first attempt failed
 - **Cancellation**: $75 late fee without proper notice (24hr for last-minute, 2 weeks for scheduled)
-- **Coupon SANDV10**: 10% discount for seniors & veterans (applied at quote stage)
+- **Coupon SANDV10**: 10% discount for seniors & veterans (applied at quote stage). Codes are managed in the admin dashboard ("Discounts" tab) — admins can create, edit, disable, expire, or set usage limits without redeploying. Usage limits are enforced as **best-effort** (the redemption counter increments only after Stripe confirms the deposit; under heavy concurrent paid checkouts a few extra redemptions past the cap are possible). If a code is disabled or expires while a customer is mid-checkout, the deposit page silently restores the full price instead of blocking the customer from paying.
 
 ---
 

@@ -10,8 +10,13 @@ import {
   useListUsers,
   useGetAlertEmailSettings,
   useUpdateAlertEmailSettings,
+  useListDiscountCodes,
+  useCreateDiscountCode,
+  useUpdateDiscountCode,
+  useDeleteDiscountCode,
   type QuoteResponse,
   type Job,
+  type DiscountCode,
 } from "@workspace/api-client-react";
 import {
   LayoutDashboard,
@@ -52,6 +57,9 @@ import {
   Plus,
   Trash2,
   Save,
+  Tag,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusTimeline } from "@/components/StatusTimeline";
@@ -1741,6 +1749,486 @@ function JobsTab({ defaultFilter = "all" }: { defaultFilter?: string }) {
   );
 }
 
+type DiscountEditFields = {
+  type: "percent" | "fixed";
+  value: string;
+  label: string;
+  expiresAt: string;
+  usageLimit: string;
+};
+
+function DiscountCodesTab() {
+  const queryClient = useQueryClient();
+  const { data: codes = [], refetch } = useListDiscountCodes();
+  const { mutate: createCode, isPending: isCreating } = useCreateDiscountCode();
+  const { mutate: updateCode, isPending: isUpdating } = useUpdateDiscountCode();
+  const { mutate: deleteCode } = useDeleteDiscountCode();
+
+  const [showForm, setShowForm] = useState(false);
+  const [code, setCode] = useState("");
+  const [type, setType] = useState<"percent" | "fixed">("percent");
+  const [value, setValue] = useState("10");
+  const [label, setLabel] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [usageLimit, setUsageLimit] = useState("");
+  const [error, setError] = useState("");
+
+  // Inline editing state — keyed by discount code id.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editFields, setEditFields] = useState<DiscountEditFields>({
+    type: "percent",
+    value: "10",
+    label: "",
+    expiresAt: "",
+    usageLimit: "",
+  });
+  const [editError, setEditError] = useState("");
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "/api/admin/discount-codes" });
+    refetch();
+  };
+
+  function resetForm() {
+    setCode("");
+    setType("percent");
+    setValue("10");
+    setLabel("");
+    setExpiresAt("");
+    setUsageLimit("");
+    setError("");
+  }
+
+  function handleCreate() {
+    const trimmedCode = code.trim().toUpperCase();
+    const trimmedLabel = label.trim();
+    const numericValue = Number(value);
+
+    if (!trimmedCode || !/^[A-Z0-9_-]{2,32}$/.test(trimmedCode)) {
+      setError("Code must be 2-32 characters: letters, digits, underscore, or dash.");
+      return;
+    }
+    if (!trimmedLabel) {
+      setError("Label is required.");
+      return;
+    }
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      setError("Value must be a positive number.");
+      return;
+    }
+    if (type === "percent" && numericValue > 100) {
+      setError("Percent value cannot exceed 100.");
+      return;
+    }
+
+    const usageLimitNum = usageLimit.trim() === "" ? null : Number(usageLimit);
+    if (usageLimitNum !== null && (!Number.isInteger(usageLimitNum) || usageLimitNum <= 0)) {
+      setError("Usage limit must be a positive whole number, or leave blank for unlimited.");
+      return;
+    }
+
+    const expiresAtIso = expiresAt
+      ? new Date(`${expiresAt}T23:59:59`).toISOString()
+      : null;
+
+    createCode(
+      {
+        data: {
+          code: trimmedCode,
+          type,
+          value: numericValue,
+          label: trimmedLabel,
+          active: true,
+          expiresAt: expiresAtIso,
+          usageLimit: usageLimitNum,
+        },
+      },
+      {
+        onSuccess: () => {
+          resetForm();
+          setShowForm(false);
+          invalidate();
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to create discount code.";
+          setError(msg);
+        },
+      },
+    );
+  }
+
+  function handleToggleActive(dc: DiscountCode) {
+    updateCode(
+      { id: dc.id, data: { active: !dc.active } },
+      { onSuccess: invalidate },
+    );
+  }
+
+  function handleDelete(dc: DiscountCode) {
+    if (!window.confirm(`Permanently delete discount code "${dc.code}"?`)) return;
+    deleteCode({ id: dc.id }, { onSuccess: invalidate });
+  }
+
+  function startEdit(dc: DiscountCode) {
+    setEditingId(dc.id);
+    setEditError("");
+    setEditFields({
+      type: dc.type as "percent" | "fixed",
+      value: String(dc.value),
+      label: dc.label,
+      // The DB stores ISO; the <input type="date"> needs YYYY-MM-DD.
+      // Use local date parts (not toISOString, which would shift across the
+      // UTC boundary and show yesterday's/tomorrow's date for codes set in
+      // certain timezones). The user picked a date in their own timezone
+      // when creating the code, so we display it in the same timezone.
+      expiresAt: dc.expiresAt
+        ? (() => {
+            const d = new Date(dc.expiresAt);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            return `${yyyy}-${mm}-${dd}`;
+          })()
+        : "",
+      usageLimit: dc.usageLimit == null ? "" : String(dc.usageLimit),
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError("");
+  }
+
+  function handleSaveEdit(dc: DiscountCode) {
+    const trimmedLabel = editFields.label.trim();
+    const numericValue = Number(editFields.value);
+
+    if (!trimmedLabel) {
+      setEditError("Label is required.");
+      return;
+    }
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      setEditError("Value must be a positive number.");
+      return;
+    }
+    if (editFields.type === "percent" && numericValue > 100) {
+      setEditError("Percent value cannot exceed 100.");
+      return;
+    }
+    const usageLimitNum = editFields.usageLimit.trim() === "" ? null : Number(editFields.usageLimit);
+    if (usageLimitNum !== null && (!Number.isInteger(usageLimitNum) || usageLimitNum <= 0)) {
+      setEditError("Usage limit must be a positive whole number, or leave blank for unlimited.");
+      return;
+    }
+
+    const expiresAtIso = editFields.expiresAt
+      ? new Date(`${editFields.expiresAt}T23:59:59`).toISOString()
+      : null;
+
+    updateCode(
+      {
+        id: dc.id,
+        data: {
+          type: editFields.type,
+          value: numericValue,
+          label: trimmedLabel,
+          expiresAt: expiresAtIso,
+          usageLimit: usageLimitNum,
+        },
+      },
+      {
+        onSuccess: () => {
+          cancelEdit();
+          invalidate();
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to update discount code.";
+          setEditError(msg);
+        },
+      },
+    );
+  }
+
+  function formatValue(dc: DiscountCode): string {
+    return dc.type === "percent" ? `${dc.value}%` : `$${dc.value.toFixed(2)}`;
+  }
+
+  function formatExpiry(dc: DiscountCode): string {
+    if (!dc.expiresAt) return "Never";
+    return new Date(dc.expiresAt).toLocaleDateString();
+  }
+
+  function isExpired(dc: DiscountCode): boolean {
+    return !!dc.expiresAt && new Date(dc.expiresAt).getTime() < Date.now();
+  }
+
+  function isExhausted(dc: DiscountCode): boolean {
+    return dc.usageLimit !== null && dc.usageLimit !== undefined && dc.usageCount >= dc.usageLimit;
+  }
+
+  return (
+    <div className="max-w-4xl w-full">
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <h2 className="text-xl font-bold text-secondary">Discount Codes</h2>
+        <button
+          onClick={() => { setShowForm((s) => !s); setError(""); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {showForm ? "Cancel" : "New Code"}
+        </button>
+      </div>
+      <p className="text-sm text-slate-500 mb-6">
+        Create, edit, and disable promo codes. Changes take effect immediately — no redeploy needed.
+      </p>
+
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-secondary mb-4">New Discount Code</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Code</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(""); }}
+                placeholder="SUMMER25"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Label (shown internally)</label>
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => { setLabel(e.target.value); setError(""); }}
+                placeholder="Summer 2026 promo"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Type</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as "percent" | "fixed")}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="percent">Percent off (%)</option>
+                <option value="fixed">Fixed dollar amount ($)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Value {type === "percent" ? "(%)" : "($)"}
+              </label>
+              <input
+                type="number"
+                step={type === "percent" ? "1" : "0.01"}
+                min="0"
+                max={type === "percent" ? "100" : undefined}
+                value={value}
+                onChange={(e) => { setValue(e.target.value); setError(""); }}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Expiration date (optional)</label>
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Usage limit (optional)</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={usageLimit}
+                onChange={(e) => setUsageLimit(e.target.value)}
+                placeholder="Unlimited"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+          </div>
+          {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
+          <div className="flex items-center gap-3 mt-4">
+            <button
+              onClick={handleCreate}
+              disabled={isCreating}
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+            >
+              {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {isCreating ? "Creating…" : "Create code"}
+            </button>
+            <button
+              onClick={() => { resetForm(); setShowForm(false); }}
+              className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {codes.length === 0 ? (
+          <div className="p-8 text-center text-sm text-slate-400">
+            <Tag className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+            No discount codes yet. Click "New Code" to add one.
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {codes.map((dc) => {
+              const expired = isExpired(dc);
+              const exhausted = isExhausted(dc);
+              const effectiveDisabled = !dc.active || expired || exhausted;
+              const isEditing = editingId === dc.id;
+
+              if (isEditing) {
+                return (
+                  <li key={dc.id} className="p-4 sm:p-5 bg-amber-50/40">
+                    <div className="flex items-center gap-2 flex-wrap mb-3">
+                      <span className="font-mono font-bold text-secondary tracking-wider">{dc.code}</span>
+                      <span className="text-[10px] font-bold uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                        Editing
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Label</label>
+                        <input
+                          type="text"
+                          value={editFields.label}
+                          onChange={(e) => { setEditFields((f) => ({ ...f, label: e.target.value })); setEditError(""); }}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Type</label>
+                        <select
+                          value={editFields.type}
+                          onChange={(e) => setEditFields((f) => ({ ...f, type: e.target.value as "percent" | "fixed" }))}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        >
+                          <option value="percent">Percent off (%)</option>
+                          <option value="fixed">Fixed dollar amount ($)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Value {editFields.type === "percent" ? "(%)" : "($)"}
+                        </label>
+                        <input
+                          type="number"
+                          step={editFields.type === "percent" ? "1" : "0.01"}
+                          min="0"
+                          max={editFields.type === "percent" ? "100" : undefined}
+                          value={editFields.value}
+                          onChange={(e) => { setEditFields((f) => ({ ...f, value: e.target.value })); setEditError(""); }}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Expiration date (optional)</label>
+                        <input
+                          type="date"
+                          value={editFields.expiresAt}
+                          onChange={(e) => setEditFields((f) => ({ ...f, expiresAt: e.target.value }))}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Usage limit (optional)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={editFields.usageLimit}
+                          onChange={(e) => setEditFields((f) => ({ ...f, usageLimit: e.target.value }))}
+                          placeholder="Unlimited"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                    </div>
+                    {editError && <p className="text-xs text-red-600 mt-3">{editError}</p>}
+                    <div className="flex items-center gap-3 mt-4">
+                      <button
+                        onClick={() => handleSaveEdit(dc)}
+                        disabled={isUpdating}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+                      >
+                        {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {isUpdating ? "Saving…" : "Save changes"}
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </li>
+                );
+              }
+
+              return (
+                <li key={dc.id} className="p-4 sm:p-5 flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-bold text-secondary tracking-wider">{dc.code}</span>
+                      <span className="text-sm font-semibold text-primary">{formatValue(dc)} off</span>
+                      {effectiveDisabled ? (
+                        <span className="text-[10px] font-bold uppercase bg-slate-200 text-slate-600 px-2 py-0.5 rounded">
+                          {expired ? "Expired" : exhausted ? "Limit reached" : "Disabled"}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold uppercase bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-slate-600 mt-1">{dc.label}</div>
+                    <div className="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                      <span>Used: {dc.usageCount}{dc.usageLimit ? ` / ${dc.usageLimit}` : ""}</span>
+                      <span>Expires: {formatExpiry(dc)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => startEdit(dc)}
+                      title="Edit"
+                      className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(dc)}
+                      title={dc.active ? "Disable" : "Enable"}
+                      className={`p-2 rounded-lg transition-colors ${dc.active ? "text-slate-500 hover:bg-amber-50 hover:text-amber-600" : "text-slate-400 hover:bg-green-50 hover:text-green-600"}`}
+                    >
+                      {dc.active ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(dc)}
+                      title="Delete"
+                      className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const { data, refetch } = useGetAlertEmailSettings();
   const { mutate: saveEmails, isPending } = useUpdateAlertEmailSettings();
@@ -1870,7 +2358,7 @@ function SettingsTab() {
 
 export default function AdminDashboard() {
   const { data: stats } = useGetAdminStats();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "quotes" | "jobs" | "discounts" | "settings">("dashboard");
   const [jobsFilter, setJobsFilter] = useState("all");
   const { user, logout } = useAuth();
 
@@ -1886,6 +2374,7 @@ export default function AdminDashboard() {
     { icon: LayoutDashboard, label: "Dashboard", tab: "dashboard" as const },
     { icon: FileText, label: "Quotes", tab: "quotes" as const },
     { icon: Package, label: "All Jobs", tab: "jobs" as const },
+    { icon: Tag, label: "Discounts", tab: "discounts" as const },
     { icon: Settings, label: "Settings", tab: "settings" as const },
   ];
 
@@ -2097,6 +2586,7 @@ export default function AdminDashboard() {
 
           {activeTab === "quotes" && <QuotesTab />}
           {activeTab === "jobs" && <JobsTab key={jobsFilter} defaultFilter={jobsFilter} />}
+          {activeTab === "discounts" && <DiscountCodesTab />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
       </div>

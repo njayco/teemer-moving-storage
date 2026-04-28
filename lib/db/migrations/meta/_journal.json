@@ -36,6 +36,13 @@
       "when": 1777342152525,
       "tag": "0004_add_mounted_tv_fee_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777341774130,
+      "tag": "0005_chief_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }

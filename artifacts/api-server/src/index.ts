@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startReminderCron } from "./lib/reminder-cron";
 import { seedAdmin } from "./lib/seed-admin";
+import { seedDiscountCodes } from "./lib/seed-discount-codes";
 
 const rawPort = process.env["PORT"];
 
@@ -26,5 +27,6 @@ app.listen(port, async (err) => {
   logger.info({ port }, "Server listening");
 
   await seedAdmin();
+  await seedDiscountCodes();
   startReminderCron();
 });

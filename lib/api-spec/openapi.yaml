@@ -432,6 +432,100 @@ paths:
           description: Invalid email addresses
         "403":
           description: Admin access required
+  /admin/discount-codes:
+    get:
+      operationId: listDiscountCodes
+      tags: [admin]
+      summary: List all discount codes
+      description: Returns every discount code in the system (admin only)
+      responses:
+        "200":
+          description: List of discount codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiscountCode"
+        "403":
+          description: Admin access required
+    post:
+      operationId: createDiscountCode
+      tags: [admin]
+      summary: Create a discount code
+      description: Creates a new discount code (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDiscountCodeRequest"
+      responses:
+        "201":
+          description: Created discount code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscountCode"
+        "400":
+          description: Invalid request body
+        "403":
+          description: Admin access required
+        "409":
+          description: A discount code with this code already exists
+  /admin/discount-codes/{id}:
+    patch:
+      operationId: updateDiscountCode
+      tags: [admin]
+      summary: Update a discount code
+      description: Update an existing discount code (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDiscountCodeRequest"
+      responses:
+        "200":
+          description: Updated discount code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscountCode"
+        "400":
+          description: Invalid request body
+        "403":
+          description: Admin access required
+        "404":
+          description: Discount code not found
+    delete:
+      operationId: deleteDiscountCode
+      tags: [admin]
+      summary: Delete a discount code
+      description: Permanently removes a discount code (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deletion confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteDiscountCodeResponse"
+        "403":
+          description: Admin access required
+        "404":
+          description: Discount code not found
   /jobs/{jobId}/events:
     get:
       operationId: getJobEvents
@@ -2225,3 +2319,108 @@ components:
           items:
             type: string
           description: List of email addresses that receive same-day job alerts
+
+    DiscountCode:
+      type: object
+      required:
+        - id
+        - code
+        - type
+        - value
+        - label
+        - active
+        - usageCount
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+          description: Uppercase, unique discount code (e.g. SANDV10)
+        type:
+          type: string
+          enum: [percent, fixed]
+        value:
+          type: number
+          description: Percent (0-100) for type=percent, or dollar amount for type=fixed
+        label:
+          type: string
+          description: Human-readable description shown to customers and admins
+        active:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        usageLimit:
+          type: integer
+          nullable: true
+          description: Maximum number of times this code may be redeemed (null = unlimited)
+        usageCount:
+          type: integer
+          description: Number of times this code has been redeemed
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateDiscountCodeRequest:
+      type: object
+      required:
+        - code
+        - type
+        - value
+        - label
+      properties:
+        code:
+          type: string
+        type:
+          type: string
+          enum: [percent, fixed]
+        value:
+          type: number
+        label:
+          type: string
+        active:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        usageLimit:
+          type: integer
+          nullable: true
+
+    UpdateDiscountCodeRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [percent, fixed]
+        value:
+          type: number
+        label:
+          type: string
+        active:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        usageLimit:
+          type: integer
+          nullable: true
+
+    DeleteDiscountCodeResponse:
+      type: object
+      required:
+        - success
+        - id
+      properties:
+        success:
+          type: boolean
+        id:
+          type: integer
