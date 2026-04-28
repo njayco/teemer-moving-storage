@@ -108,6 +108,13 @@ function formatJobRow(job: typeof jobsTable.$inferSelect, quote?: typeof quoteRe
     paymentStatus: job.paymentStatus ?? "unpaid",
     invoiceStatus: job.invoiceStatus ?? "none",
     notes: job.notes ?? undefined,
+    parkingInstructions: job.parkingInstructions ?? (quote?.parkingInstructions ?? undefined),
+    packingDate: job.packingDate ?? (quote?.packingDate ?? undefined),
+    packingArrivalWindow: job.packingArrivalWindow ?? (quote?.packingArrivalWindow ?? undefined),
+    hasMountedTVs: (job.hasMountedTVs ?? 0) > 0 ? 1 : (quote?.hasMountedTVs ? 1 : 0),
+    mountedTVCount: job.mountedTVCount ?? (quote?.mountedTVCount ?? 0),
+    discountCode: job.discountCode ?? (quote?.discountCode ?? undefined),
+    discountAmount: job.discountAmount ?? (quote?.discountAmount ?? undefined),
     createdAt: job.createdAt?.toISOString() ?? undefined,
     updatedAt: job.updatedAt?.toISOString() ?? undefined,
     completedAt: job.completedAt?.toISOString() ?? undefined,
@@ -451,6 +458,7 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
       remainingBalance,
       estimatedHours,
       dateTime,
+      parkingInstructions,
     } = req.body;
 
     const [existing] = await db
@@ -480,6 +488,11 @@ router.patch("/jobs/:jobId", requireAdmin, async (req, res) => {
     if (remainingBalance !== undefined) updates.remainingBalance = remainingBalance;
     if (estimatedHours !== undefined) updates.estimatedHours = estimatedHours;
     if (dateTime !== undefined) updates.dateTime = dateTime;
+    if (parkingInstructions !== undefined) {
+      updates.parkingInstructions = typeof parkingInstructions === "string"
+        ? parkingInstructions.slice(0, 4000)
+        : null;
+    }
 
     if (status === "complete") {
       updates.completedAt = new Date();

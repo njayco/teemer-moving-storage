@@ -954,6 +954,9 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
   const [updating, setUpdating] = useState(false);
   const [contract, setContract] = useState<ContractRecord | null | undefined>(undefined);
   const [contractLoading, setContractLoading] = useState(false);
+  const [editingParking, setEditingParking] = useState(false);
+  const [parkingDraft, setParkingDraft] = useState("");
+  const [savingParking, setSavingParking] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
@@ -1176,6 +1179,98 @@ function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void
             <div>
               <div className="text-xs text-slate-400 font-medium mb-1">Captain</div>
               <div className="text-slate-700">{job.assignedMover || "Not assigned"}</div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-secondary text-sm">Booking Details</h3>
+              {job.hasMountedTVs ? (
+                <span className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-semibold">
+                  📺 {job.mountedTVCount || 1} mounted TV{(job.mountedTVCount || 1) > 1 ? "s" : ""}
+                </span>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Pre-pack day</div>
+                <div className="text-slate-800 font-semibold">
+                  {job.packingDate
+                    ? new Date(job.packingDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+                    : <span className="text-slate-400 font-normal">Not scheduled</span>}
+                </div>
+                {job.packingDate && (
+                  <div className="text-xs text-slate-500">
+                    Window: {job.packingArrivalWindow || "8 AM – 11 AM"}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Mounted TVs</div>
+                <div className="text-slate-800 font-semibold">
+                  {job.hasMountedTVs ? `Yes — ${job.mountedTVCount || 1}` : <span className="text-slate-400 font-normal">No</span>}
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-blue-200 pt-3">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-xs text-slate-500 font-medium">Parking & Driver Instructions</div>
+                {!editingParking && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setParkingDraft(job.parkingInstructions || "");
+                      setEditingParking(true);
+                    }}
+                    className="text-xs text-primary hover:underline font-semibold"
+                  >
+                    {job.parkingInstructions ? "Edit" : "Add"}
+                  </button>
+                )}
+              </div>
+              {editingParking ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={parkingDraft}
+                    onChange={(e) => setParkingDraft(e.target.value)}
+                    rows={3}
+                    maxLength={4000}
+                    placeholder="Where to park, gate codes, loading-dock access, etc."
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingParking(false)}
+                      disabled={savingParking}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800"
+                    >Cancel</button>
+                    <button
+                      type="button"
+                      disabled={savingParking}
+                      onClick={async () => {
+                        setSavingParking(true);
+                        try {
+                          await updateJob({
+                            jobId: job?.jobId || jobId,
+                            data: { parkingInstructions: parkingDraft } as never,
+                          });
+                          await refetch();
+                          qc.invalidateQueries({ queryKey: ["/api/jobs"] });
+                          setEditingParking(false);
+                        } finally {
+                          setSavingParking(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                    >{savingParking ? "Saving…" : "Save"}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-700 whitespace-pre-wrap">
+                  {job.parkingInstructions || <span className="text-slate-400 italic">None provided</span>}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1552,7 +1647,27 @@ function JobsTab({ defaultFilter = "all" }: { defaultFilter?: string }) {
                 >
                   <td className="px-4 py-3 font-mono text-xs text-slate-600">{job.jobId || job.id}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-secondary">{job.customer || "—"}</div>
+                    <div className="font-medium text-secondary flex items-center gap-1.5">
+                      {job.customer || "—"}
+                      {job.packingDate && (
+                        <span title={`Pre-pack day: ${job.packingDate}${job.packingArrivalWindow ? ` · ${job.packingArrivalWindow}` : ""}`}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 leading-none">
+                          📦 Pack
+                        </span>
+                      )}
+                      {job.hasMountedTVs ? (
+                        <span title={`${job.mountedTVCount || 1} mounted TV${(job.mountedTVCount || 1) > 1 ? "s" : ""}`}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 leading-none">
+                          📺 {job.mountedTVCount || 1}
+                        </span>
+                      ) : null}
+                      {job.parkingInstructions && (
+                        <span title={job.parkingInstructions}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 leading-none">
+                          🅿️ Parking
+                        </span>
+                      )}
+                    </div>
                     {job.quoteData && (
                       <div className="text-xs text-slate-400">{job.quoteData.phone} · {job.quoteData.email}</div>
                     )}

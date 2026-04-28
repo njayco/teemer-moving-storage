@@ -434,6 +434,13 @@ export interface Job {
   paymentStatus?: string;
   invoiceStatus?: string;
   notes?: string;
+  parkingInstructions?: string;
+  packingDate?: string;
+  packingArrivalWindow?: string;
+  hasMountedTVs?: number;
+  mountedTVCount?: number;
+  discountCode?: string;
+  discountAmount?: number;
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;
@@ -470,6 +477,8 @@ export interface UpdateJobStatusRequest {
   remainingBalance?: number;
   /** Actual hours worked (used to recalculate invoice on finished jobs) */
   estimatedHours?: number;
+  /** Parking notes / driver access instructions for the move */
+  parkingInstructions?: string;
 }
 
 export interface CaptainQuoteData {
@@ -657,6 +666,11 @@ export interface TrackingResponse {
   remainingBalance: number;
   paymentStatus: string;
   invoiceStatus: string;
+  packingDate?: string | null;
+  packingArrivalWindow?: string | null;
+  hasMountedTVs?: boolean;
+  mountedTVCount?: number;
+  parkingInstructions?: string | null;
   timeline: TrackingTimelineEvent[];
 }
 

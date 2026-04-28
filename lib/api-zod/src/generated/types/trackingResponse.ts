@@ -21,5 +21,10 @@ export interface TrackingResponse {
   remainingBalance: number;
   paymentStatus: string;
   invoiceStatus: string;
+  packingDate?: string | null;
+  packingArrivalWindow?: string | null;
+  hasMountedTVs?: boolean;
+  mountedTVCount?: number;
+  parkingInstructions?: string | null;
   timeline: TrackingTimelineEvent[];
 }

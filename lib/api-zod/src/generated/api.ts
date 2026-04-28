@@ -562,6 +562,13 @@ export const ListJobsResponseItem = zod.object({
   paymentStatus: zod.string().optional(),
   invoiceStatus: zod.string().optional(),
   notes: zod.string().optional(),
+  parkingInstructions: zod.string().optional(),
+  packingDate: zod.string().optional(),
+  packingArrivalWindow: zod.string().optional(),
+  hasMountedTVs: zod.number().optional(),
+  mountedTVCount: zod.number().optional(),
+  discountCode: zod.string().optional(),
+  discountAmount: zod.number().optional(),
   createdAt: zod.string().optional(),
   updatedAt: zod.string().optional(),
   completedAt: zod.string().optional(),
@@ -699,6 +706,13 @@ export const GetJobResponse = zod.object({
   paymentStatus: zod.string().optional(),
   invoiceStatus: zod.string().optional(),
   notes: zod.string().optional(),
+  parkingInstructions: zod.string().optional(),
+  packingDate: zod.string().optional(),
+  packingArrivalWindow: zod.string().optional(),
+  hasMountedTVs: zod.number().optional(),
+  mountedTVCount: zod.number().optional(),
+  discountCode: zod.string().optional(),
+  discountAmount: zod.number().optional(),
   createdAt: zod.string().optional(),
   updatedAt: zod.string().optional(),
   completedAt: zod.string().optional(),
@@ -803,6 +817,10 @@ export const UpdateJobStatusBody = zod.object({
     .describe(
       "Actual hours worked (used to recalculate invoice on finished jobs)",
     ),
+  parkingInstructions: zod
+    .string()
+    .optional()
+    .describe("Parking notes \/ driver access instructions for the move"),
 });
 
 export const UpdateJobStatusResponse = zod.object({
@@ -840,6 +858,13 @@ export const UpdateJobStatusResponse = zod.object({
   paymentStatus: zod.string().optional(),
   invoiceStatus: zod.string().optional(),
   notes: zod.string().optional(),
+  parkingInstructions: zod.string().optional(),
+  packingDate: zod.string().optional(),
+  packingArrivalWindow: zod.string().optional(),
+  hasMountedTVs: zod.number().optional(),
+  mountedTVCount: zod.number().optional(),
+  discountCode: zod.string().optional(),
+  discountAmount: zod.number().optional(),
   createdAt: zod.string().optional(),
   updatedAt: zod.string().optional(),
   completedAt: zod.string().optional(),
@@ -1217,6 +1242,11 @@ export const GetTrackingByTokenResponse = zod.object({
   remainingBalance: zod.number(),
   paymentStatus: zod.string(),
   invoiceStatus: zod.string(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
   timeline: zod.array(
     zod.object({
       id: zod.number(),
@@ -1249,6 +1279,11 @@ export const LookupTrackingResponse = zod.object({
   remainingBalance: zod.number(),
   paymentStatus: zod.string(),
   invoiceStatus: zod.string(),
+  packingDate: zod.string().nullish(),
+  packingArrivalWindow: zod.string().nullish(),
+  hasMountedTVs: zod.boolean().optional(),
+  mountedTVCount: zod.number().optional(),
+  parkingInstructions: zod.string().nullish(),
   timeline: zod.array(
     zod.object({
       id: zod.number(),

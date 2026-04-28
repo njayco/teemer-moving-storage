@@ -23,6 +23,11 @@ function formatTrackingResponse(quote: typeof quoteRequestsTable.$inferSelect, e
     remainingBalance,
     paymentStatus: depositPaid > 0 ? (remainingBalance <= 0 ? "paid" : "deposit_paid") : "unpaid",
     invoiceStatus: "none",
+    packingDate: quote.packingDate ?? null,
+    packingArrivalWindow: quote.packingArrivalWindow ?? null,
+    hasMountedTVs: Boolean(quote.hasMountedTVs),
+    mountedTVCount: quote.mountedTVCount ?? 0,
+    parkingInstructions: quote.parkingInstructions ?? null,
     timeline: events
       .filter((e) => e.visibleToCustomer)
       .map((e) => ({
@@ -48,6 +53,11 @@ function formatJobTrackingResponse(job: typeof jobsTable.$inferSelect, events: (
     remainingBalance: job.remainingBalance ?? 0,
     paymentStatus: job.paymentStatus ?? "unpaid",
     invoiceStatus: job.invoiceStatus ?? "none",
+    packingDate: job.packingDate ?? null,
+    packingArrivalWindow: job.packingArrivalWindow ?? null,
+    hasMountedTVs: Boolean(job.hasMountedTVs),
+    mountedTVCount: job.mountedTVCount ?? 0,
+    parkingInstructions: job.parkingInstructions ?? null,
     timeline: events
       .filter((e) => e.visibleToCustomer)
       .map((e) => ({

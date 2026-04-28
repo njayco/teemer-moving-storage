@@ -21,4 +21,6 @@ export interface UpdateJobStatusRequest {
   remainingBalance?: number;
   /** Actual hours worked (used to recalculate invoice on finished jobs) */
   estimatedHours?: number;
+  /** Parking notes / driver access instructions for the move */
+  parkingInstructions?: string;
 }

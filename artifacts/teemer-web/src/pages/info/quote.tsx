@@ -1166,26 +1166,6 @@ export default function QuotePage() {
                           </div>
                         )}
 
-                        {!isJunkRemoval && (
-                          <div>
-                            <label className={labelCls()}>
-                              Preferred Packing-Day Arrival Window
-                            </label>
-                            <select
-                              value={packingArrivalWindow}
-                              onChange={(e) => setPackingArrivalWindow(e.target.value)}
-                              className={inputCls()}
-                            >
-                              {PACKING_ARRIVAL_WINDOWS.map((w) => (
-                                <option key={w} value={w}>{w}</option>
-                              ))}
-                            </select>
-                            <p className="text-xs text-slate-500 mt-1">
-                              For larger moves (5+ estimated hours) we send a packing crew the day before. We'll only schedule a packing day if your move qualifies.
-                            </p>
-                          </div>
-                        )}
-
                         <div className="flex justify-end pt-2">
                           <button
                             type="button"
@@ -1398,6 +1378,28 @@ export default function QuotePage() {
                           </div>
                         </div>
 
+                        {/* Pre-pack day for commercial — always shown (commercial moves typically run 5+ hours) */}
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Included</p>
+                            <p className="text-xs text-slate-600">
+                              Commercial relocations qualify for our complimentary pre-pack service the day before — our crew arrives to pack your office so move day stays on schedule.
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-600 block mb-1">Preferred Pre-Pack Day Arrival Window</label>
+                            <select
+                              value={packingArrivalWindow}
+                              onChange={(e) => setPackingArrivalWindow(e.target.value)}
+                              className={inputCls()}
+                            >
+                              {PACKING_ARRIVAL_WINDOWS.map((w) => (
+                                <option key={w} value={w}>{w}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
                         {/* Commercial info box */}
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                           <div className="flex items-start gap-3">
@@ -1524,6 +1526,30 @@ export default function QuotePage() {
                             </div>
                           )}
                         </div>
+
+                        {/* Pre-pack day selector — only shown for moves likely 5+ hours */}
+                        {(homeSize.numberOfBedrooms >= 3 || homeSize.hasStairs || homeSize.hasHeavyItems) && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                            <div>
+                              <p className="font-semibold text-slate-800 text-sm mb-1">📦 Pre-Pack Day Included</p>
+                              <p className="text-xs text-slate-600">
+                                Your move qualifies for our complimentary pre-pack service the day before — our crew will arrive to pack your belongings so move day runs smoothly.
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-slate-600 block mb-1">Preferred Pre-Pack Day Arrival Window</label>
+                              <select
+                                value={packingArrivalWindow}
+                                onChange={(e) => setPackingArrivalWindow(e.target.value)}
+                                className={inputCls()}
+                              >
+                                {PACKING_ARRIVAL_WINDOWS.map((w) => (
+                                  <option key={w} value={w}>{w}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Piano question */}
                         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-4">

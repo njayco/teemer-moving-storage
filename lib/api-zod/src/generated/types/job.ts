@@ -45,6 +45,13 @@ export interface Job {
   paymentStatus?: string;
   invoiceStatus?: string;
   notes?: string;
+  parkingInstructions?: string;
+  packingDate?: string;
+  packingArrivalWindow?: string;
+  hasMountedTVs?: number;
+  mountedTVCount?: number;
+  discountCode?: string;
+  discountAmount?: number;
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;

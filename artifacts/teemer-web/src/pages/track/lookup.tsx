@@ -155,7 +155,32 @@ function TrackingResult({ data, onReset }: { data: TrackingResponse; onReset: ()
           {data.jobId && (
             <InfoItem icon={Package} label="Job ID" value={data.jobId} />
           )}
+          {data.packingDate && (
+            <InfoItem
+              icon={Calendar}
+              label="Pre-Pack Day"
+              value={`${new Date(data.packingDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${data.packingArrivalWindow || "8 AM – 11 AM"}`}
+            />
+          )}
+          {data.hasMountedTVs && (
+            <InfoItem
+              icon={Package}
+              label="Mounted TVs"
+              value={`${data.mountedTVCount || 1} TV${(data.mountedTVCount || 1) > 1 ? "s" : ""} — dismount & wrap included`}
+            />
+          )}
         </div>
+
+        {data.parkingInstructions && (
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Parking & Driver Notes</p>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 border border-slate-100">
+              {data.parkingInstructions.length > 240
+                ? data.parkingInstructions.slice(0, 240) + "…"
+                : data.parkingInstructions}
+            </p>
+          </div>
+        )}
 
         {(data.totalEstimate > 0 || data.depositPaid > 0) && (
           <div className="mt-6 pt-6 border-t border-slate-100">

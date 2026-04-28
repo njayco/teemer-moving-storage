@@ -1461,6 +1461,20 @@ components:
           type: string
         notes:
           type: string
+        parkingInstructions:
+          type: string
+        packingDate:
+          type: string
+        packingArrivalWindow:
+          type: string
+        hasMountedTVs:
+          type: integer
+        mountedTVCount:
+          type: integer
+        discountCode:
+          type: string
+        discountAmount:
+          type: number
         createdAt:
           type: string
         updatedAt:
@@ -1549,6 +1563,9 @@ components:
         estimatedHours:
           type: number
           description: Actual hours worked (used to recalculate invoice on finished jobs)
+        parkingInstructions:
+          type: string
+          description: Parking notes / driver access instructions for the move
 
     # ─── Captain ─────────────────────────────────────────────────────────────
     CaptainQuoteData:
@@ -1956,6 +1973,19 @@ components:
           type: string
         invoiceStatus:
           type: string
+        packingDate:
+          type: string
+          nullable: true
+        packingArrivalWindow:
+          type: string
+          nullable: true
+        hasMountedTVs:
+          type: boolean
+        mountedTVCount:
+          type: integer
+        parkingInstructions:
+          type: string
+          nullable: true
         timeline:
           type: array
           items:
