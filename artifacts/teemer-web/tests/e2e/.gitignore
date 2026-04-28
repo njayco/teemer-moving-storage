@@ -1,0 +1,6 @@
+# Never commit transpiled JS — only TS sources belong here.
+*.js
+*.js.map
+*.d.ts
+test-results/
+playwright-report/

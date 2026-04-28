@@ -196,3 +196,15 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API client hooks and Zod schemas
 - `pnpm --filter @workspace/db run push` — push DB schema to PostgreSQL
+
+## Automated Tests
+
+### API tests (node:test, real Postgres)
+- `pnpm --filter @workspace/api-server test` — runs every `src/**/*.test.ts` file with `node --import tsx --test`. Quietly forces `LOG_LEVEL=silent` and `RESEND_API_KEY=` so test runs don't spam logs or send real emails.
+- Shared helpers: `artifacts/api-server/src/routes/test-helpers.ts` boots an in-memory express server (no port collision with the dev workflow), provides a CookieJar-aware `api()` fetch wrapper, mints unique tags / emails / usernames, signs admin JWTs, seeds quotes/jobs, and tracks every row created so the trash-bin cleanup runs after each suite.
+- Coverage today: `customer-auth.test.ts` (signup/login/logout/me + +username uniqueness + attachQuoteId match-vs-mismatch + check-username) and `admin-payments.test.ts` (POST/GET payment-requests, GET payments with method/search/all filters, customer lookup) plus the existing `pricing-engine.test.ts`. **69 tests / 16 suites all green.**
+
+### End-to-end tests (Playwright)
+- Spec: `artifacts/teemer-web/tests/e2e/customer-payment-flow.spec.ts` exercises Save-for-later → customer dashboard → admin **Send Payment Request** modal → customer self-serve pay → `TM-XXXXXXXXXX` confirmation, with the Stripe step performed by signing a synthetic `checkout.session.completed` event and POST-ing it to `/api/stripe/webhook` (so the test is hermetic — no live Stripe checkout).
+- Setup notes live in `artifacts/teemer-web/tests/e2e/README.md`. Requires `STRIPE_WEBHOOK_SECRET` to be set on the API server *and* exported to the test runner (the test signs with that exact value), and a one-time `pnpm --filter @workspace/teemer-web test:e2e:install` to download the Chromium browser.
+- Run with `pnpm --filter @workspace/teemer-web test:e2e`.
