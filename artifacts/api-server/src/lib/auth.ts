@@ -239,9 +239,18 @@ export function requireCustomer(req: Request, res: Response, next: NextFunction)
 
 // ─── Customer username + password generation ───────────────────────────────
 
-const USERNAME_REGEX = /^\+[A-Za-z0-9_]{3,30}$/;
+// Username core (after the leading "+"):
+//   - At least 2 characters
+//   - Only letters, digits, underscore, or period
+//   - Period cannot be the last character
+const USERNAME_CORE_REGEX = /^[A-Za-z0-9_.]{2,}$/;
 export function isValidUsername(value: unknown): value is string {
-  return typeof value === "string" && USERNAME_REGEX.test(value);
+  if (typeof value !== "string") return false;
+  const withPlus = value.startsWith("+") ? value : `+${value}`;
+  const core = withPlus.slice(1);
+  if (!USERNAME_CORE_REGEX.test(core)) return false;
+  if (core.endsWith(".")) return false;
+  return true;
 }
 
 export function normalizeUsername(value: string): string {

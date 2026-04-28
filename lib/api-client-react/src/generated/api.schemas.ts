@@ -856,11 +856,17 @@ export interface DeleteDiscountCodeResponse {
 export interface CustomerSignupRequest {
   fullName: string;
   email: string;
-  phone: string;
-  /** Optional. If omitted, generated from name. Format: +letters/digits/underscores 3-30 chars. */
-  username?: string;
-  /** Optional. If omitted a strong password is generated and emailed. */
-  password?: string;
+  /** Optional phone number. */
+  phone?: string | null;
+  /** Required. Plain username (without leading +). At least 2 characters. Allowed: letters, digits, _ and . No trailing period. */
+  username: string;
+  /**
+   * Required. Must be at least 8 characters.
+   * @minLength 8
+   */
+  password: string;
+  /** Must match password. */
+  confirmPassword: string;
   attachQuoteId?: number | null;
 }
 
@@ -874,8 +880,7 @@ export interface CustomerSession {
 
 export interface CustomerSignupResponse {
   customer?: CustomerSession;
-  /** The auto-generated password if no password was supplied. Shown once. */
-  generatedPassword?: string | null;
+  attachedQuoteId?: number | null;
 }
 
 export interface CustomerLoginRequest {

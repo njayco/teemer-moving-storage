@@ -341,6 +341,22 @@ function ProgressBar({ currentStep, stepLabels }: { currentStep: number; stepLab
 }
 
 
+const SAVE_QUOTE_USERNAME_REGEX = /^[A-Za-z0-9_.]{2,}$/;
+function validateSaveQuoteUsername(value: string): string | undefined {
+  if (!value) return "Username is required.";
+  if (!SAVE_QUOTE_USERNAME_REGEX.test(value)) {
+    return "Username may only contain letters, numbers, _ and .";
+  }
+  if (value.endsWith(".")) return "Username cannot end with a period.";
+  return undefined;
+}
+
+interface SaveQuoteFieldErrors {
+  username?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
 function SaveForLaterModal({
   open,
   onClose,
@@ -357,6 +373,9 @@ function SaveForLaterModal({
   const [email, setEmail] = useState(prefill.email);
   const [phone, setPhone] = useState(prefill.phone);
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<SaveQuoteFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
@@ -367,6 +386,9 @@ function SaveForLaterModal({
       setEmail(prefill.email);
       setPhone(prefill.phone);
       setUsername("");
+      setPassword("");
+      setConfirmPassword("");
+      setFieldErrors({});
       setError(null);
       setNeedsLogin(false);
     }
@@ -376,6 +398,19 @@ function SaveForLaterModal({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errs: SaveQuoteFieldErrors = {};
+    const usernameErr = validateSaveQuoteUsername(username.trim());
+    if (usernameErr) errs.username = usernameErr;
+    if (!password) errs.password = "Password is required.";
+    else if (password.length < 8) errs.password = "Password must be at least 8 characters.";
+    if (!confirmPassword) errs.confirmPassword = "Please confirm your password.";
+    else if (password && confirmPassword && password !== confirmPassword)
+      errs.confirmPassword = "Passwords do not match.";
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+    setFieldErrors({});
     setSubmitting(true);
     setError(null);
     try {
@@ -388,7 +423,9 @@ function SaveForLaterModal({
           fullName,
           email,
           phone,
-          username: username.trim() || undefined,
+          username: username.trim(),
+          password,
+          confirmPassword,
           attachQuoteId: quoteId,
         }),
       });
@@ -397,7 +434,11 @@ function SaveForLaterModal({
         if (res.status === 409 && /sign in/i.test(data.error || "")) {
           setNeedsLogin(true);
         }
-        setError(data.error || "Couldn't save your quote.");
+        const msg: string = data.error || "Couldn't save your quote.";
+        const lower = msg.toLowerCase();
+        if (lower.includes("username")) setFieldErrors({ username: msg });
+        else if (lower.includes("password")) setFieldErrors({ password: msg });
+        else setError(msg);
         return;
       }
       navigate(`/account/quotes/${quoteId}`);
@@ -416,7 +457,7 @@ function SaveForLaterModal({
       >
         <h3 className="text-xl font-bold text-slate-900 mb-1">Save Your Quote</h3>
         <p className="text-sm text-slate-500 mb-4">
-          Create a quick account so you can come back later, edit details, and reserve when you're ready.
+          Create an account so you can come back later, edit details, and reserve when you're ready.
         </p>
 
         {error && (
@@ -433,7 +474,7 @@ function SaveForLaterModal({
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="space-y-3" noValidate>
           <div>
             <label className="text-xs font-semibold text-slate-700">Full Name</label>
             <input
@@ -463,17 +504,47 @@ function SaveForLaterModal({
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-700">Username (optional)</label>
+            <label className="text-xs font-semibold text-slate-700">Username</label>
             <input
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="+yourname"
-              className="w-full px-3 py-2 mt-1 border border-slate-200 rounded-lg text-sm font-mono"
+              onChange={(e) => { setUsername(e.target.value); setFieldErrors((p) => ({ ...p, username: undefined })); }}
+              placeholder="e.g. john.doe"
+              className={`w-full px-3 py-2 mt-1 border rounded-lg text-sm font-mono ${fieldErrors.username ? "border-rose-400" : "border-slate-200"}`}
+              autoComplete="username"
             />
-            <p className="text-[11px] text-slate-500 mt-1">We'll auto-generate one if you leave this blank.</p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              At least 2 characters. Letters, numbers, _ and . allowed. Cannot end with a period.
+            </p>
+            {fieldErrors.username && (
+              <p className="text-[11px] text-rose-600 mt-1">{fieldErrors.username}</p>
+            )}
           </div>
-          <div className="text-[11px] text-slate-500 bg-slate-50 rounded-lg p-2">
-            We'll email you a temporary password so you can sign in any time to view, edit, or pay for this quote.
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined, confirmPassword: undefined })); }}
+              className={`w-full px-3 py-2 mt-1 border rounded-lg text-sm ${fieldErrors.password ? "border-rose-400" : "border-slate-200"}`}
+              autoComplete="new-password"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">At least 8 characters.</p>
+            {fieldErrors.password && (
+              <p className="text-[11px] text-rose-600 mt-1">{fieldErrors.password}</p>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((p) => ({ ...p, confirmPassword: undefined })); }}
+              className={`w-full px-3 py-2 mt-1 border rounded-lg text-sm ${fieldErrors.confirmPassword ? "border-rose-400" : "border-slate-200"}`}
+              autoComplete="new-password"
+            />
+            {fieldErrors.confirmPassword && (
+              <p className="text-[11px] text-rose-600 mt-1">{fieldErrors.confirmPassword}</p>
+            )}
           </div>
           <div className="flex gap-2 pt-1">
             <button

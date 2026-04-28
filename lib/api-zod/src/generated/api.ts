@@ -1732,22 +1732,22 @@ export const DownloadContractPdfParams = zod.object({
 /**
  * @summary Create a customer account
  */
+export const customerSignupBodyPasswordMin = 8;
+
 export const CustomerSignupBody = zod.object({
   fullName: zod.string(),
   email: zod.string(),
-  phone: zod.string(),
+  phone: zod.string().nullish().describe("Optional phone number."),
   username: zod
     .string()
-    .optional()
     .describe(
-      "Optional. If omitted, generated from name. Format: +letters\/digits\/underscores 3-30 chars.",
+      "Required. Plain username (without leading +). At least 2 characters. Allowed: letters, digits, _ and . No trailing period.",
     ),
   password: zod
     .string()
-    .optional()
-    .describe(
-      "Optional. If omitted a strong password is generated and emailed.",
-    ),
+    .min(customerSignupBodyPasswordMin)
+    .describe("Required. Must be at least 8 characters."),
+  confirmPassword: zod.string().describe("Must match password."),
   attachQuoteId: zod.number().nullish(),
 });
 

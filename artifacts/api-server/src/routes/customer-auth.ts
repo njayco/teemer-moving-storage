@@ -11,8 +11,6 @@ import {
   requireCustomer,
   isValidUsername,
   normalizeUsername,
-  suggestUsernameFromName,
-  generateRandomPassword,
   signEmailVerificationToken,
   verifyEmailVerificationToken,
   signPasswordResetToken,
@@ -20,7 +18,6 @@ import {
   passwordResetHashKey,
 } from "../lib/auth";
 import {
-  sendAccountCredentialsEmail,
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
 } from "../lib/email-service";
@@ -35,20 +32,6 @@ function getAppBaseUrl(): string {
       ? process.env.REPLIT_DOMAINS?.split(",")[0]
       : process.env.REPLIT_DEV_DOMAIN;
   return domain ? `https://${domain}` : "https://teemermoving.com";
-}
-
-async function ensureUniqueUsername(base: string): Promise<string> {
-  const baseCore = base.startsWith("+") ? base.slice(1) : base;
-  for (let attempt = 0; attempt < 25; attempt++) {
-    const candidate = attempt === 0 ? `+${baseCore}` : `+${baseCore}${Math.floor(100 + Math.random() * 900)}`;
-    const [existing] = await db
-      .select({ id: customersTable.id })
-      .from(customersTable)
-      .where(eq(customersTable.username, candidate))
-      .limit(1);
-    if (!existing) return candidate;
-  }
-  return `+${baseCore}${Date.now().toString(36)}`;
 }
 
 /**
@@ -96,6 +79,8 @@ router.post("/customer-auth/signup", async (req, res) => {
     const emailRaw = String(req.body?.email ?? "").trim();
     const phoneRaw = req.body?.phone != null ? String(req.body.phone).trim() : "";
     const requestedUsername = req.body?.username ? String(req.body.username).trim() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const confirmPassword = typeof req.body?.confirmPassword === "string" ? req.body.confirmPassword : "";
     const attachQuoteId = req.body?.attachQuoteId != null ? Number(req.body.attachQuoteId) : null;
 
     if (!fullName || !emailRaw) {
@@ -109,33 +94,47 @@ router.post("/customer-auth/signup", async (req, res) => {
     }
     const phone = phoneRaw || null;
 
-    let username: string;
-    if (requestedUsername) {
-      const normalized = normalizeUsername(requestedUsername);
-      if (!isValidUsername(normalized)) {
-        res.status(400).json({
-          error:
-            "Username must start with + and contain 3-30 letters, numbers, or underscores (e.g. +alanteemer).",
-        });
-        return;
-      }
-      const [taken] = await db
-        .select({ id: customersTable.id })
-        .from(customersTable)
-        .where(eq(customersTable.username, normalized))
-        .limit(1);
-      if (taken) {
-        res.status(409).json({ error: "That username is already taken." });
-        return;
-      }
-      username = normalized;
-    } else {
-      username = await ensureUniqueUsername(suggestUsernameFromName(fullName));
+    // Username is required; validate format.
+    if (!requestedUsername) {
+      res.status(400).json({ error: "Username is required." });
+      return;
+    }
+    const normalized = normalizeUsername(requestedUsername);
+    if (!isValidUsername(normalized)) {
+      res.status(400).json({
+        error:
+          "Username must be at least 2 characters and may only contain letters, numbers, underscores (_), and periods (.). It cannot end with a period.",
+      });
+      return;
     }
 
-    // Always generate a temporary password — customers receive it by email.
-    const generatedPassword = generateRandomPassword(12);
-    const passwordHash = await hashPassword(generatedPassword);
+    // Case-insensitive uniqueness check.
+    const [taken] = await db
+      .select({ id: customersTable.id })
+      .from(customersTable)
+      .where(sql`lower(${customersTable.username}) = ${normalized.toLowerCase()}`)
+      .limit(1);
+    if (taken) {
+      res.status(409).json({ error: "That username is already taken." });
+      return;
+    }
+    const username = normalized;
+
+    // Password is required and must be at least 8 characters.
+    if (!password) {
+      res.status(400).json({ error: "Password is required." });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters." });
+      return;
+    }
+    if (password !== confirmPassword) {
+      res.status(400).json({ error: "Passwords do not match." });
+      return;
+    }
+
+    const passwordHash = await hashPassword(password);
 
     // Reuse an existing un-claimed contact record by email; otherwise insert.
     const [existing] = await db
@@ -191,19 +190,10 @@ router.post("/customer-auth/signup", async (req, res) => {
       if (ok) attachedQuoteId = attachQuoteId;
     }
 
+    // Send a verification email so the customer can confirm ownership of
+    // the address. No credentials email is sent since the customer chose
+    // their own password.
     const baseUrl = getAppBaseUrl();
-    const loginUrl = `${baseUrl}/account/login`;
-    sendAccountCredentialsEmail({
-      customerName: fullName,
-      username,
-      email,
-      temporaryPassword: generatedPassword,
-      loginUrl,
-    }).catch((err) => req.log.error({ err }, "Failed to send account credentials email"));
-
-    // Fire off a verification email so the customer can confirm ownership of
-    // the address. This is a separate email so the credentials email stays
-    // focused on sign-in details.
     const verificationToken = signEmailVerificationToken(customerId, email);
     const verificationUrl = `${baseUrl}/account/verify-email?token=${encodeURIComponent(verificationToken)}`;
     sendEmailVerificationEmail({
@@ -218,7 +208,6 @@ router.post("/customer-auth/signup", async (req, res) => {
 
     res.status(201).json({
       customer: payload,
-      generatedPassword,
       attachedQuoteId,
     });
   } catch (err) {
@@ -686,10 +675,13 @@ router.get("/customer-auth/check-username", async (req, res) => {
     res.json({ available: false, normalized, valid: false });
     return;
   }
+  // Match the case-insensitive uniqueness rule that signup enforces, so the
+  // UX never says "available" for a username that signup will then reject
+  // because a case-variant already exists.
   const [taken] = await db
     .select({ id: customersTable.id })
     .from(customersTable)
-    .where(eq(customersTable.username, normalized))
+    .where(sql`lower(${customersTable.username}) = ${normalized.toLowerCase()}`)
     .limit(1);
   res.json({ available: !taken, normalized, valid: true });
 });

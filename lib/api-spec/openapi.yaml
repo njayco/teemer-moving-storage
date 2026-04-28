@@ -2829,17 +2829,24 @@ components:
     # ─── Customer accounts (Task #44) ────────────────────────────────────────
     CustomerSignupRequest:
       type: object
-      required: [fullName, email, phone]
+      required: [fullName, email, username, password, confirmPassword]
       properties:
         fullName: { type: string }
         email: { type: string }
-        phone: { type: string }
+        phone:
+          type: string
+          nullable: true
+          description: Optional phone number.
         username:
           type: string
-          description: "Optional. If omitted, generated from name. Format: +letters/digits/underscores 3-30 chars."
+          description: "Required. Plain username (without leading +). At least 2 characters. Allowed: letters, digits, _ and . No trailing period."
         password:
           type: string
-          description: Optional. If omitted a strong password is generated and emailed.
+          description: "Required. Must be at least 8 characters."
+          minLength: 8
+        confirmPassword:
+          type: string
+          description: "Must match password."
         attachQuoteId:
           type: integer
           nullable: true
@@ -2848,10 +2855,9 @@ components:
       properties:
         customer:
           $ref: "#/components/schemas/CustomerSession"
-        generatedPassword:
-          type: string
+        attachedQuoteId:
+          type: integer
           nullable: true
-          description: The auto-generated password if no password was supplied. Shown once.
     CustomerLoginRequest:
       type: object
       required: [identifier, password]

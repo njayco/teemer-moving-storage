@@ -9,6 +9,5 @@ import type { CustomerSession } from "./customerSession";
 
 export interface CustomerSignupResponse {
   customer?: CustomerSession;
-  /** The auto-generated password if no password was supplied. Shown once. */
-  generatedPassword?: string | null;
+  attachedQuoteId?: number | null;
 }

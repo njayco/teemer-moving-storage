@@ -19,6 +19,14 @@ export interface CustomerSeed {
   password: string;
 }
 
+const SEED_PASSWORD = "TeemerSeed!23";
+
+function seedUsername(tag: string): string {
+  // Username rules: at least 2 chars, [A-Za-z0-9_.], no trailing dot.
+  // The tag (uniqueTag) returns lowercase letters and digits, perfect.
+  return `e2e.${tag}`;
+}
+
 const apiBase = (): string => process.env.API_URL ?? "http://localhost:8080";
 
 /**
@@ -79,20 +87,27 @@ export async function routeApiToServer(page: Page): Promise<void> {
  */
 export async function seedCustomerWithPassword(
   tag: string,
-): Promise<{ fullName: string; email: string }> {
+): Promise<{ fullName: string; email: string; password: string }> {
   const fullName = `Existing Customer ${tag}`;
   const email = `existing+${tag}@teemer-tests.local`;
+  const username = seedUsername(`existing${tag}`);
   const res = await fetch(`${apiBase()}/api/customer-auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fullName, email }),
+    body: JSON.stringify({
+      fullName,
+      email,
+      username,
+      password: SEED_PASSWORD,
+      confirmPassword: SEED_PASSWORD,
+    }),
   });
   if (!res.ok) {
     throw new Error(
       `Failed to seed customer: ${res.status} ${await res.text()}`,
     );
   }
-  return { fullName, email };
+  return { fullName, email, password: SEED_PASSWORD };
 }
 
 /**
@@ -131,10 +146,18 @@ export async function seedSavedQuoteCustomer(tag: string): Promise<CustomerSeed>
   if (!quoteId) throw new Error(`Quote response missing id: ${JSON.stringify(quote)}`);
 
   // 2) Sign up via Save-for-later, attaching the quote.
+  const username = seedUsername(tag);
   const signupRes = await fetch(`${apiBase()}/api/customer-auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fullName, email, attachQuoteId: quoteId }),
+    body: JSON.stringify({
+      fullName,
+      email,
+      username,
+      password: SEED_PASSWORD,
+      confirmPassword: SEED_PASSWORD,
+      attachQuoteId: quoteId,
+    }),
   });
   if (!signupRes.ok) {
     throw new Error(`Failed to sign up: ${signupRes.status} ${await signupRes.text()}`);
@@ -147,7 +170,7 @@ export async function seedSavedQuoteCustomer(tag: string): Promise<CustomerSeed>
     quoteId,
     customerId: signup.customer.customerId,
     username: signup.customer.username,
-    password: signup.generatedPassword,
+    password: SEED_PASSWORD,
   };
 }
 

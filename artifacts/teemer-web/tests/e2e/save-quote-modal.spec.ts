@@ -79,6 +79,9 @@ function modalInputs(page: Page) {
     modal,
     fullName: modal.locator("input").nth(0),
     email: modal.locator('input[type="email"]'),
+    username: modal.locator('input[autocomplete="username"]'),
+    password: modal.locator('input[type="password"]').nth(0),
+    confirmPassword: modal.locator('input[type="password"]').nth(1),
   };
 }
 
@@ -103,13 +106,25 @@ test("save quote modal: new email creates account and redirects to /account/quot
     .getByRole("button", { name: /save this quote for later/i })
     .click();
 
-  const { modal, fullName: nameInput, email: emailInput } = modalInputs(page);
+  const {
+    modal,
+    fullName: nameInput,
+    email: emailInput,
+    username: usernameInput,
+    password: passwordInput,
+    confirmPassword: confirmInput,
+  } = modalInputs(page);
   await expect(modal).toBeVisible();
 
   // Modal pre-fills name + email from step 1; re-fill explicitly so the
   // test asserts that those are the inputs that get submitted.
   await nameInput.fill(fullName);
   await emailInput.fill(email);
+  // Username + password are now required (Task #71). Build a unique-ish
+  // username so re-runs in the same DB don't collide on the unique index.
+  await usernameInput.fill(`modal.${tag}`);
+  await passwordInput.fill("ModalE2E!23");
+  await confirmInput.fill("ModalE2E!23");
 
   // Submit. SaveForLaterModal navigates to /account/quotes/:id on success.
   await modal.getByRole("button", { name: /^save quote$/i }).click();
@@ -142,12 +157,25 @@ test("save quote modal: surfaces 'Sign in to your existing account' when the ema
     .getByRole("button", { name: /save this quote for later/i })
     .click();
 
-  const { modal, email: emailInput } = modalInputs(page);
+  const {
+    modal,
+    email: emailInput,
+    username: usernameInput,
+    password: passwordInput,
+    confirmPassword: confirmInput,
+  } = modalInputs(page);
   await expect(modal).toBeVisible();
 
   // The form is pre-filled from step 1, but assert it explicitly so the
   // test fails clearly if the prefill ever regresses.
   await expect(emailInput).toHaveValue(seed.email);
+
+  // Required fields (Task #71). Use a fresh username so client-side
+  // validation passes — we want the server-side 409 ("Please sign in
+  // instead") to be what surfaces the sign-in fallback link.
+  await usernameInput.fill(`existing.${tag}.attempt`);
+  await passwordInput.fill("ModalE2E!23");
+  await confirmInput.fill("ModalE2E!23");
 
   await modal.getByRole("button", { name: /^save quote$/i }).click();
 

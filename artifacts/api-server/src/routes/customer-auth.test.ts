@@ -59,21 +59,36 @@ after(async () => {
   await stopTestServer();
 });
 
+// Helper: build a baseline valid signup body. Tests can override individual
+// fields by passing overrides. Username/password are now required by the
+// signup endpoint (Task #71), so most tests just want sensible defaults.
+const SIGNUP_PASSWORD = "TeemerTest!23";
+function signupBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    fullName: "Jane Tester",
+    email: testEmail("signup"),
+    username: testUsername("u"),
+    password: SIGNUP_PASSWORD,
+    confirmPassword: SIGNUP_PASSWORD,
+    ...overrides,
+  };
+}
+
 describe("POST /api/customer-auth/signup", () => {
-  test("creates a new customer and returns a session cookie + generated password", async () => {
+  test("creates a new customer and returns a session cookie", async () => {
     const email = testEmail("signup");
     const jar = new CookieJar();
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
       cookieJar: jar,
-      body: { fullName: "Jane Tester", email },
+      body: signupBody({ fullName: "Jane Tester", email }),
     });
     assert.equal(res.status, 201);
     assert.ok(res.body.customer);
     assert.equal(res.body.customer.email, email);
     assert.match(res.body.customer.username, /^\+/, "username should be + prefixed");
-    assert.equal(typeof res.body.generatedPassword, "string");
-    assert.equal(res.body.generatedPassword.length, 12);
+    // Auto-generated password is no longer returned (Task #71).
+    assert.equal(res.body.generatedPassword, undefined);
     assert.equal(res.body.attachedQuoteId, null);
     track.customer(res.body.customer.customerId);
 
@@ -83,7 +98,7 @@ describe("POST /api/customer-auth/signup", () => {
     assert.equal(me.body.customer.email, email);
   });
 
-  test("rejects missing fields with 400", async () => {
+  test("rejects missing fullName/email with 400", async () => {
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
       body: { fullName: "" },
@@ -95,47 +110,116 @@ describe("POST /api/customer-auth/signup", () => {
   test("rejects invalid email format with 400", async () => {
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Bad Email", email: "not-an-email" },
+      body: signupBody({ fullName: "Bad Email", email: "not-an-email" }),
     });
     assert.equal(res.status, 400);
     assert.match(res.body.error, /valid email/i);
+  });
+
+  test("rejects missing username with 400", async () => {
+    const body = signupBody();
+    delete body.username;
+    const res = await api("/api/customer-auth/signup", { method: "POST", body });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /username is required/i);
+  });
+
+  test("rejects missing password with 400", async () => {
+    const body = signupBody();
+    delete body.password;
+    delete body.confirmPassword;
+    const res = await api("/api/customer-auth/signup", { method: "POST", body });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /password is required/i);
+  });
+
+  test("rejects passwords shorter than 8 characters with 400", async () => {
+    const res = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: signupBody({ password: "short", confirmPassword: "short" }),
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /at least 8 characters/i);
+  });
+
+  test("rejects mismatched confirmPassword with 400", async () => {
+    const res = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: signupBody({ password: "GoodPass1!", confirmPassword: "OtherPass1!" }),
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /do not match/i);
   });
 
   test("normalizes email to lowercase on storage", async () => {
     const upper = `Mixed.${uniqueSuffix()}@TEEMER-Tests.LOCAL`;
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Mixed Case", email: upper },
+      body: signupBody({ fullName: "Mixed Case", email: upper }),
     });
     assert.equal(res.status, 201);
     track.customer(res.body.customer.customerId);
     assert.equal(res.body.customer.email, upper.toLowerCase());
   });
 
-  test("explicit username must start with + and match the validation regex", async () => {
-    const email = testEmail("badname");
+  test("rejects usernames shorter than 2 characters", async () => {
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Bad Username", email, username: "no-plus-and-bad-chars!" },
+      body: signupBody({ username: "a" }),
     });
     assert.equal(res.status, 400);
     assert.match(res.body.error, /username/i);
   });
 
-  test("returns 409 when explicitly chosen username is already taken", async () => {
-    const sharedUsername = testUsername("dup");
+  test("rejects usernames with disallowed characters (e.g. spaces, hyphens, !)", async () => {
+    for (const bad of ["bad name", "bad-name", "no!chars", "with spaces"]) {
+      const res = await api("/api/customer-auth/signup", {
+        method: "POST",
+        body: signupBody({ email: testEmail("badc"), username: bad }),
+      });
+      assert.equal(res.status, 400, `Expected 400 for username ${JSON.stringify(bad)}`);
+      assert.match(res.body.error, /username/i);
+    }
+  });
 
+  test("rejects usernames that end with a period", async () => {
+    const res = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: signupBody({ username: "trailing." }),
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /username/i);
+  });
+
+  test("accepts usernames containing a period (not trailing)", async () => {
+    const username = `john.doe${uniqueSuffix()}`;
+    const res = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: signupBody({ username }),
+    });
+    assert.equal(res.status, 201);
+    track.customer(res.body.customer.customerId);
+    assert.equal(res.body.customer.username, `+${username}`);
+  });
+
+  test("returns 409 when chosen username is already taken (case-insensitive)", async () => {
+    const baseName = `dup${uniqueSuffix()}`;
     const first = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "First Owner", email: testEmail("first"), username: sharedUsername },
+      body: signupBody({ fullName: "First Owner", email: testEmail("first"), username: baseName }),
     });
     assert.equal(first.status, 201);
     track.customer(first.body.customer.customerId);
-    assert.equal(first.body.customer.username, sharedUsername);
+    assert.equal(first.body.customer.username, `+${baseName}`);
 
+    // Same username, different casing → should still collide.
     const second = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Second Owner", email: testEmail("second"), username: sharedUsername },
+      body: signupBody({
+        fullName: "Second Owner",
+        email: testEmail("second"),
+        username: baseName.toUpperCase(),
+      }),
     });
     assert.equal(second.status, 409);
     assert.match(second.body.error, /already taken/i);
@@ -145,42 +229,17 @@ describe("POST /api/customer-auth/signup", () => {
     const email = testEmail("dupe");
     const first = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Original", email },
+      body: signupBody({ fullName: "Original", email }),
     });
     assert.equal(first.status, 201);
     track.customer(first.body.customer.customerId);
 
     const second = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Imposter", email },
+      body: signupBody({ fullName: "Imposter", email }),
     });
     assert.equal(second.status, 409);
     assert.match(second.body.error, /already exists/i);
-  });
-
-  test("auto-generated usernames stay unique across same-name signups", async () => {
-    // Both signups use the same full name → identical base username candidate.
-    // The uniqueness loop should append a suffix to avoid the unique-index collision.
-    const sharedName = `Sameface ${uniqueSuffix()}`;
-    const a = await api("/api/customer-auth/signup", {
-      method: "POST",
-      body: { fullName: sharedName, email: testEmail("samea") },
-    });
-    assert.equal(a.status, 201);
-    track.customer(a.body.customer.customerId);
-
-    const b = await api("/api/customer-auth/signup", {
-      method: "POST",
-      body: { fullName: sharedName, email: testEmail("sameb") },
-    });
-    assert.equal(b.status, 201);
-    track.customer(b.body.customer.customerId);
-
-    assert.notEqual(
-      a.body.customer.username,
-      b.body.customer.username,
-      "Two same-name signups should not collide on username",
-    );
   });
 
   test("attachQuoteId attaches quote (and any job) when emails match", async () => {
@@ -190,7 +249,7 @@ describe("POST /api/customer-auth/signup", () => {
 
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Quote Owner", email, attachQuoteId: quoteId },
+      body: signupBody({ fullName: "Quote Owner", email, attachQuoteId: quoteId }),
     });
     assert.equal(res.status, 201);
     track.customer(res.body.customer.customerId);
@@ -216,7 +275,7 @@ describe("POST /api/customer-auth/signup", () => {
 
     const res = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Wrong Claimer", email: wrongEmail, attachQuoteId: quoteId },
+      body: signupBody({ fullName: "Wrong Claimer", email: wrongEmail, attachQuoteId: quoteId }),
     });
     assert.equal(res.status, 201);
     track.customer(res.body.customer.customerId);
@@ -239,17 +298,16 @@ describe("POST /api/customer-auth/login", () => {
     const email = testEmail("login");
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Login Tester", email },
+      body: signupBody({ fullName: "Login Tester", email }),
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
-    const password = signup.body.generatedPassword;
 
     const jar = new CookieJar();
     const res = await api("/api/customer-auth/login", {
       method: "POST",
       cookieJar: jar,
-      body: { identifier: email, password },
+      body: { identifier: email, password: SIGNUP_PASSWORD },
     });
     assert.equal(res.status, 200);
     assert.equal(res.body.customer.email, email);
@@ -263,17 +321,16 @@ describe("POST /api/customer-auth/login", () => {
     const email = testEmail("loginu");
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Loginu Tester", email },
+      body: signupBody({ fullName: "Loginu Tester", email }),
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
-    const password = signup.body.generatedPassword;
 
     const jar = new CookieJar();
     const res = await api("/api/customer-auth/login", {
       method: "POST",
       cookieJar: jar,
-      body: { username: signup.body.customer.username, password },
+      body: { username: signup.body.customer.username, password: SIGNUP_PASSWORD },
     });
     assert.equal(res.status, 200);
     assert.equal(res.body.customer.username, signup.body.customer.username);
@@ -291,7 +348,7 @@ describe("POST /api/customer-auth/login", () => {
     const email = testEmail("wrongpw");
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Wrong Pw", email },
+      body: signupBody({ fullName: "Wrong Pw", email }),
     });
     track.customer(signup.body.customer.customerId);
 
@@ -335,7 +392,7 @@ describe("POST /api/customer-auth/logout", () => {
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
       cookieJar: jar,
-      body: { fullName: "Logout Tester", email },
+      body: signupBody({ fullName: "Logout Tester", email }),
     });
     track.customer(signup.body.customer.customerId);
 
@@ -511,7 +568,7 @@ describe("POST /api/customer-auth/forgot-password", () => {
 
 describe("GET /api/customer-auth/check-username", () => {
   test("returns valid:false for a malformed username", async () => {
-    const res = await api(`/api/customer-auth/check-username?username=${encodeURIComponent("ab")}`);
+    const res = await api(`/api/customer-auth/check-username?username=${encodeURIComponent("a")}`);
     assert.equal(res.status, 200);
     assert.equal(res.body.valid, false);
     assert.equal(res.body.available, false);
@@ -529,7 +586,7 @@ describe("GET /api/customer-auth/check-username", () => {
 
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Check User", email: testEmail("check"), username },
+      body: signupBody({ fullName: "Check User", email: testEmail("check"), username }),
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
@@ -539,6 +596,26 @@ describe("GET /api/customer-auth/check-username", () => {
     );
     assert.equal(after.status, 200);
     assert.equal(after.body.available, false);
+  });
+
+  test("availability check is case-insensitive (matches signup uniqueness)", async () => {
+    const username = testUsername("caseck");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: signupBody({ fullName: "Case Check", email: testEmail("caseck"), username }),
+    });
+    assert.equal(signup.status, 201);
+    track.customer(signup.body.customer.customerId);
+
+    // Same username, upper-cased — must report as taken so the UI doesn't
+    // promise "available" and then surface a 409 at submit time.
+    const upper = username.toUpperCase();
+    const res = await api(
+      `/api/customer-auth/check-username?username=${encodeURIComponent(upper)}`,
+    );
+    assert.equal(res.status, 200);
+    assert.equal(res.body.valid, true);
+    assert.equal(res.body.available, false);
   });
 
   test("missing query param returns 400", async () => {
@@ -622,7 +699,7 @@ describe("Auth email throttling", () => {
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
       cookieJar: jar,
-      body: { fullName: "Resend Throttle", email },
+      body: signupBody({ fullName: "Resend Throttle", email }),
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
@@ -654,7 +731,7 @@ describe("Auth email throttling", () => {
     const email = testEmail("throttle-forgot");
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
-      body: { fullName: "Forgot Throttle", email },
+      body: signupBody({ fullName: "Forgot Throttle", email }),
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
@@ -692,7 +769,7 @@ describe("Auth email throttling", () => {
     const signup = await api("/api/customer-auth/signup", {
       method: "POST",
       cookieJar: jar,
-      body: { fullName: "Mixed Throttle", email },
+      body: signupBody({ fullName: "Mixed Throttle", email }),
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
@@ -748,7 +825,7 @@ describe("Auth email throttling", () => {
         const signup = await api("/api/customer-auth/signup", {
           method: "POST",
           cookieJar: jar,
-          body: { fullName: `IP Throttle ${i}`, email },
+          body: signupBody({ fullName: `IP Throttle ${i}`, email }),
         });
         assert.equal(signup.status, 201);
         track.customer(signup.body.customer.customerId);
