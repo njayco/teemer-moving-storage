@@ -1,8 +1,8 @@
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { db } from "@workspace/db";
-import { customersTable, quoteRequestsTable, jobsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { customersTable, quoteRequestsTable, jobsTable, emailLogsTable } from "@workspace/db/schema";
+import { eq, sql } from "drizzle-orm";
 import {
   startTestServer,
   stopTestServer,
@@ -15,6 +15,7 @@ import {
   makeJobForQuote,
   track,
 } from "./test-helpers.js";
+import { __resetIpHitsForTests } from "../lib/auth-rate-limit";
 
 before(async () => {
   await startTestServer();
@@ -357,5 +358,207 @@ describe("GET /api/customer-auth/check-username", () => {
   test("missing query param returns 400", async () => {
     const res = await api("/api/customer-auth/check-username");
     assert.equal(res.status, 400);
+  });
+});
+
+describe("Auth email throttling", () => {
+  const ORIGINAL_EMAIL_LIMIT = process.env.AUTH_EMAIL_RATE_PER_HOUR;
+  const ORIGINAL_IP_LIMIT = process.env.AUTH_IP_RATE_PER_HOUR;
+
+  before(() => {
+    process.env.AUTH_EMAIL_RATE_PER_HOUR = "3";
+    // High enough that per-recipient tests aren't accidentally blocked by the
+    // per-IP counter (every test reuses 127.0.0.1).
+    process.env.AUTH_IP_RATE_PER_HOUR = "1000";
+  });
+  after(() => {
+    if (ORIGINAL_EMAIL_LIMIT === undefined) delete process.env.AUTH_EMAIL_RATE_PER_HOUR;
+    else process.env.AUTH_EMAIL_RATE_PER_HOUR = ORIGINAL_EMAIL_LIMIT;
+    if (ORIGINAL_IP_LIMIT === undefined) delete process.env.AUTH_IP_RATE_PER_HOUR;
+    else process.env.AUTH_IP_RATE_PER_HOUR = ORIGINAL_IP_LIMIT;
+  });
+  beforeEach(() => {
+    __resetIpHitsForTests();
+  });
+
+  async function countLogsFor(email: string, type: string): Promise<number> {
+    const rows = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(emailLogsTable)
+      .where(
+        sql`lower(${emailLogsTable.recipient}) = ${email.toLowerCase()} and ${emailLogsTable.emailType} = ${type}`,
+      );
+    return rows[0]?.n ?? 0;
+  }
+
+  /**
+   * The signup endpoint fires its verification email as fire-and-forget, so
+   * its email_logs row may not be written by the time the test starts looping.
+   * Wait briefly for it to land, then clear all auth-related rows for this
+   * recipient — that gives each throttle test a deterministic clean slate.
+   */
+  async function clearAuthEmailLogsFor(email: string): Promise<void> {
+    await new Promise((r) => setTimeout(r, 50));
+    await db
+      .delete(emailLogsTable)
+      .where(
+        sql`lower(${emailLogsTable.recipient}) = ${email.toLowerCase()} and ${emailLogsTable.emailType} in ('email_verification','password_reset','account_credentials')`,
+      );
+  }
+
+  test("resend-verification: returns 429 once the per-recipient limit is reached", async () => {
+    const email = testEmail("throttle-resend");
+    const jar = new CookieJar();
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      cookieJar: jar,
+      body: { fullName: "Resend Throttle", email },
+    });
+    assert.equal(signup.status, 201);
+    track.customer(signup.body.customer.customerId);
+    await clearAuthEmailLogsFor(email);
+
+    // With AUTH_EMAIL_RATE_PER_HOUR=3 and a clean slate, three resends pass.
+    for (let i = 0; i < 3; i++) {
+      const ok = await api("/api/customer-auth/resend-verification", {
+        method: "POST",
+        cookieJar: jar,
+      });
+      assert.equal(ok.status, 200, `Attempt ${i + 1}/3 should succeed`);
+    }
+
+    // The next attempt must be throttled.
+    const blocked = await api("/api/customer-auth/resend-verification", {
+      method: "POST",
+      cookieJar: jar,
+    });
+    assert.equal(blocked.status, 429);
+    assert.match(blocked.body.error, /too many/i);
+
+    // And no new email_verification log row was written for the blocked call.
+    const afterCount = await countLogsFor(email, "email_verification");
+    assert.equal(afterCount, 3, "Throttled call must not enqueue another email");
+  });
+
+  test("forgot-password: returns 200 silently when throttled, with no extra email sent", async () => {
+    const email = testEmail("throttle-forgot");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Forgot Throttle", email },
+    });
+    assert.equal(signup.status, 201);
+    track.customer(signup.body.customer.customerId);
+    await clearAuthEmailLogsFor(email);
+
+    // With a clean slate, the first three forgot-password calls all succeed.
+    for (let i = 0; i < 3; i++) {
+      const r = await api("/api/customer-auth/forgot-password", {
+        method: "POST",
+        body: { email },
+      });
+      assert.equal(r.status, 200);
+      assert.equal(r.body.success, true);
+    }
+    assert.equal(await countLogsFor(email, "password_reset"), 3);
+
+    // 4th call should silently return 200 but NOT write another log row.
+    const blocked = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    assert.equal(blocked.status, 200);
+    assert.equal(blocked.body.success, true);
+    assert.equal(
+      await countLogsFor(email, "password_reset"),
+      3,
+      "Throttled forgot-password must not send another email",
+    );
+  });
+
+  test("email_verification and password_reset counts are pooled per recipient", async () => {
+    const email = testEmail("throttle-mixed");
+    const jar = new CookieJar();
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      cookieJar: jar,
+      body: { fullName: "Mixed Throttle", email },
+    });
+    assert.equal(signup.status, 201);
+    track.customer(signup.body.customer.customerId);
+    await clearAuthEmailLogsFor(email);
+
+    // 1 resend (verification) + 2 forgot-password calls = 3, hits the pooled
+    // limit. The next call (a 4th send of either type) must be throttled.
+    const r1 = await api("/api/customer-auth/resend-verification", {
+      method: "POST",
+      cookieJar: jar,
+    });
+    assert.equal(r1.status, 200);
+
+    for (let i = 0; i < 2; i++) {
+      const r = await api("/api/customer-auth/forgot-password", {
+        method: "POST",
+        body: { email },
+      });
+      assert.equal(r.status, 200);
+    }
+    assert.equal(await countLogsFor(email, "password_reset"), 2);
+    assert.equal(await countLogsFor(email, "email_verification"), 1);
+
+    // The 4th request — a forgot-password — should be silently throttled
+    // because the pooled counter (verification + reset) is at 3.
+    const blocked = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    assert.equal(blocked.status, 200, "still 200 to avoid info leakage");
+    assert.equal(
+      await countLogsFor(email, "password_reset"),
+      2,
+      "Mixed-type pooled limit should stop the 4th send",
+    );
+  });
+
+  test("per-IP throttle blocks bursts across many different recipients", async () => {
+    process.env.AUTH_IP_RATE_PER_HOUR = "2";
+    __resetIpHitsForTests();
+    try {
+      // Three signed-up customers from the same IP (127.0.0.1 in tests).
+      const customers = [];
+      for (let i = 0; i < 3; i++) {
+        const email = testEmail(`ip-throttle-${i}`);
+        const jar = new CookieJar();
+        const signup = await api("/api/customer-auth/signup", {
+          method: "POST",
+          cookieJar: jar,
+          body: { fullName: `IP Throttle ${i}`, email },
+        });
+        assert.equal(signup.status, 201);
+        track.customer(signup.body.customer.customerId);
+        customers.push({ email, jar });
+      }
+
+      // First two resends from this IP should pass (limit=2).
+      const a = await api("/api/customer-auth/resend-verification", {
+        method: "POST",
+        cookieJar: customers[0].jar,
+      });
+      assert.equal(a.status, 200);
+      const b = await api("/api/customer-auth/resend-verification", {
+        method: "POST",
+        cookieJar: customers[1].jar,
+      });
+      assert.equal(b.status, 200);
+
+      // Third resend, even to a brand-new recipient, must be IP-throttled.
+      const c = await api("/api/customer-auth/resend-verification", {
+        method: "POST",
+        cookieJar: customers[2].jar,
+      });
+      assert.equal(c.status, 429);
+    } finally {
+      process.env.AUTH_IP_RATE_PER_HOUR = "1000";
+      __resetIpHitsForTests();
+    }
   });
 });

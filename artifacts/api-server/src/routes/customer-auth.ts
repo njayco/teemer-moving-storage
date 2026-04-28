@@ -24,6 +24,7 @@ import {
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
 } from "../lib/email-service";
+import { checkAuthEmailRate } from "../lib/auth-rate-limit";
 
 const router: IRouter = Router();
 
@@ -394,14 +395,43 @@ router.post("/customer-auth/resend-verification", requireCustomer, async (req, r
       return;
     }
 
+    const decision = await checkAuthEmailRate({
+      ip: req.ip,
+      recipient: customer.email,
+    });
+    if (!decision.allowed) {
+      req.log.warn(
+        {
+          customerId: customer.id,
+          email: customer.email,
+          ip: req.ip,
+          scope: decision.scope,
+          count: decision.count,
+          limit: decision.limit,
+        },
+        "Resend-verification throttled",
+      );
+      res.status(429).json({
+        error:
+          "Too many verification emails requested. Please wait before requesting another.",
+      });
+      return;
+    }
+
     const baseUrl = getAppBaseUrl();
     const verificationToken = signEmailVerificationToken(customer.id, customer.email);
     const verificationUrl = `${baseUrl}/account/verify-email?token=${encodeURIComponent(verificationToken)}`;
-    sendEmailVerificationEmail({
-      customerName: customer.fullName,
-      email: customer.email,
-      verificationUrl,
-    }).catch((err) => req.log.error({ err }, "Failed to resend email verification email"));
+    // Awaited so the email_logs row lands before we respond — that way the
+    // next throttle check sees the new attempt even under rapid-fire abuse.
+    try {
+      await sendEmailVerificationEmail({
+        customerName: customer.fullName,
+        email: customer.email,
+        verificationUrl,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to resend email verification email");
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -440,14 +470,40 @@ router.post("/customer-auth/forgot-password", async (req, res) => {
       .limit(1);
 
     if (customer && customer.passwordHash) {
-      const baseUrl = getAppBaseUrl();
-      const token = signPasswordResetToken(customer.id, customer.passwordHash);
-      const resetUrl = `${baseUrl}/account/reset-password?token=${encodeURIComponent(token)}`;
-      sendPasswordResetEmail({
-        email: customer.email,
-        customerName: customer.fullName,
-        resetUrl,
-      }).catch((err) => req.log.error({ err }, "Failed to send password reset email"));
+      const decision = await checkAuthEmailRate({
+        ip: req.ip,
+        recipient: customer.email,
+      });
+      if (!decision.allowed) {
+        // Silently swallow — the response is identical so attackers can't
+        // distinguish "throttled" from "address unknown".
+        req.log.warn(
+          {
+            customerId: customer.id,
+            email: customer.email,
+            ip: req.ip,
+            scope: decision.scope,
+            count: decision.count,
+            limit: decision.limit,
+          },
+          "Forgot-password throttled (silent)",
+        );
+      } else {
+        const baseUrl = getAppBaseUrl();
+        const token = signPasswordResetToken(customer.id, customer.passwordHash);
+        const resetUrl = `${baseUrl}/account/reset-password?token=${encodeURIComponent(token)}`;
+        // Awaited so the email_logs row is committed before responding —
+        // ensures the next throttle check counts this attempt.
+        try {
+          await sendPasswordResetEmail({
+            email: customer.email,
+            customerName: customer.fullName,
+            resetUrl,
+          });
+        } catch (err) {
+          req.log.error({ err }, "Failed to send password reset email");
+        }
+      }
     } else {
       req.log.info({ email }, "Forgot-password: no matching account with a password");
     }

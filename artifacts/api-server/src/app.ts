@@ -8,6 +8,13 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust only the single immediate upstream proxy (Replit / load balancer) so
+// `req.ip` reflects the real client address. We deliberately do NOT use
+// `true` here, which would trust the entire `X-Forwarded-For` chain and let
+// a remote attacker spoof their IP by prepending one — which would defeat
+// the per-IP auth-email rate limiter.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
