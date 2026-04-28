@@ -378,9 +378,10 @@ router.post("/quotes", async (req, res) => {
       ? Number(pricingFields.estimatedHours)
       : 0;
     const packingRequired = estimatedHoursForPacking >= 5;
+    // Pre-pack day is the day immediately before the move and is server-
+    // computed; client-supplied packingDate is intentionally ignored.
     const computedPackingDate = (() => {
       if (!packingRequired) return null;
-      if (body.packingDate) return String(body.packingDate);
       if (!body.moveDate) return null;
       try {
         const d = new Date(`${body.moveDate}T12:00:00`);
@@ -391,11 +392,12 @@ router.post("/quotes", async (req, res) => {
         return null;
       }
     })();
-    // Strict requirement: when the live pricing engine says pre-pack day is
-     // required, the customer must explicitly pick a window — we no longer
-     // silently default it. This matches the wizard's blocking validation on
-     // Step 2 and ensures captains/dispatchers see the customer's actual
-     // preference rather than an arbitrary fallback.
+    if (packingRequired && !computedPackingDate) {
+      res.status(400).json({
+        error: "A valid move date is required so we can schedule the pre-pack day.",
+      });
+      return;
+    }
     if (packingRequired && !body.packingArrivalWindow) {
       res.status(400).json({
         error: "Please select a preferred pre-pack day arrival window before submitting your quote.",
@@ -570,17 +572,10 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
   }
 });
 
-// Live preview of estimatedHours from the canonical pricing engine. The quote
-// wizard calls this on Step 2 to drive the pre-pack-day requirement (>=5h).
-// This guarantees client and server agree on the threshold rule and avoids
-// any heuristic drift between the two.
+// Live preview of estimatedHours; defaults mirror POST /quotes.
 router.post("/quotes/preview-hours", (req, res) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    // Defaults intentionally mirror POST /quotes' submit-time normalization
-    // (bedrooms/livingRooms default to 1, isFullyFurnished defaults to true)
-    // so the preview rule and the strict server enforcement always agree on
-    // identical inputs — no drift, even with sparse client payloads.
     const pricing = calculatePricing({
       numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
       numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),

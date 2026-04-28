@@ -877,10 +877,7 @@ export default function QuotePage() {
     return 300;
   };
 
-  // Live estimated-hours preview from the canonical server pricing engine.
-  // We call POST /api/quotes/preview-hours whenever step-2 inputs change so
-  // the pre-pack-day requirement is driven by the same calculation the
-  // backend uses at submit time — no client/server drift, no heuristic.
+  // Live preview from POST /api/quotes/preview-hours (debounced).
   const [serverEstimatedHours, setServerEstimatedHours] = useState<number | null>(null);
   const [serverPackingDayRequired, setServerPackingDayRequired] = useState<boolean>(false);
   const previewHoursTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -893,8 +890,6 @@ export default function QuotePage() {
     if (previewHoursTimerRef.current) clearTimeout(previewHoursTimerRef.current);
     previewHoursTimerRef.current = setTimeout(async () => {
       try {
-        // Pull the latest distance from step-1 (typed in another form
-        // controller) so changes there ripple into the live preview too.
         const step1 = (() => { try { return getStep1Values(); } catch { return null; } })();
         const liveDistanceMiles = step1?.distanceMiles ? Number(step1.distanceMiles) : 0;
         const res = await fetch("/api/quotes/preview-hours", {
@@ -908,11 +903,6 @@ export default function QuotePage() {
             hasStairs: homeSize.hasStairs,
             hasHeavyItems: homeSize.hasHeavyItems,
             isFullyFurnished: homeSize.isFullyFurnished,
-            // CRITICAL: feed the live inventory/boxes/materials so the
-            // preview matches what calculatePricing() will see at submit
-            // time. The pricing engine factors inventory into estimated
-            // hours, so omitting these would cause the pre-pack-day rule
-            // to flip silently between step 2 and step 3.
             inventory,
             smallBoxes,
             mediumBoxes,
@@ -927,14 +917,9 @@ export default function QuotePage() {
           if (typeof data.estimatedHours === "number") {
             setServerEstimatedHours(data.estimatedHours);
           }
-          // Trust the server's packingDayRequired flag directly — that way
-          // any future change to the threshold rule (currently >=5h) lives
-          // in exactly one place: the API.
           setServerPackingDayRequired(Boolean(data.packingDayRequired));
         }
       } catch {
-        // Network hiccup — fall back to false so we don't block the user;
-        // the server still strictly enforces the rule on submit, so this is safe.
         setServerEstimatedHours(null);
         setServerPackingDayRequired(false);
       }
@@ -952,19 +937,12 @@ export default function QuotePage() {
     homeSize.hasStairs,
     homeSize.hasHeavyItems,
     homeSize.isFullyFurnished,
-    // Re-run on every inventory/box/materials change so the pre-pack-day
-    // requirement updates the moment the customer adds heavy items, more
-    // boxes, or requests packing materials in step 3.
     inventory,
     smallBoxes,
     mediumBoxes,
     needsPackingMaterials,
   ]);
 
-  // Single canonical rule: trust the server's packingDayRequired flag rather
-  // than recomputing on the client. The threshold lives in routes/quotes.ts
-  // (currently estimatedHours >= 5) and the preview endpoint returns the
-  // exact same boolean — so client and server can never disagree on the rule.
   const requiresPackDay = !isJunkRemoval && serverPackingDayRequired;
 
   const nextFromStep2 = () => {
