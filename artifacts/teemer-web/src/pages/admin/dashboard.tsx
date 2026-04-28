@@ -712,6 +712,12 @@ function QuoteDetailPanel({ quote, onClose }: { quote: QuoteResponse; onClose: (
                   <span className="font-medium">${(quote.commercialAdjustment ?? 0).toFixed(2)}</span>
                 </div>
               )}
+              {(quote.mountedTVFee ?? 0) > 0 && (
+                <div className="flex justify-between text-slate-600">
+                  <span>📺 Wall-Mounted TVs ({quote.mountedTVCount ?? 1})</span>
+                  <span className="font-medium">${(quote.mountedTVFee ?? 0).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-slate-800 border-t pt-2">
                 <span>Total estimate</span>
                 <span>${(quote.totalEstimate ?? 0).toFixed(2)}</span>

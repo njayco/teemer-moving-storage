@@ -1,3 +1,5 @@
+import { getEffectiveMountedTVFee } from "./pricing-engine.js";
+
 const BRAND_COLOR = "#22C55E";
 const SECONDARY_COLOR = "#0B132B";
 const FONT_FAMILY = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
@@ -108,6 +110,8 @@ export interface DepositConfirmationData {
   packingArrivalWindow?: string | null;
   hasMountedTVs?: boolean;
   mountedTVCount?: number;
+  // Task #45: per-TV dismount/remount fee, included in totalEstimate.
+  mountedTVFee?: number;
   parkingInstructions?: string | null;
 }
 
@@ -129,8 +133,20 @@ export function depositConfirmationHtml(data: DepositConfirmationData): string {
       rows.push(["Packing Arrival", data.packingArrivalWindow]);
     }
   }
-  if (data.hasMountedTVs && (data.mountedTVCount ?? 0) > 0) {
-    rows.push(["Wall-Mounted TVs", `${data.mountedTVCount} (dismount/remount)`]);
+  // Only mention the wall-mounted TV line in the deposit-confirmation
+  // email if the customer was actually charged for it. Legacy quotes
+  // recorded `hasMountedTVs` but never had a fee in their total, so
+  // omit the row rather than imply a charge they never agreed to.
+  const tvFee = getEffectiveMountedTVFee({
+    hasMountedTVs: data.hasMountedTVs,
+    storedFee: data.mountedTVFee,
+  });
+  if (tvFee > 0 && (data.mountedTVCount ?? 0) > 0) {
+    const tvCount = data.mountedTVCount ?? 0;
+    rows.push([
+      "Wall-Mounted TVs",
+      `${tvCount} TV${tvCount === 1 ? "" : "s"} (dismount/remount) — ${formatCurrency(tvFee)}`,
+    ]);
   }
   if (data.parkingInstructions && data.parkingInstructions.trim()) {
     const trimmed = data.parkingInstructions.trim();

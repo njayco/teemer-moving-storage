@@ -1,6 +1,10 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { calculatePricing } from "./pricing-engine.js";
+import {
+  calculatePricing,
+  getEffectiveMountedTVFee,
+  MOUNTED_TV_FEE_PER_TV,
+} from "./pricing-engine.js";
 
 const base = {
   hasGarage: false,
@@ -192,6 +196,60 @@ describe("Materials pricing", () => {
   });
 });
 
+describe("Wall-mounted TV fee (Task #45)", () => {
+  test("Default — no mountedTVCount → mountedTVFee is 0 and totalEstimate is unchanged", () => {
+    const r = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1 });
+    assert.equal(r.mountedTVFee, 0);
+    assert.equal(r.totalEstimate, 825);
+  });
+
+  test("1 TV → adds $50 to totalEstimate", () => {
+    const r = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, mountedTVCount: 1 });
+    assert.equal(r.mountedTVFee, 50);
+    assert.equal(r.totalEstimate, 825 + 50);
+  });
+
+  test("3 TVs → adds 3 × $50 = $150 to totalEstimate", () => {
+    const r = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, mountedTVCount: 3 });
+    assert.equal(r.mountedTVFee, 150);
+    assert.equal(r.totalEstimate, 825 + 150);
+  });
+
+  test("Per-TV rate constant matches what we charge", () => {
+    assert.equal(MOUNTED_TV_FEE_PER_TV, 50);
+  });
+
+  test("TV fee is added AFTER the commercial 2× doubling (parity with distanceSurcharge)", () => {
+    const r = calculatePricing({
+      ...base,
+      numberOfBedrooms: 2,
+      numberOfLivingRooms: 1,
+      isCommercial: true,
+      commercialSizeTier: "small",
+      mountedTVCount: 2,
+    });
+    // Residential baseline: 1200; commercial doubles to 2400 (above tier min of 1000),
+    // then TV fee adds 100 ON TOP.
+    assert.equal(r.totalEstimate, 2400 + 100);
+    assert.equal(r.mountedTVFee, 100);
+    assert.equal(r.commercialAdjustment, 1200);
+  });
+
+  test("Negative or fractional counts are coerced to a non-negative integer", () => {
+    const negative = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, mountedTVCount: -3 });
+    assert.equal(negative.mountedTVFee, 0);
+    const fractional = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, mountedTVCount: 2.7 });
+    assert.equal(fractional.mountedTVFee, 100);
+  });
+
+  test("TV fee can push a sub-$1000 quote across the deposit threshold", () => {
+    // Baseline 825 + 4 TVs × 50 = 1025 → 50% deposit kicks in (was flat $50).
+    const r = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, mountedTVCount: 4 });
+    assert.equal(r.totalEstimate, 1025);
+    assert.equal(r.depositAmount, Math.round(1025 * 0.5 * 100) / 100);
+  });
+});
+
 describe("Hours clamping and adjustments", () => {
   test("Hours are clamped to max 10", () => {
     const r = calculatePricing({
@@ -214,5 +272,33 @@ describe("Hours clamping and adjustments", () => {
     const without = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, hasStairs: false });
     const with_ = calculatePricing({ ...base, numberOfBedrooms: 1, numberOfLivingRooms: 1, hasStairs: true });
     assert.equal(with_.estimatedHours - without.estimatedHours, 0.5);
+  });
+});
+
+describe("getEffectiveMountedTVFee — strict snapshot semantics", () => {
+  test("Returns 0 when mounted-TV service was not selected", () => {
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: false, storedFee: 150 }), 0);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: null, storedFee: 50 }), 0);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: undefined, storedFee: 50 }), 0);
+  });
+
+  test("Returns the snapshot when present (the customer-quoted amount)", () => {
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: 150 }), 150);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: 99.99 }), 99.99);
+  });
+
+  test("Legacy rows (no snapshot or zero) return 0 — never imply a charge that wasn't quoted", () => {
+    // Pre-Task-#45 quotes had hasMountedTVs=true but no fee in their
+    // total_estimate. Falling back to count×constant here would silently
+    // over-bill them on the contract, email, and seeded invoice.
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true }), 0);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: null }), 0);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: 0 }), 0);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: -10 }), 0);
+  });
+
+  test("Rounds the snapshot to whole cents", () => {
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: 50.005 }), 50.01);
+    assert.equal(getEffectiveMountedTVFee({ hasMountedTVs: true, storedFee: 50.001 }), 50);
   });
 });

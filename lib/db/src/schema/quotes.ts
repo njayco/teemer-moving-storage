@@ -27,6 +27,9 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   // Mounted TVs (require special unmount/remount)
   hasMountedTVs: boolean("has_mounted_tvs").default(false),
   mountedTVCount: integer("mounted_tv_count").default(0),
+  // Snapshot of the per-TV fee charged at quote creation. Stored so the
+  // total never drifts if the per-TV rate constant changes later.
+  mountedTVFee: real("mounted_tv_fee").default(0),
 
   // Discount code applied at booking
   discountCode: text("discount_code"),
@@ -120,6 +123,7 @@ export const insertQuoteRequestSchema = createInsertSchema(quoteRequestsTable).o
   materialsSubtotal: true,
   pianoSurcharge: true,
   commercialAdjustment: true,
+  mountedTVFee: true,
   depositAmount: true,
   totalEstimate: true,
   junkBasePrice: true,

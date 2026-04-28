@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { requireAdmin } from "../lib/auth";
 import { generateContractPdf, type ContractData } from "../lib/contract-pdf";
 import { sendContractEmail } from "../lib/email-service";
+import { getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
 import crypto from "node:crypto";
 
 const router: IRouter = Router();
@@ -67,6 +68,10 @@ router.post("/jobs/:jobId/contracts", requireAdmin, async (req, res) => {
       packingArrivalWindow: job.packingArrivalWindow ?? quote?.packingArrivalWindow ?? undefined,
       hasMountedTVs: Boolean(job.hasMountedTVs ?? quote?.hasMountedTVs),
       mountedTVCount: job.mountedTVCount ?? quote?.mountedTVCount ?? undefined,
+      mountedTVFee: getEffectiveMountedTVFee({
+        hasMountedTVs: job.hasMountedTVs ?? quote?.hasMountedTVs,
+        storedFee: quote?.mountedTVFee,
+      }),
     };
 
     const pdfBuffer = await generateContractPdf(contractData);
@@ -241,6 +246,10 @@ router.get("/jobs/:jobId/contracts/pdf", requireAdmin, async (req, res) => {
         packingArrivalWindow: job.packingArrivalWindow ?? quote?.packingArrivalWindow ?? undefined,
         hasMountedTVs: Boolean(job.hasMountedTVs ?? quote?.hasMountedTVs),
         mountedTVCount: job.mountedTVCount ?? quote?.mountedTVCount ?? undefined,
+        mountedTVFee: getEffectiveMountedTVFee({
+          hasMountedTVs: job.hasMountedTVs ?? quote?.hasMountedTVs,
+          storedFee: quote?.mountedTVFee,
+        }),
       };
     }
 

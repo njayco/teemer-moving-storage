@@ -505,6 +505,14 @@ function QuoteResultsScreen({ result, moveDate, onReserve }: {
                   <span className="font-semibold text-slate-800">{fmt((q as Record<string, unknown>).distanceSurcharge as number)}</span>
                 </div>
               )}
+              {(q.mountedTVFee ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">
+                    Wall-Mounted TV Service ({q.mountedTVCount ?? 1} TV{(q.mountedTVCount ?? 1) === 1 ? "" : "s"} × ${((q.mountedTVFee ?? 0) / Math.max(1, q.mountedTVCount ?? 1)).toFixed(2)}/TV)
+                  </span>
+                  <span className="font-semibold text-slate-800">{fmt(q.mountedTVFee ?? 0)}</span>
+                </div>
+              )}
               {(q.commercialAdjustment ?? 0) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600 flex items-center gap-1.5">

@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
+import { getEffectiveMountedTVFee } from "./pricing-engine.js";
 
 export interface ContractData {
   customerName: string;
@@ -25,6 +26,8 @@ export interface ContractData {
   packingArrivalWindow?: string;
   hasMountedTVs?: boolean;
   mountedTVCount?: number;
+  // Task #45: per-TV dismount/remount fee, included in totalEstimate.
+  mountedTVFee?: number;
 }
 
 function resolveLogoPath(): string | null {
@@ -233,11 +236,25 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
       y += 12;
     }
 
-    if (data.hasMountedTVs) {
+    // Only render the mounted-TV section if the customer was actually
+    // charged for it (fee snapshot > 0). Legacy quotes had hasMountedTVs
+    // recorded but no fee in their total, so we omit the dollar amount
+    // entirely rather than imply a charge they never agreed to.
+    const tvFee = getEffectiveMountedTVFee({
+      hasMountedTVs: data.hasMountedTVs,
+      storedFee: data.mountedTVFee,
+    });
+    if (data.hasMountedTVs && tvFee > 0) {
       const tvCount = data.mountedTVCount && data.mountedTVCount > 0 ? data.mountedTVCount : 1;
       y = sectionHeader(doc, "MOUNTED TVs", y, margin);
       y += 4;
-      y = labelValue(doc, "TVs to unmount/remount:", `${tvCount} mounted TV${tvCount > 1 ? "s" : ""}`, margin, y);
+      y = labelValue(
+        doc,
+        "TVs to unmount/remount:",
+        `${tvCount} mounted TV${tvCount > 1 ? "s" : ""} — $${tvFee.toFixed(2)} ($${(tvFee / tvCount).toFixed(2)}/TV)`,
+        margin,
+        y,
+      );
       doc
         .fillColor(GRAY)
         .fontSize(8.5)

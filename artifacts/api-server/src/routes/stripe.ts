@@ -8,6 +8,7 @@ import {
   sendAdminNewJobNotification,
 } from "../lib/email-service";
 import { recordTimelineEvent } from "../lib/timeline";
+import { getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
 
 const router: IRouter = Router();
 
@@ -154,6 +155,10 @@ async function finalizeDeposit({ parsedQuoteId, stripeSessionId, logger }: Final
     packingArrivalWindow: updatedQuote.packingArrivalWindow ?? null,
     hasMountedTVs: Boolean(updatedQuote.hasMountedTVs),
     mountedTVCount: updatedQuote.mountedTVCount ?? 0,
+    mountedTVFee: getEffectiveMountedTVFee({
+      hasMountedTVs: updatedQuote.hasMountedTVs,
+      storedFee: updatedQuote.mountedTVFee,
+    }),
     parkingInstructions: updatedQuote.parkingInstructions ?? null,
   }).catch((err) => logger.error({ err }, "Failed to send deposit confirmation email"));
 
@@ -364,6 +369,10 @@ router.post("/stripe/resend-deposit-emails", async (req: Request, res: Response)
       packingArrivalWindow: quote.packingArrivalWindow ?? null,
       hasMountedTVs: Boolean(quote.hasMountedTVs),
       mountedTVCount: quote.mountedTVCount ?? 0,
+      mountedTVFee: getEffectiveMountedTVFee({
+        hasMountedTVs: quote.hasMountedTVs,
+        storedFee: quote.mountedTVFee,
+      }),
       parkingInstructions: quote.parkingInstructions ?? null,
     });
 

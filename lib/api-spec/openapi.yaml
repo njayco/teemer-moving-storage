@@ -1126,6 +1126,9 @@ components:
         commercialAdjustment:
           type: number
           description: "Amount added above residential estimate for commercial moves"
+        mountedTVFee:
+          type: number
+          description: "Per-TV wall-mounted TV dismount/remount surcharge (count × $50/TV); included in totalEstimate"
         totalEstimate:
           type: number
         depositAmount:

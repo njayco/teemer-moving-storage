@@ -14,6 +14,7 @@ import { eq, desc, count, sum, sql, or, ilike, and, isNotNull, gte, lte, inArray
 import { requireAdmin, requireCaptainOrAdmin } from "../lib/auth";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendRemainingBalanceInvoiceEmail, sendStatusUpdateEmail, sendSameDayCaptainAlert } from "../lib/email-service";
+import { getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
 
 // Seed packing-supplies line items from a quote's pricing inputs so the admin
 // invoice editor isn't blank — pre-fills small/medium boxes, tape, and stretch
@@ -30,6 +31,26 @@ function seedSuppliesItemsFromQuote(quote: typeof quoteRequestsTable.$inferSelec
     const stretchWrapPerBedroom = quote.isFullyFurnished ? 2 : 1;
     items.push({ name: "Stretch Wrap (rolls)", quantity: stretchWrapPerBedroom * bedrooms, unitPrice: 55 });
     items.push({ name: "Packing Tape (rolls)", quantity: bedrooms, unitPrice: 13.5 });
+  }
+  // Task #45: pre-fill the wall-mounted TV dismount/remount service so admins
+  // don't have to remember to bill it. Editable like any other invoice line.
+  // Only seed the TV line item if the original quote actually charged for
+  // it (snapshot > 0). For legacy quotes that have hasMountedTVs=true but
+  // no fee snapshot, the original `total_estimate` did NOT include a TV
+  // fee, so silently pre-populating one would invoice the customer for a
+  // service they were never quoted. The admin can still add it manually
+  // if the customer agrees.
+  const effectiveFee = getEffectiveMountedTVFee({
+    hasMountedTVs: quote.hasMountedTVs,
+    storedFee: quote.mountedTVFee,
+  });
+  if (effectiveFee > 0 && (quote.mountedTVCount ?? 0) > 0) {
+    const tvCount = quote.mountedTVCount ?? 1;
+    items.push({
+      name: "Wall-Mounted TV Dismount/Remount",
+      quantity: tvCount,
+      unitPrice: Math.round((effectiveFee / tvCount) * 100) / 100,
+    });
   }
   return items;
 }

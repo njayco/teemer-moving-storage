@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { quoteRequestsTable, jobsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { calculatePricing, calculateJunkRemovalPricing } from "../lib/pricing-engine.js";
+import { calculatePricing, calculateJunkRemovalPricing, getEffectiveMountedTVFee } from "../lib/pricing-engine.js";
 import { recordTimelineEvent } from "../lib/timeline";
 import { sendBookingConfirmationEmail } from "../lib/email-service";
 import { logger } from "../lib/logger";
@@ -29,6 +29,10 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
     commercialAdjustment: q.commercialAdjustment ?? 0,
     distanceMiles: q.distanceMiles ?? 0,
     distanceSurcharge: Math.round((q.distanceMiles ?? 0) * 3.00 * 100) / 100,
+    mountedTVFee: getEffectiveMountedTVFee({
+      hasMountedTVs: q.hasMountedTVs,
+      storedFee: q.mountedTVFee,
+    }),
     totalEstimate: q.totalEstimate,
     depositAmount: q.depositAmount,
     // Legacy compat
@@ -336,6 +340,10 @@ router.post("/quotes", async (req, res) => {
       };
     } else {
       const isCommercial = Boolean(body.isCommercial) || body.residentialOrCommercial === "commercial";
+      const hasMountedTVsForPricing = Boolean(body.hasMountedTVs);
+      const mountedTVCountForPricing = hasMountedTVsForPricing
+        ? Math.max(1, Math.min(20, Math.floor(Number(body.mountedTVCount ?? 1)) || 1))
+        : 0;
       const pricing = calculatePricing({
         numberOfBedrooms: Number(body.numberOfBedrooms ?? 1),
         numberOfLivingRooms: Number(body.numberOfLivingRooms ?? 1),
@@ -354,6 +362,7 @@ router.post("/quotes", async (req, res) => {
         commercialBusinessType: body.commercialBusinessType || undefined,
         commercialSizeTier: body.commercialSizeTier || undefined,
         distanceMiles: Number(body.distanceMiles ?? 0),
+        mountedTVCount: mountedTVCountForPricing,
       });
       totalEstimate = pricing.totalEstimate;
       depositAmount = pricing.depositAmount;
@@ -365,6 +374,9 @@ router.post("/quotes", async (req, res) => {
         materialsSubtotal: pricing.materialsSubtotal,
         pianoSurcharge: pricing.pianoSurcharge,
         commercialAdjustment: pricing.commercialAdjustment,
+        // Snapshot the engine-computed fee so historical totals never drift if
+        // MOUNTED_TV_FEE_PER_TV changes later.
+        mountedTVFee: pricing.mountedTVFee,
         totalEstimate: pricing.totalEstimate,
         depositAmount: pricing.depositAmount,
         junkBasePrice: null,
@@ -594,6 +606,9 @@ router.post("/quotes/preview-hours", (req, res) => {
       commercialBusinessType: (body.commercialBusinessType as string | undefined) || undefined,
       commercialSizeTier: (body.commercialSizeTier as "small" | "medium" | "large" | "enterprise" | undefined) || undefined,
       distanceMiles: Number(body.distanceMiles ?? 0),
+      mountedTVCount: Boolean(body.hasMountedTVs)
+        ? Math.max(0, Math.min(20, Math.floor(Number(body.mountedTVCount ?? 0)) || 0))
+        : 0,
     });
     res.json({
       estimatedHours: pricing.estimatedHours,

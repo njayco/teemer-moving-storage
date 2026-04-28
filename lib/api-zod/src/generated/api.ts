@@ -191,6 +191,12 @@ export const ListQuoteRequestsResponseItem = zod.object({
     .number()
     .optional()
     .describe("Amount added above residential estimate for commercial moves"),
+  mountedTVFee: zod
+    .number()
+    .optional()
+    .describe(
+      "Per-TV wall-mounted TV dismount\/remount surcharge (count × $50\/TV); included in totalEstimate",
+    ),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   serviceType: zod
@@ -296,6 +302,12 @@ export const GetQuoteRequestResponse = zod.object({
     .number()
     .optional()
     .describe("Amount added above residential estimate for commercial moves"),
+  mountedTVFee: zod
+    .number()
+    .optional()
+    .describe(
+      "Per-TV wall-mounted TV dismount\/remount surcharge (count × $50\/TV); included in totalEstimate",
+    ),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   serviceType: zod
@@ -444,6 +456,12 @@ export const UpdateQuoteStatusResponse = zod.object({
     .number()
     .optional()
     .describe("Amount added above residential estimate for commercial moves"),
+  mountedTVFee: zod
+    .number()
+    .optional()
+    .describe(
+      "Per-TV wall-mounted TV dismount\/remount surcharge (count × $50\/TV); included in totalEstimate",
+    ),
   totalEstimate: zod.number().optional(),
   depositAmount: zod.number().optional(),
   serviceType: zod

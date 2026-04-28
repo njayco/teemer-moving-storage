@@ -1,3 +1,29 @@
+// Per-TV fee for the wall-mounted TV dismount / wrap / remount service.
+// Tunable in code; the spec suggested $30–$50/TV and we land at the top of
+// that band to reflect both labor and the on-site hardware risk.
+export const MOUNTED_TV_FEE_PER_TV = 50;
+
+// Single source of truth for resolving the mounted-TV fee a customer
+// should be charged. Returns the snapshot captured at quote creation
+// (`storedFee`) so the displayed line-item dollar amount always matches
+// what the customer was originally quoted (and what's already included
+// in their `total_estimate`).
+//
+// Returns 0 — and callers must treat that as "no line item, no charge" —
+// for both:
+//   1. Quotes where mounted-TV service was not selected.
+//   2. Legacy quotes created before Task #45 that don't have a snapshot
+//      (their `total_estimate` never included a TV fee, so we must not
+//      retroactively imply one).
+export function getEffectiveMountedTVFee(args: {
+  hasMountedTVs: boolean | number | null | undefined;
+  storedFee?: number | null;
+}): number {
+  if (!args.hasMountedTVs) return 0;
+  if (typeof args.storedFee !== "number" || args.storedFee <= 0) return 0;
+  return Math.round(args.storedFee * 100) / 100;
+}
+
 export interface PricingInput {
   numberOfBedrooms: number;
   numberOfLivingRooms: number;
@@ -18,6 +44,9 @@ export interface PricingInput {
   commercialSizeTier?: "small" | "medium" | "large" | "enterprise";
   // Distance surcharge
   distanceMiles?: number;
+  // Wall-mounted TV dismount/wrap/remount service. Number of TVs the crew
+  // will safely dismount at the origin and re-mount at the destination.
+  mountedTVCount?: number;
 }
 
 export interface PricingResult {
@@ -29,6 +58,7 @@ export interface PricingResult {
   pianoSurcharge: number;
   commercialAdjustment: number;
   distanceSurcharge: number;
+  mountedTVFee: number;
   totalEstimate: number;
   depositAmount: number;
   breakdown: {
@@ -248,6 +278,13 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const distanceSurcharge = Math.round(distanceMiles * 3.00 * 100) / 100;
   totalEstimate += distanceSurcharge;
 
+  // Wall-mounted TV dismount/remount service: flat per-TV labor adder.
+  // Added on top of any commercial doubling so it always passes through to
+  // the customer at the same per-TV rate (parity with distanceSurcharge).
+  const mountedTVCount = Math.max(0, Math.floor(input.mountedTVCount ?? 0));
+  const mountedTVFee = Math.round(mountedTVCount * MOUNTED_TV_FEE_PER_TV * 100) / 100;
+  totalEstimate += mountedTVFee;
+
   totalEstimate = Math.round(totalEstimate * 100) / 100;
   const depositAmount = totalEstimate < 1000 ? 50 : Math.round(totalEstimate * 0.5 * 100) / 100;
 
@@ -260,6 +297,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     pianoSurcharge,
     commercialAdjustment: Math.round(commercialAdjustment * 100) / 100,
     distanceSurcharge,
+    mountedTVFee,
     totalEstimate,
     depositAmount,
     breakdown: {

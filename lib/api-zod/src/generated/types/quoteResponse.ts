@@ -23,6 +23,8 @@ export interface QuoteResponse {
   pianoSurcharge?: number;
   /** Amount added above residential estimate for commercial moves */
   commercialAdjustment?: number;
+  /** Per-TV wall-mounted TV dismount/remount surcharge (count × $50/TV); included in totalEstimate */
+  mountedTVFee?: number;
   totalEstimate?: number;
   depositAmount?: number;
   /** Service type: moving or junk_removal */
