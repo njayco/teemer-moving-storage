@@ -2,8 +2,13 @@ import { test, describe, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { db } from "@workspace/db";
-import { customersTable, quoteRequestsTable, jobsTable, emailLogsTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import {
+  customersTable,
+  quoteRequestsTable,
+  jobsTable,
+  emailLogsTable,
+} from "@workspace/db/schema";
+import { and, eq, gt, sql } from "drizzle-orm";
 import {
   startTestServer,
   stopTestServer,
@@ -353,6 +358,157 @@ describe("GET /api/customer-auth/me", () => {
   });
 });
 
+describe("POST /api/customer-auth/forgot-password", () => {
+  // Helper: pull every email_logs row written for `recipient` after `since`.
+  // Filtering by the unique per-test recipient address keeps this isolated from
+  // other tests running in the same process.
+  async function emailsSentTo(recipient: string, since: Date) {
+    return db
+      .select({ emailType: emailLogsTable.emailType, status: emailLogsTable.status })
+      .from(emailLogsTable)
+      .where(
+        and(
+          eq(emailLogsTable.recipient, recipient),
+          gt(emailLogsTable.sentAt, since),
+        ),
+      );
+  }
+
+  // Generic deterministic poll: re-runs `query` every 25ms until `predicate`
+  // returns true, then returns the matching value. Fails the test (rather than
+  // silently returning a stale snapshot) if the timeout is exceeded — we'd
+  // rather see a clear "test waited too long" error than a flaky false pass.
+  async function pollUntil<T>(
+    label: string,
+    query: () => Promise<T>,
+    predicate: (v: T) => boolean,
+    timeoutMs = 5000,
+  ): Promise<T> {
+    const deadline = Date.now() + timeoutMs;
+    let last: T;
+    do {
+      last = await query();
+      if (predicate(last)) return last;
+      await new Promise((r) => setTimeout(r, 25));
+    } while (Date.now() < deadline);
+    throw new Error(`pollUntil timed out waiting for: ${label}`);
+  }
+
+  // Signup fires off `account_credentials` and `email_verification` emails
+  // asynchronously after responding. Wait until both rows show up in
+  // email_logs before setting the test's "cutoff" timestamp.
+  async function waitForSignupEmails(recipient: string) {
+    await pollUntil(
+      `signup emails for ${recipient}`,
+      () =>
+        db
+          .select({ emailType: emailLogsTable.emailType })
+          .from(emailLogsTable)
+          .where(eq(emailLogsTable.recipient, recipient)),
+      (rows) => {
+        const types = new Set(rows.map((r) => r.emailType));
+        return types.has("account_credentials") && types.has("email_verification");
+      },
+    );
+  }
+
+  test("unverified accounts get a fresh verification email — never a reset link", async () => {
+    const email = testEmail("forgot-unverified");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Unverified User", email },
+    });
+    assert.equal(signup.status, 201);
+    track.customer(signup.body.customer.customerId);
+
+    // Sanity: signup leaves the account unverified.
+    const [row] = await db
+      .select({ emailVerifiedAt: customersTable.emailVerifiedAt })
+      .from(customersTable)
+      .where(eq(customersTable.id, signup.body.customer.customerId));
+    assert.equal(row.emailVerifiedAt, null);
+
+    await waitForSignupEmails(email);
+    const cutoff = new Date();
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    // Endpoint always returns success to avoid leaking which addresses exist.
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+
+    // Poll until the fire-and-forget email task lands a new row in email_logs
+    // for this address. Fails loudly if it doesn't, instead of relying on a
+    // fixed sleep that can race on slow CI runs.
+    const sent = await pollUntil(
+      `verification email for ${email} after forgot-password`,
+      () => emailsSentTo(email, cutoff),
+      (rows) => rows.some((r) => r.emailType === "email_verification"),
+    );
+    const types = sent.map((s) => s.emailType);
+    assert.ok(
+      !types.includes("password_reset"),
+      `password_reset must NOT be sent to unverified accounts (got ${JSON.stringify(types)})`,
+    );
+  });
+
+  test("verified accounts get a password reset email", async () => {
+    const email = testEmail("forgot-verified");
+    const signup = await api("/api/customer-auth/signup", {
+      method: "POST",
+      body: { fullName: "Verified User", email },
+    });
+    assert.equal(signup.status, 201);
+    track.customer(signup.body.customer.customerId);
+
+    // Mark the account as verified so the reset path is taken.
+    await db
+      .update(customersTable)
+      .set({ emailVerifiedAt: new Date() })
+      .where(eq(customersTable.id, signup.body.customer.customerId));
+
+    await waitForSignupEmails(email);
+    const cutoff = new Date();
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+
+    const sent = await pollUntil(
+      `password_reset email for ${email} after forgot-password`,
+      () => emailsSentTo(email, cutoff),
+      (rows) => rows.some((r) => r.emailType === "password_reset"),
+    );
+    const types = sent.map((s) => s.emailType);
+    assert.ok(
+      !types.includes("email_verification"),
+      `verification email must NOT be re-sent for verified accounts (got ${JSON.stringify(types)})`,
+    );
+  });
+
+  test("unknown emails still respond 200 and trigger no email at all", async () => {
+    const email = testEmail("forgot-nobody");
+    const cutoff = new Date();
+    const res = await api("/api/customer-auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+
+    // No customer record exists for this address, so the handler should never
+    // call sendEmail at all. Give the event loop a generous window in case a
+    // bug in the future starts queuing one — we want this test to catch it
+    // rather than pass before the rogue write happens.
+    await new Promise((r) => setTimeout(r, 500));
+    const sent = await emailsSentTo(email, cutoff);
+    assert.equal(sent.length, 0, "no email should be sent for unknown addresses");
+  });
+});
+
 describe("GET /api/customer-auth/check-username", () => {
   test("returns valid:false for a malformed username", async () => {
     const res = await api(`/api/customer-auth/check-username?username=${encodeURIComponent("ab")}`);
@@ -422,18 +578,42 @@ describe("Auth email throttling", () => {
   }
 
   /**
-   * The signup endpoint fires its verification email as fire-and-forget, so
-   * its email_logs row may not be written by the time the test starts looping.
-   * Wait briefly for it to land, then clear all auth-related rows for this
-   * recipient — that gives each throttle test a deterministic clean slate.
+   * The signup endpoint fires its verification + credentials emails as
+   * fire-and-forget, so their email_logs rows may not have landed yet. Poll
+   * until both have arrived (or we time out), then delete every auth-related
+   * row for this recipient. That gives each throttle test a deterministic
+   * clean slate without any late-arriving signup writes leaking into the
+   * throttle counter.
    */
   async function clearAuthEmailLogsFor(email: string): Promise<void> {
-    await new Promise((r) => setTimeout(r, 50));
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      const rows = await db
+        .select({ emailType: emailLogsTable.emailType })
+        .from(emailLogsTable)
+        .where(eq(emailLogsTable.recipient, email));
+      const types = new Set(rows.map((r) => r.emailType));
+      if (types.has("account_credentials") && types.has("email_verification")) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     await db
       .delete(emailLogsTable)
       .where(
         sql`lower(${emailLogsTable.recipient}) = ${email.toLowerCase()} and ${emailLogsTable.emailType} in ('email_verification','password_reset','account_credentials')`,
       );
+  }
+
+  /**
+   * The forgot-password handler now refuses to send a reset link to an
+   * unverified account (Task #59) — it sends a verification email instead.
+   * Throttle tests that exercise the password_reset path therefore need to
+   * mark the account as verified up front.
+   */
+  async function markVerified(customerId: number): Promise<void> {
+    await db
+      .update(customersTable)
+      .set({ emailVerifiedAt: new Date() })
+      .where(eq(customersTable.id, customerId));
   }
 
   test("resend-verification: returns 429 once the per-recipient limit is reached", async () => {
@@ -478,6 +658,7 @@ describe("Auth email throttling", () => {
     });
     assert.equal(signup.status, 201);
     track.customer(signup.body.customer.customerId);
+    await markVerified(signup.body.customer.customerId);
     await clearAuthEmailLogsFor(email);
 
     // With a clean slate, the first three forgot-password calls all succeed.
@@ -519,11 +700,17 @@ describe("Auth email throttling", () => {
 
     // 1 resend (verification) + 2 forgot-password calls = 3, hits the pooled
     // limit. The next call (a 4th send of either type) must be throttled.
+    // Resend-verification short-circuits when the account is already verified,
+    // so we hit it FIRST while the account is still unverified, then flip the
+    // verified flag so the subsequent forgot-password calls take the
+    // password_reset branch instead of re-sending verification emails.
     const r1 = await api("/api/customer-auth/resend-verification", {
       method: "POST",
       cookieJar: jar,
     });
     assert.equal(r1.status, 200);
+
+    await markVerified(signup.body.customer.customerId);
 
     for (let i = 0; i < 2; i++) {
       const r = await api("/api/customer-auth/forgot-password", {

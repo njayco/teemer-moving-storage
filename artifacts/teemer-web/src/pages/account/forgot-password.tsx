@@ -1,17 +1,75 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { customerApi } from "@/lib/customer-auth";
+import { customerApi, useCustomerAuth } from "@/lib/customer-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CustomerHeader } from "./layout";
-import { KeyRound, AlertCircle, MailCheck } from "lucide-react";
+import { KeyRound, AlertCircle, MailCheck, MailWarning } from "lucide-react";
 
 export default function CustomerForgotPasswordPage() {
+  const { customer } = useCustomerAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  const resendVerification = async () => {
+    setResendState("sending");
+    try {
+      const res = await customerApi.fetch("/customer-auth/resend-verification", { method: "POST" });
+      setResendState(res.ok ? "sent" : "error");
+    } catch {
+      setResendState("error");
+    }
+  };
+
+  // Signed-in but unverified customers can't usefully request a reset — the
+  // backend will only send a verification email in that case. Surface that
+  // upfront so they don't think the form is broken.
+  if (customer && customer.emailVerified === false) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <CustomerHeader />
+        <div className="max-w-md mx-auto px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-3">
+              <MailWarning className="w-6 h-6 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">Verify your email first</h1>
+            <p className="text-slate-600 text-sm mt-2">
+              For your security, we can only send password reset links to verified
+              email addresses. Please confirm <span className="font-semibold">{customer.email}</span> first.
+            </p>
+            {resendState === "sent" ? (
+              <p className="text-sm text-emerald-700 mt-4">
+                Verification email sent — check your inbox.
+              </p>
+            ) : (
+              <Button
+                onClick={resendVerification}
+                disabled={resendState === "sending"}
+                className="w-full mt-6"
+              >
+                {resendState === "sending" ? "Sending…" : "Send verification email"}
+              </Button>
+            )}
+            {resendState === "error" && (
+              <p className="text-xs text-rose-700 mt-2">
+                Couldn't send the email. Please try again.
+              </p>
+            )}
+            <div className="mt-4">
+              <Link href="/account/dashboard">
+                <Button variant="outline" className="w-full">Back to dashboard</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,11 +105,15 @@ export default function CustomerForgotPasswordPage() {
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Check your email</h1>
             <p className="text-slate-600 text-sm mt-2">
-              If an account exists for <span className="font-semibold">{email}</span>,
-              we've sent a password reset link. The link will expire in 1 hour.
+              If a verified account exists for <span className="font-semibold">{email}</span>,
+              we've sent a password reset link that expires in 1 hour.
             </p>
             <p className="text-xs text-slate-500 mt-4">
-              Didn't get it? Check your spam folder, or try again in a minute.
+              Haven't confirmed your email yet? We'll send a verification link
+              instead — confirm your address, then come back to reset your password.
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              Didn't get anything? Check your spam folder, or try again in a minute.
             </p>
             <div className="mt-6 space-y-2">
               <Link href="/account/login">

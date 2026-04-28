@@ -445,6 +445,11 @@ router.post("/customer-auth/resend-verification", requireCustomer, async (req, r
 /**
  * Always responds 200 with the same body, regardless of whether the email
  * exists, so attackers can't enumerate registered addresses.
+ *
+ * Reset emails are only sent to accounts whose email has been verified.
+ * For accounts that exist but haven't verified their email yet, we re-send
+ * the verification email instead — this stops the forgot-password endpoint
+ * from being abused as a free email relay against arbitrary inboxes.
  */
 router.post("/customer-auth/forgot-password", async (req, res) => {
   try {
@@ -464,19 +469,22 @@ router.post("/customer-auth/forgot-password", async (req, res) => {
         email: customersTable.email,
         fullName: customersTable.fullName,
         passwordHash: customersTable.passwordHash,
+        emailVerifiedAt: customersTable.emailVerifiedAt,
       })
       .from(customersTable)
       .where(sql`lower(${customersTable.email}) = ${email}`)
       .limit(1);
 
-    if (customer && customer.passwordHash) {
+    if (!customer || !customer.passwordHash) {
+      req.log.info({ email }, "Forgot-password: no matching account with a password");
+    } else {
       const decision = await checkAuthEmailRate({
         ip: req.ip,
         recipient: customer.email,
       });
       if (!decision.allowed) {
         // Silently swallow — the response is identical so attackers can't
-        // distinguish "throttled" from "address unknown".
+        // distinguish "throttled" from "address unknown" or "unverified".
         req.log.warn(
           {
             customerId: customer.id,
@@ -488,6 +496,30 @@ router.post("/customer-auth/forgot-password", async (req, res) => {
           },
           "Forgot-password throttled (silent)",
         );
+      } else if (!customer.emailVerifiedAt) {
+        // The account exists but hasn't proven ownership of the email address.
+        // Don't send a reset link — instead, re-send the verification email so
+        // the legitimate owner can confirm and then come back to reset. This
+        // stops the forgot-password endpoint from being abused as a free email
+        // relay against arbitrary inboxes.
+        req.log.info(
+          { email, customerId: customer.id },
+          "Forgot-password: account is unverified, re-sending verification email instead",
+        );
+        const baseUrl = getAppBaseUrl();
+        const verificationToken = signEmailVerificationToken(customer.id, customer.email);
+        const verificationUrl = `${baseUrl}/account/verify-email?token=${encodeURIComponent(verificationToken)}`;
+        // Awaited so the email_logs row is committed before responding —
+        // ensures the next throttle check counts this attempt.
+        try {
+          await sendEmailVerificationEmail({
+            customerName: customer.fullName,
+            email: customer.email,
+            verificationUrl,
+          });
+        } catch (err) {
+          req.log.error({ err }, "Failed to re-send verification email from forgot-password");
+        }
       } else {
         const baseUrl = getAppBaseUrl();
         const token = signPasswordResetToken(customer.id, customer.passwordHash);
@@ -504,8 +536,6 @@ router.post("/customer-auth/forgot-password", async (req, res) => {
           req.log.error({ err }, "Failed to send password reset email");
         }
       }
-    } else {
-      req.log.info({ email }, "Forgot-password: no matching account with a password");
     }
 
     res.json({ success: true });
