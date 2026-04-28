@@ -88,7 +88,7 @@ function statusBadge(status: string) {
 function CustomerDashboardContent() {
   const { customer, refresh } = useCustomerAuth();
   const [tab, setTab] = useState<"overview" | "quotes" | "jobs" | "payments" | "profile">("overview");
-  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error" | "throttled">("idle");
 
   const resendVerification = async () => {
     setResendState("sending");
@@ -97,6 +97,8 @@ function CustomerDashboardContent() {
       if (res.ok) {
         setResendState("sent");
         refresh().catch(() => {});
+      } else if (res.status === 429) {
+        setResendState("throttled");
       } else {
         setResendState("error");
       }
@@ -163,6 +165,11 @@ function CustomerDashboardContent() {
                 ? `We just sent a fresh verification link to ${customer.email}. Click it to confirm your address.`
                 : `We sent a verification link to ${customer.email}. Click it to confirm your address.`}
             </p>
+            {resendState === "throttled" && (
+              <p className="text-xs text-amber-800 mt-1" data-testid="text-resend-throttled">
+                You've requested too many verification emails. Please try again in about an hour, or check your inbox (and spam folder) for the most recent link.
+              </p>
+            )}
             {resendState === "error" && (
               <p className="text-xs text-rose-700 mt-1">Couldn't send the email. Please try again.</p>
             )}
@@ -172,9 +179,14 @@ function CustomerDashboardContent() {
               size="sm"
               variant="outline"
               onClick={resendVerification}
-              disabled={resendState === "sending"}
+              disabled={resendState === "sending" || resendState === "throttled"}
+              data-testid="button-resend-verification"
             >
-              {resendState === "sending" ? "Sending…" : "Resend"}
+              {resendState === "sending"
+                ? "Sending…"
+                : resendState === "throttled"
+                ? "Try again later"
+                : "Resend"}
             </Button>
           )}
         </div>
