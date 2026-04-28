@@ -1,4 +1,7 @@
 import PDFDocument from "pdfkit";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 
 export interface ContractData {
   customerName: string;
@@ -16,6 +19,55 @@ export interface ContractData {
   quoteId?: number;
   totalEstimate?: number;
   depositAmount?: number;
+  // Task #43 additions
+  parkingInstructions?: string;
+  packingDate?: string;
+  packingArrivalWindow?: string;
+  hasMountedTVs?: boolean;
+  mountedTVCount?: number;
+}
+
+function resolveLogoPath(): string | null {
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const candidates = [
+      path.resolve(here, "../../assets/teemer-logo.jpg"),
+      path.resolve(here, "../../../assets/teemer-logo.jpg"),
+      path.resolve(process.cwd(), "assets/teemer-logo.jpg"),
+      path.resolve(process.cwd(), "artifacts/api-server/assets/teemer-logo.jpg"),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
+function parseArrivalWindow(window: string): { start: string; end: string } | null {
+  if (!window) return null;
+  const m = window.match(/([0-9]{1,2}(?::[0-9]{2})?\s?[AP]M)\s*[–-]\s*([0-9]{1,2}(?::[0-9]{2})?\s?[AP]M)/i);
+  if (!m) return null;
+  return { start: m[1].trim(), end: m[2].trim() };
+}
+
+function estimateEndTime(window: string, hours: number | undefined): string | null {
+  const parsed = parseArrivalWindow(window);
+  if (!parsed || !hours || hours <= 0) return null;
+  const m = parsed.start.match(/([0-9]{1,2})(?::([0-9]{2}))?\s?([AP]M)/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const minutes = m[2] ? parseInt(m[2], 10) : 0;
+  const ampm = m[3].toUpperCase();
+  if (ampm === "PM" && h < 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  const totalMin = h * 60 + minutes + Math.round(hours * 60);
+  const endH24 = Math.floor(totalMin / 60) % 24;
+  const endM = totalMin % 60;
+  const endAmpm = endH24 >= 12 ? "PM" : "AM";
+  const endH12 = ((endH24 + 11) % 12) + 1;
+  return `${endH12}:${String(endM).padStart(2, "0")} ${endAmpm}`;
 }
 
 const GREEN = "#22C55E";
@@ -70,27 +122,37 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
     const margin = 50;
     const usableWidth = pageW - margin * 2;
 
-    const logo = "TEEMER MOVING & STORAGE CORP.";
+    const headerH = 86;
     doc
-      .rect(0, 0, pageW, 70)
+      .rect(0, 0, pageW, headerH)
       .fill(NAVY);
+
+    const logoPath = resolveLogoPath();
+    if (logoPath) {
+      try {
+        doc.image(logoPath, margin, 12, { fit: [62, 62], align: "left", valign: "center" });
+      } catch {
+        /* ignore image errors and fall back to text */
+      }
+    }
+
     doc
       .fillColor("#ffffff")
       .fontSize(16)
       .font("Helvetica-Bold")
-      .text(logo, margin, 22, { width: usableWidth, align: "center" });
+      .text("TEEMER MOVING & STORAGE CORP.", margin + (logoPath ? 72 : 0), 22, { width: usableWidth - (logoPath ? 72 : 0), align: logoPath ? "left" : "center" });
     doc
       .fillColor(GREEN)
       .fontSize(9)
       .font("Helvetica")
-      .text("Long Beach, NY 11561  •  (516) 269-3724  •  info@teemermoving.com", margin, 40, { width: usableWidth, align: "center" });
+      .text("Long Beach, NY 11561  •  (516) 269-3724  •  info@teemermoving.com", margin + (logoPath ? 72 : 0), 44, { width: usableWidth - (logoPath ? 72 : 0), align: logoPath ? "left" : "center" });
     doc
       .fillColor("#94a3b8")
       .fontSize(7.5)
       .font("Helvetica")
-      .text("US DOT # 3716575  •  MC # 1306475", margin, 54, { width: usableWidth, align: "center" });
+      .text("US DOT # 3716575  •  MC # 1306475", margin + (logoPath ? 72 : 0), 60, { width: usableWidth - (logoPath ? 72 : 0), align: logoPath ? "left" : "center" });
 
-    let y = 90;
+    let y = headerH + 20;
 
     doc
       .fillColor(NAVY)
@@ -140,9 +202,64 @@ export function generateContractPdf(data: ContractData): Promise<Buffer> {
       const dateStr = data.arrivalWindow ? `${data.moveDate} from approximately ${data.arrivalWindow}` : data.moveDate;
       y = labelValue(doc, "Scheduled date and time:", dateStr, margin, y);
     }
+    if (data.arrivalWindow) {
+      const parsed = parseArrivalWindow(data.arrivalWindow);
+      if (parsed) {
+        y = labelValue(doc, "Moving day START:", parsed.start, margin, y);
+        const estEnd = estimateEndTime(data.arrivalWindow, data.estimatedHours);
+        if (estEnd) {
+          y = labelValue(doc, "Estimated END:", `${estEnd} (based on ${data.estimatedHours} hr estimate)`, margin, y);
+        }
+      }
+    }
     y += 6;
     drawHRule(doc, y, margin);
     y += 12;
+
+    if (data.packingDate) {
+      y = sectionHeader(doc, "PACKING DAY (DAY BEFORE MOVE)", y, margin);
+      y += 4;
+      y = labelValue(doc, "Packing date:", data.packingDate, margin, y);
+      if (data.packingArrivalWindow) {
+        y = labelValue(doc, "Packing arrival window:", data.packingArrivalWindow, margin, y);
+      }
+      doc
+        .fillColor(GRAY)
+        .fontSize(8.5)
+        .font("Helvetica-Oblique")
+        .text("Required for moves estimated at 5 hours or more. Crew will pack all loose belongings the day before.", margin, y, { width: usableWidth, lineGap: 1.5 });
+      y = doc.y + 8;
+      drawHRule(doc, y, margin);
+      y += 12;
+    }
+
+    if (data.hasMountedTVs) {
+      const tvCount = data.mountedTVCount && data.mountedTVCount > 0 ? data.mountedTVCount : 1;
+      y = sectionHeader(doc, "MOUNTED TVs", y, margin);
+      y += 4;
+      y = labelValue(doc, "TVs to unmount/remount:", `${tvCount} mounted TV${tvCount > 1 ? "s" : ""}`, margin, y);
+      doc
+        .fillColor(GRAY)
+        .fontSize(8.5)
+        .font("Helvetica-Oblique")
+        .text("Crew will safely dismount TVs from walls at origin and remount at destination if hardware is provided. Wall repair is not included.", margin, y, { width: usableWidth, lineGap: 1.5 });
+      y = doc.y + 8;
+      drawHRule(doc, y, margin);
+      y += 12;
+    }
+
+    if (data.parkingInstructions && data.parkingInstructions.trim().length > 0) {
+      y = sectionHeader(doc, "PARKING & DRIVER INSTRUCTIONS", y, margin);
+      y += 4;
+      doc
+        .fillColor("#1e293b")
+        .fontSize(9)
+        .font("Helvetica")
+        .text(data.parkingInstructions, margin, y, { width: usableWidth, lineGap: 1.5 });
+      y = doc.y + 10;
+      drawHRule(doc, y, margin);
+      y += 12;
+    }
 
     if (data.inventory && Object.keys(data.inventory).length > 0) {
       y = sectionHeader(doc, "LIST OF ITEMS", y, margin);

@@ -18,6 +18,19 @@ export const quoteRequestsTable = pgTable("quote_requests", {
   secondStop: text("second_stop"),
   storageNeeded: boolean("storage_needed").default(false),
   additionalNotes: text("additional_notes"),
+  parkingInstructions: text("parking_instructions"),
+
+  // Packing day (auto-set when estimatedHours >= 5)
+  packingDate: text("packing_date"),
+  packingArrivalWindow: text("packing_arrival_window"),
+
+  // Mounted TVs (require special unmount/remount)
+  hasMountedTVs: boolean("has_mounted_tvs").default(false),
+  mountedTVCount: integer("mounted_tv_count").default(0),
+
+  // Discount code applied at booking
+  discountCode: text("discount_code"),
+  discountAmount: real("discount_amount").default(0),
 
   // Legacy fields (kept for backward compat)
   moveType: text("move_type").notNull().default("local"),

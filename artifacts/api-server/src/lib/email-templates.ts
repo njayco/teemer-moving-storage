@@ -11,6 +11,11 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+function logoUrl(): string {
+  const base = process.env.PUBLIC_APP_URL || process.env.APP_BASE_URL || "https://teemermoving.com";
+  return `${base.replace(/\/$/, "")}/teemer-logo.jpg`;
+}
+
 function baseLayout(title: string, bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -25,9 +30,12 @@ function baseLayout(title: string, bodyHtml: string): string {
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
           <tr>
-            <td style="background:${SECONDARY_COLOR};padding:24px 32px;text-align:center;">
-              <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;letter-spacing:1px;">TEEMER M&amp;S</h1>
-              <p style="margin:4px 0 0;color:#94a3b8;font-size:11px;letter-spacing:2px;">MOVING &amp; STORAGE CORP.</p>
+            <td style="background:${SECONDARY_COLOR};padding:20px 32px;text-align:center;">
+              <img src="${logoUrl()}" alt="Teemer Moving &amp; Storage" width="64" height="64" style="display:inline-block;border-radius:8px;background:#fff;padding:4px;vertical-align:middle;" />
+              <div style="margin:8px 0 0;">
+                <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;letter-spacing:1px;">TEEMER M&amp;S</h1>
+                <p style="margin:4px 0 0;color:#94a3b8;font-size:11px;letter-spacing:2px;">MOVING &amp; STORAGE CORP.</p>
+              </div>
             </td>
           </tr>
           <tr>
@@ -214,6 +222,12 @@ export function trackingLinkHtml(data: TrackingLinkData): string {
   return baseLayout("Your Tracking Link — Teemer Moving & Storage", body);
 }
 
+export interface RemainingBalanceSupplyItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface RemainingBalanceData {
   customerName: string;
   quoteId: number;
@@ -227,6 +241,38 @@ export interface RemainingBalanceData {
   invoiceNumber?: string;
   dueDate?: string;
   payLink?: string;
+  // Editable invoice extras (Task #43)
+  numTrucks?: number;
+  crewSize?: number;
+  freeformText?: string;
+  suppliesItems?: RemainingBalanceSupplyItem[];
+}
+
+function suppliesTable(items: RemainingBalanceSupplyItem[]): string {
+  const rows = items
+    .filter((it) => it && it.name && it.quantity > 0)
+    .map((it) => {
+      const lineTotal = (it.quantity || 0) * (it.unitPrice || 0);
+      return `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;">${escapeHtml(it.name)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;text-align:center;">${it.quantity}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;text-align:right;">${formatCurrency(it.unitPrice)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;text-align:right;font-weight:600;">${formatCurrency(lineTotal)}</td>
+      </tr>`;
+    })
+    .join("");
+  if (!rows) return "";
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0;border:1px solid #e2e8f0;border-radius:6px;border-collapse:collapse;">
+    <thead>
+      <tr style="background:#f8fafc;">
+        <th style="padding:8px 12px;text-align:left;color:${SECONDARY_COLOR};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Item</th>
+        <th style="padding:8px 12px;text-align:center;color:${SECONDARY_COLOR};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Qty</th>
+        <th style="padding:8px 12px;text-align:right;color:${SECONDARY_COLOR};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Unit</th>
+        <th style="padding:8px 12px;text-align:right;color:${SECONDARY_COLOR};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Total</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string {
@@ -236,6 +282,24 @@ export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string 
        </div>`
     : "";
 
+  const detailRows: [string, string][] = [["Move Date", data.moveDate]];
+  if (data.dueDate) detailRows.push(["Due Date", data.dueDate]);
+  if (data.crewSize) detailRows.push(["Crew Size", `${data.crewSize} mover${data.crewSize > 1 ? "s" : ""}`]);
+  if (data.numTrucks) detailRows.push(["Trucks", `${data.numTrucks} truck${data.numTrucks > 1 ? "s" : ""}`]);
+  detailRows.push(["Original Estimate", formatCurrency(data.totalEstimate)]);
+  detailRows.push(["Extra Charges", formatCurrency(data.extraCharges)]);
+  detailRows.push(["Discounts", `-${formatCurrency(data.discounts)}`]);
+  detailRows.push(["Final Total", formatCurrency(data.finalTotal)]);
+  detailRows.push(["Deposit Applied", `-${formatCurrency(data.depositPaid)}`]);
+
+  const supplies = data.suppliesItems && data.suppliesItems.length > 0
+    ? `${sectionHeading("Packing Supplies")}${suppliesTable(data.suppliesItems)}`
+    : "";
+
+  const freeform = data.freeformText && data.freeformText.trim().length > 0
+    ? `${sectionHeading("Additional Notes")}<div style="background:#f8fafc;border-left:4px solid ${BRAND_COLOR};padding:12px 16px;border-radius:6px;color:#475569;font-size:13px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(data.freeformText)}</div>`
+    : "";
+
   const body = `
     <h2 style="margin:0 0 8px;color:${SECONDARY_COLOR};font-size:20px;">Remaining Balance Invoice</h2>
     ${data.invoiceNumber ? `<p style="margin:0 0 4px;color:#64748b;font-size:13px;">Invoice #${escapeHtml(data.invoiceNumber)}</p>` : ""}
@@ -243,15 +307,9 @@ export function remainingBalanceInvoiceHtml(data: RemainingBalanceData): string 
       Hi ${escapeHtml(data.customerName)}, here is the invoice for the remaining balance on your move (Quote #${data.quoteId}).
     </p>
     ${sectionHeading("Invoice Details")}
-    ${detailTable([
-      ["Move Date", data.moveDate],
-      ...(data.dueDate ? [["Due Date", data.dueDate] as [string, string]] : []),
-      ["Original Estimate", formatCurrency(data.totalEstimate)],
-      ["Extra Charges", formatCurrency(data.extraCharges)],
-      ["Discounts", `-${formatCurrency(data.discounts)}`],
-      ["Final Total", formatCurrency(data.finalTotal)],
-      ["Deposit Applied", `-${formatCurrency(data.depositPaid)}`],
-    ])}
+    ${detailTable(detailRows)}
+    ${supplies}
+    ${freeform}
     <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">
       <p style="margin:0;color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Amount Due</p>
       <p style="margin:4px 0 0;color:#dc2626;font-size:28px;font-weight:700;">${formatCurrency(data.remainingBalance)}</p>

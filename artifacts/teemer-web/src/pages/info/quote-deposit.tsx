@@ -1,6 +1,6 @@
 import { InfoLayout } from "@/components/layout/info-layout";
 import { useRoute } from "wouter";
-import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users, FileText } from "lucide-react";
+import { CreditCard, Phone, CheckCircle2, Lock, ArrowLeft, Loader2, AlertCircle, Calendar, Users, FileText, Tag } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useGetQuoteRequest } from "@workspace/api-client-react";
@@ -16,19 +16,32 @@ export default function QuoteDepositPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountStatus, setDiscountStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const baseDeposit = quote?.depositAmount ?? 0;
+  const codeUpper = discountCode.trim().toUpperCase();
+  const isSandvCode = codeUpper === "SANDV10";
+  const discountedDeposit = isSandvCode ? Math.round(baseDeposit * 90) / 100 : baseDeposit;
 
   const handlePayDeposit = async () => {
     setLoading(true);
     setError(null);
+    setDiscountStatus(null);
     try {
+      const trimmed = discountCode.trim();
       const res = await fetch(`/api/quotes/${quoteId}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(trimmed ? { discountCode: trimmed } : {}),
       });
-      const data = await res.json() as { url?: string; error?: string };
+      const data = await res.json() as { url?: string; error?: string; discountApplied?: boolean };
       if (!res.ok || !data.url) {
         setError(data.error ?? "Unable to start checkout. Please call us to pay the deposit.");
         return;
+      }
+      if (trimmed && data.discountApplied === false) {
+        setDiscountStatus({ ok: false, msg: "That code wasn't valid — proceeding without a discount." });
       }
       window.location.href = data.url;
     } catch {
@@ -63,9 +76,21 @@ export default function QuoteDepositPage() {
                   {quote.depositAmount != null && (
                     <div className="px-5 py-4 text-center">
                       <p className="text-xs text-slate-400 font-medium mb-1">Deposit Amount</p>
-                      <p className="text-2xl font-bold text-primary">
-                        ${quote.depositAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </p>
+                      {isSandvCode ? (
+                        <div>
+                          <p className="text-sm text-slate-400 line-through">
+                            ${baseDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-2xl font-bold text-primary">
+                            ${discountedDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-xs text-green-700 font-semibold mt-0.5">SANDV10 — 10% off</p>
+                        </div>
+                      ) : (
+                        <p className="text-2xl font-bold text-primary">
+                          ${baseDeposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
                     </div>
                   )}
                   <div className="flex divide-x divide-slate-100">
@@ -136,18 +161,44 @@ export default function QuoteDepositPage() {
                 </label>
               </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-start gap-3">
                   <span className="text-xl leading-none mt-0.5">🎖️</span>
                   <div>
                     <p className="font-semibold text-green-900 text-sm">Senior & Veteran Discount</p>
                     <p className="text-sm text-green-800 mt-1">
-                      If you qualify, enter coupon code{" "}
+                      Qualifying seniors and veterans: enter code{" "}
                       <span className="font-bold tracking-wider bg-green-100 px-1.5 py-0.5 rounded border border-green-300">SANDV10</span>
-                      {" "}on the next payment page to receive 10% off your deposit.
+                      {" "}below for 10% off your deposit.
                     </p>
                   </div>
                 </div>
+                <div className="flex items-stretch gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={discountCode}
+                      onChange={(e) => { setDiscountCode(e.target.value); setDiscountStatus(null); }}
+                      placeholder="Enter discount code (optional)"
+                      maxLength={32}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white border border-green-300 text-slate-800 text-sm font-medium uppercase tracking-wide placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                  </div>
+                  {isSandvCode && (
+                    <span className="inline-flex items-center px-3 py-2.5 rounded-lg bg-primary text-white text-xs font-bold">
+                      Applied ✓
+                    </span>
+                  )}
+                </div>
+                {discountCode.trim() && !isSandvCode && (
+                  <p className="text-xs text-amber-700">
+                    Code will be validated at checkout. Only valid codes apply a discount.
+                  </p>
+                )}
+                {discountStatus && !discountStatus.ok && (
+                  <p className="text-xs text-amber-700">{discountStatus.msg}</p>
+                )}
               </div>
 
               <div className="space-y-3">

@@ -95,6 +95,14 @@ function mapQuoteRow(q: typeof quoteRequestsTable.$inferSelect) {
     junkHazardousItems: q.junkHazardousItems ?? false,
     junkBasePrice: q.junkBasePrice ?? undefined,
     junkAddonsTotal: q.junkAddonsTotal ?? undefined,
+    // Task #43 additions surfaced for client UI
+    parkingInstructions: q.parkingInstructions || undefined,
+    packingDate: q.packingDate || undefined,
+    packingArrivalWindow: q.packingArrivalWindow || undefined,
+    hasMountedTVs: q.hasMountedTVs ?? false,
+    mountedTVCount: q.mountedTVCount ?? 0,
+    discountCode: q.discountCode || undefined,
+    discountAmount: q.discountAmount ?? 0,
   };
 }
 
@@ -205,6 +213,13 @@ router.patch("/quotes/:id/status", async (req, res) => {
               finalTotal: totalEstimate || undefined,
               depositPaid,
               remainingBalance,
+              parkingInstructions: updated.parkingInstructions || undefined,
+              packingDate: updated.packingDate || undefined,
+              packingArrivalWindow: updated.packingArrivalWindow || undefined,
+              hasMountedTVs: updated.hasMountedTVs ? 1 : 0,
+              mountedTVCount: updated.mountedTVCount ?? 0,
+              discountCode: updated.discountCode || undefined,
+              discountAmount: updated.discountAmount ?? 0,
             })
             .returning();
         }
@@ -359,6 +374,32 @@ router.post("/quotes", async (req, res) => {
 
     const isCommercial = !isJunkRemoval && (Boolean(body.isCommercial) || body.residentialOrCommercial === "commercial");
 
+    const estimatedHoursForPacking = !isJunkRemoval && pricingFields.estimatedHours
+      ? Number(pricingFields.estimatedHours)
+      : 0;
+    const packingRequired = estimatedHoursForPacking >= 5;
+    const computedPackingDate = (() => {
+      if (!packingRequired) return null;
+      if (body.packingDate) return String(body.packingDate);
+      if (!body.moveDate) return null;
+      try {
+        const d = new Date(`${body.moveDate}T12:00:00`);
+        if (Number.isNaN(d.getTime())) return null;
+        d.setDate(d.getDate() - 1);
+        return d.toISOString().slice(0, 10);
+      } catch {
+        return null;
+      }
+    })();
+    const computedPackingWindow = packingRequired
+      ? (body.packingArrivalWindow || "9:00 AM – 11:00 AM")
+      : null;
+
+    const hasMountedTVsBool = Boolean(body.hasMountedTVs);
+    const mountedTVCount = hasMountedTVsBool
+      ? Math.max(1, Math.min(20, Math.floor(Number(body.mountedTVCount ?? 1)) || 1))
+      : 0;
+
     const [quote] = await db
       .insert(quoteRequestsTable)
       .values({
@@ -374,6 +415,13 @@ router.post("/quotes", async (req, res) => {
         storageNeeded: Boolean(body.storageNeeded),
         storageUnitChoice: body.storageUnitChoice || null,
         additionalNotes: body.additionalNotes || null,
+        parkingInstructions: body.parkingInstructions || null,
+
+        packingDate: computedPackingDate,
+        packingArrivalWindow: computedPackingWindow,
+
+        hasMountedTVs: hasMountedTVsBool,
+        mountedTVCount,
 
         moveType: body.moveType || "local",
         residentialOrCommercial: isCommercial ? "commercial" : (body.residentialOrCommercial || "residential"),
@@ -511,6 +559,12 @@ Return ONLY valid JSON in this exact format, no markdown, no explanation:
   }
 });
 
+// App-managed discount codes (case-insensitive). Applied to totalEstimate
+// BEFORE Stripe checkout so the deposit reflects the discount as well.
+const APP_DISCOUNT_CODES: Record<string, { type: "percent"; value: number; label: string }> = {
+  SANDV10: { type: "percent", value: 10, label: "SANDV10 — 10% off" },
+};
+
 router.post("/quotes/:id/checkout", async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
@@ -522,19 +576,54 @@ router.post("/quotes/:id/checkout", async (req, res) => {
     const { getUncachableStripeClient } = await import("../lib/stripe-client.js");
     const stripe = await getUncachableStripeClient();
 
-    const [quote] = await db
+    const [quoteFetched] = await db
       .select()
       .from(quoteRequestsTable)
       .where(eq(quoteRequestsTable.id, id));
 
-    if (!quote) {
+    if (!quoteFetched) {
       res.status(404).json({ error: "Quote not found" });
       return;
     }
 
-    if (quote.status === "deposit_paid") {
+    if (quoteFetched.status === "deposit_paid") {
       res.status(409).json({ error: "Deposit has already been paid for this quote." });
       return;
+    }
+
+    let quote = quoteFetched;
+    let discountApplied = Boolean(quote.discountCode);
+
+    // Apply discount code if provided (and not already applied)
+    const requestedCode = typeof req.body?.discountCode === "string"
+      ? req.body.discountCode.trim().toUpperCase()
+      : "";
+    if (requestedCode && requestedCode !== (quote.discountCode || "").toUpperCase()) {
+      const discount = APP_DISCOUNT_CODES[requestedCode];
+      if (!discount) {
+        res.status(400).json({ error: `Invalid discount code "${requestedCode}".`, discountApplied: false });
+        return;
+      }
+      const baseTotal = Number(quote.totalEstimate ?? 0);
+      const discountAmount = discount.type === "percent"
+        ? Math.round(baseTotal * (discount.value / 100) * 100) / 100
+        : discount.value;
+      const newTotal = Math.max(0, Math.round((baseTotal - discountAmount) * 100) / 100);
+      const newDeposit = Math.max(50, Math.round(newTotal * 0.10 * 100) / 100);
+
+      const [updatedQuote] = await db
+        .update(quoteRequestsTable)
+        .set({
+          discountCode: requestedCode,
+          discountAmount,
+          totalEstimate: newTotal,
+          depositAmount: newDeposit,
+        })
+        .where(eq(quoteRequestsTable.id, id))
+        .returning();
+      if (updatedQuote) quote = updatedQuote;
+      discountApplied = true;
+      logger.info({ id, requestedCode, discountAmount, newTotal, newDeposit }, "Applied discount code to quote");
     }
 
     const depositCents = Math.round((quote.depositAmount ?? 50) * 100);
@@ -568,13 +657,17 @@ router.post("/quotes/:id/checkout", async (req, res) => {
           quantity: 1,
         },
       ],
-      metadata: { quoteId: String(id) },
+      metadata: {
+        quoteId: String(id),
+        ...(quote.discountCode ? { discountCode: quote.discountCode } : {}),
+        ...(quote.discountAmount ? { discountAmount: String(quote.discountAmount) } : {}),
+      },
       allow_promotion_codes: true,
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
 
-    res.json({ url: session.url, sessionId: session.id });
+    res.json({ url: session.url, sessionId: session.id, discountApplied });
   } catch (err) {
     req.log.error({ err }, "Stripe checkout session creation failed");
     res.status(500).json({ error: "Failed to create payment session. Please call us to pay the deposit." });

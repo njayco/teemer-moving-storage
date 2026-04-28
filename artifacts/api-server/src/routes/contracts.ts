@@ -62,6 +62,11 @@ router.post("/jobs/:jobId/contracts", requireAdmin, async (req, res) => {
       quoteId: job.quoteId ?? undefined,
       totalEstimate: job.finalTotal ?? job.estimatedPayout ?? undefined,
       depositAmount: job.depositPaid ?? undefined,
+      parkingInstructions: job.parkingInstructions ?? quote?.parkingInstructions ?? undefined,
+      packingDate: job.packingDate ?? quote?.packingDate ?? undefined,
+      packingArrivalWindow: job.packingArrivalWindow ?? quote?.packingArrivalWindow ?? undefined,
+      hasMountedTVs: Boolean(job.hasMountedTVs ?? quote?.hasMountedTVs),
+      mountedTVCount: job.mountedTVCount ?? quote?.mountedTVCount ?? undefined,
     };
 
     const pdfBuffer = await generateContractPdf(contractData);
@@ -229,6 +234,13 @@ router.get("/jobs/:jobId/contracts/pdf", requireAdmin, async (req, res) => {
         additionalNotes: quote?.additionalNotes ?? job.notes ?? undefined,
         jobId: job.jobId,
         quoteId: job.quoteId ?? undefined,
+        totalEstimate: job.finalTotal ?? job.estimatedPayout ?? undefined,
+        depositAmount: job.depositPaid ?? undefined,
+        parkingInstructions: job.parkingInstructions ?? quote?.parkingInstructions ?? undefined,
+        packingDate: job.packingDate ?? quote?.packingDate ?? undefined,
+        packingArrivalWindow: job.packingArrivalWindow ?? quote?.packingArrivalWindow ?? undefined,
+        hasMountedTVs: Boolean(job.hasMountedTVs ?? quote?.hasMountedTVs),
+        mountedTVCount: job.mountedTVCount ?? quote?.mountedTVCount ?? undefined,
       };
     }
 

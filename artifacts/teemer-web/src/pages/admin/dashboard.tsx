@@ -188,6 +188,9 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Array<{ description: string; quantity: number; unitPrice: number }>>([]);
+  const [numTrucks, setNumTrucks] = useState(1);
+  const [freeformText, setFreeformText] = useState("");
+  const [suppliesItems, setSuppliesItems] = useState<Array<{ name: string; quantity: number; unitPrice: number }>>([]);
 
   useEffect(() => {
     (async () => {
@@ -207,6 +210,15 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
             setDiscounts(data.discounts ?? 0);
             setDueDate(data.dueDate ?? "");
             setNotes(snap.notes ?? "");
+            setNumTrucks(snap.numTrucks ?? (job?.crewSize ? Math.ceil(job.crewSize / 3) : 1));
+            setFreeformText(snap.freeformText ?? "");
+            if (Array.isArray(snap.suppliesItems)) {
+              setSuppliesItems(snap.suppliesItems.map((s: { name?: string; quantity?: number; unitPrice?: number }) => ({
+                name: String(s.name ?? ""),
+                quantity: Number(s.quantity ?? 1),
+                unitPrice: Number(s.unitPrice ?? 0),
+              })));
+            }
             if (Array.isArray(snap.items)) {
               setItems(snap.items.map((i: { description?: string; quantity?: number; unitPrice?: number }) => ({
                 description: String(i.description ?? ""),
@@ -219,6 +231,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
             setHourlyRate(job?.hourlyRate ?? job?.quoteData?.hourlyRate ?? 0);
             setExtraCharges(job?.extraCharges ?? 0);
             setDiscounts(job?.discounts ?? 0);
+            setNumTrucks(job?.crewSize ? Math.ceil(job.crewSize / 3) : 1);
           }
         }
       } catch (_e) {
@@ -229,7 +242,8 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
     })();
   }, [jobId, job]);
 
-  const subtotal = (laborHours * hourlyRate) + travelFee + stairFee + storageFee + packingFee;
+  const suppliesTotal = suppliesItems.reduce((sum, s) => sum + (s.quantity * s.unitPrice), 0);
+  const subtotal = (laborHours * hourlyRate) + travelFee + stairFee + storageFee + packingFee + suppliesTotal;
   const finalTotal = subtotal + extraCharges - discounts;
   const totalPaid = (job?.payments ?? []).reduce((sum, p) => sum + (p.amount ?? 0), 0);
   const remainingBalance = Math.max(0, finalTotal - totalPaid);
@@ -244,6 +258,7 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
         body: JSON.stringify({
           laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
           extraCharges, discounts, dueDate: dueDate || undefined, notes, items,
+          numTrucks, freeformText, suppliesItems,
         }),
       });
       if (!res.ok) {
@@ -278,6 +293,16 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
 
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Number of Trucks</label>
+              <input type="number" step="1" min={1} max={10} value={numTrucks} onChange={(e) => setNumTrucks(Math.max(1, Number(e.target.value) || 1))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">Crew Size (read-only)</label>
+              <input type="text" value={`${job?.crewSize ?? "—"} movers`} readOnly
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500" />
+            </div>
             <div>
               <label className="text-xs font-medium text-slate-500 block mb-1">Labor Hours</label>
               <input type="number" step="0.5" value={laborHours} onChange={(e) => setLaborHours(Number(e.target.value))}
@@ -327,14 +352,90 @@ function InvoiceEditorModal({ jobId, job, onClose, onSaved }: {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">Notes</label>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Notes (internal)</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none" />
           </div>
 
           <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">Free-form Text on Invoice (visible to customer)</label>
+            <textarea value={freeformText} onChange={(e) => setFreeformText(e.target.value)} rows={3} maxLength={4000}
+              placeholder="Anything you'd like to add to the customer's invoice — special thanks, reminders, payment instructions, etc."
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none" />
+          </div>
+
+          <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-slate-500">Line Items</label>
+              <label className="text-xs font-medium text-slate-500">Packing Supplies (itemized)</label>
+              <button
+                type="button"
+                onClick={() => setSuppliesItems([...suppliesItems, { name: "", quantity: 1, unitPrice: 0 }])}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                + Add Supply
+              </button>
+            </div>
+            {suppliesItems.length > 0 && (
+              <div className="space-y-2">
+                {suppliesItems.map((s, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
+                    <input
+                      type="text"
+                      placeholder="Item (e.g. Small box, Tape roll)"
+                      value={s.name}
+                      onChange={(e) => {
+                        const updated = [...suppliesItems];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        setSuppliesItems(updated);
+                      }}
+                      className="flex-1 px-2 py-1.5 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      min={1}
+                      value={s.quantity}
+                      onChange={(e) => {
+                        const updated = [...suppliesItems];
+                        updated[idx] = { ...updated[idx], quantity: Number(e.target.value) };
+                        setSuppliesItems(updated);
+                      }}
+                      className="w-16 px-2 py-1.5 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      step="0.01"
+                      value={s.unitPrice}
+                      onChange={(e) => {
+                        const updated = [...suppliesItems];
+                        updated[idx] = { ...updated[idx], unitPrice: Number(e.target.value) };
+                        setSuppliesItems(updated);
+                      }}
+                      className="w-20 px-2 py-1.5 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                    />
+                    <span className="text-xs text-slate-500 w-16 text-right pt-2">${(s.quantity * s.unitPrice).toFixed(2)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSuppliesItems(suppliesItems.filter((_, i) => i !== idx))}
+                      className="text-red-400 hover:text-red-600 pt-1.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {suppliesItems.length > 0 && (
+              <div className="text-right text-xs text-slate-500 mt-2">
+                Supplies subtotal: <span className="font-semibold text-slate-700">${suppliesTotal.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-slate-500">Other Line Items</label>
               <button
                 type="button"
                 onClick={() => setItems([...items, { description: "", quantity: 1, unitPrice: 0 }])}

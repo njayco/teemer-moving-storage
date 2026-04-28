@@ -86,9 +86,18 @@ const step1Schema = z.object({
   secondStop: z.string().optional(),
   storageNeeded: z.boolean().default(false),
   additionalNotes: z.string().optional(),
+  parkingInstructions: z.string().optional(),
   distanceMiles: z.coerce.number().min(0).optional(),
 });
 type Step1Values = z.infer<typeof step1Schema>;
+
+const PACKING_ARRIVAL_WINDOWS = [
+  "8:00 AM – 10:00 AM",
+  "9:00 AM – 11:00 AM",
+  "10:00 AM – 12:00 PM",
+  "12:00 PM – 2:00 PM",
+  "2:00 PM – 4:00 PM",
+];
 
 
 interface HomeSize {
@@ -686,6 +695,11 @@ export default function QuotePage() {
   const [needsPackingMaterials, setNeedsPackingMaterials] = useState(false);
   const [smallBoxes, setSmallBoxes] = useState(0);
   const [mediumBoxes, setMediumBoxes] = useState(0);
+
+  // Task #43: mounted TVs + preferred packing-day window
+  const [hasMountedTVs, setHasMountedTVs] = useState(false);
+  const [mountedTVCount, setMountedTVCount] = useState(1);
+  const [packingArrivalWindow, setPackingArrivalWindow] = useState<string>("9:00 AM – 11:00 AM");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiEstimate, setAiEstimate] = useState<{ small: number; medium: number; note: string } | null>(null);
@@ -761,6 +775,8 @@ export default function QuotePage() {
       secondStop: step1Data.secondStop || undefined,
       storageNeeded: step1Data.storageNeeded,
       additionalNotes: step1Data.additionalNotes || undefined,
+      parkingInstructions: step1Data.parkingInstructions || undefined,
+      packingArrivalWindow: !isJunkRemoval ? packingArrivalWindow : undefined,
       originAddress: step1Data.pickupAddress || "",
       destinationAddress: step1Data.dropoffAddress || "",
       moveType: "local" as const,
@@ -792,6 +808,8 @@ export default function QuotePage() {
           hasOutdoorFurniture: homeSize.hasOutdoorFurniture,
           hasStairs: homeSize.hasStairs,
           hasHeavyItems: homeSize.hasHeavyItems,
+          hasMountedTVs,
+          mountedTVCount: hasMountedTVs ? mountedTVCount : undefined,
           inventory,
           pianoType: pianoType !== "none" ? pianoType : undefined,
           pianoFloor: pianoType !== "none" ? pianoFloor : undefined,
@@ -1131,6 +1149,43 @@ export default function QuotePage() {
                           />
                         </div>
 
+                        {!isJunkRemoval && (
+                          <div>
+                            <label className={labelCls()}>
+                              Parking & Driver Instructions <span className="text-slate-400 font-normal">(optional)</span>
+                            </label>
+                            <textarea
+                              {...register("parkingInstructions")}
+                              placeholder="Where can the truck park? Permit needed? Loading dock? Gate code? Any special access info for our drivers…"
+                              rows={3}
+                              className={`${inputCls()} resize-none`}
+                            />
+                            <p className="text-xs text-slate-500 mt-1">
+                              Help us avoid parking tickets and arrival delays — the more detail, the better.
+                            </p>
+                          </div>
+                        )}
+
+                        {!isJunkRemoval && (
+                          <div>
+                            <label className={labelCls()}>
+                              Preferred Packing-Day Arrival Window
+                            </label>
+                            <select
+                              value={packingArrivalWindow}
+                              onChange={(e) => setPackingArrivalWindow(e.target.value)}
+                              className={inputCls()}
+                            >
+                              {PACKING_ARRIVAL_WINDOWS.map((w) => (
+                                <option key={w} value={w}>{w}</option>
+                              ))}
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">
+                              For larger moves (5+ estimated hours) we send a packing crew the day before. We'll only schedule a packing day if your move qualifies.
+                            </p>
+                          </div>
+                        )}
+
                         <div className="flex justify-end pt-2">
                           <button
                             type="button"
@@ -1441,6 +1496,33 @@ export default function QuotePage() {
                             label="Heavy / Bulky Items"
                             description="Safe, pool table, large appliances"
                           />
+                        </div>
+
+                        {/* Mounted TVs question (Task #43) */}
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm mb-1">Wall-Mounted TVs?</p>
+                            <p className="text-xs text-slate-500">If yes, our crew will safely dismount, wrap, and (if requested) re-mount at the new home. Lets us bring the right tools.</p>
+                          </div>
+                          <ToggleCard
+                            checked={hasMountedTVs}
+                            onChange={(v) => setHasMountedTVs(v)}
+                            label="Yes, I have wall-mounted TVs"
+                            description="Includes dismounting, wrapping, and bracket transport"
+                          />
+                          {hasMountedTVs && (
+                            <div className="flex items-center gap-3 pt-1">
+                              <label className="text-sm font-medium text-slate-700">How many?</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={20}
+                                value={mountedTVCount}
+                                onChange={(e) => setMountedTVCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                                className="w-20 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-800 text-sm focus:ring-2 focus:ring-primary/30 outline-none"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         {/* Piano question */}

@@ -41,6 +41,16 @@ export const jobsTable = pgTable("jobs", {
   paymentStatus: text("payment_status").default("unpaid"),
   invoiceStatus: text("invoice_status").default("none"),
   notes: text("notes"),
+
+  // Booking-flow extras (Task #43)
+  parkingInstructions: text("parking_instructions"),
+  packingDate: text("packing_date"),
+  packingArrivalWindow: text("packing_arrival_window"),
+  hasMountedTVs: integer("has_mounted_tvs").default(0),
+  mountedTVCount: integer("mounted_tv_count").default(0),
+  discountCode: text("discount_code"),
+  discountAmount: real("discount_amount").default(0),
+
   updatedAt: timestamp("updated_at").defaultNow(),
   completedAt: timestamp("completed_at"),
 });

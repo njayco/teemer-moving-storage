@@ -15,6 +15,7 @@ export const invoicesTable = pgTable("invoices", {
   dueDate: text("due_date"),
   sentAt: timestamp("sent_at"),
   status: text("status").default("draft"),
+  paidAt: timestamp("paid_at"),
   editableSnapshotJson: json("editable_snapshot_json"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

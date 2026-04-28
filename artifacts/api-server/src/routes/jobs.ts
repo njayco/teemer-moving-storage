@@ -856,6 +856,12 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       ? `${baseUrl}/track/${job.quoteId ?? job.id}/${quote.trackingToken}`
       : undefined;
 
+    const editableSnapshot = (existingInvoice?.editableSnapshotJson ?? null) as {
+      numTrucks?: number;
+      freeformText?: string;
+      suppliesItems?: Array<{ name: string; quantity: number; unitPrice: number }>;
+    } | null;
+
     const result = await sendRemainingBalanceInvoiceEmail({
       email,
       customerName: quote?.contactName ?? job.customer ?? "Customer",
@@ -870,6 +876,10 @@ router.post("/jobs/:jobId/send-invoice", requireAdmin, async (req, res) => {
       invoiceNumber,
       dueDate: dueDateStr,
       payLink,
+      crewSize: job.crewSize ?? undefined,
+      numTrucks: editableSnapshot?.numTrucks ?? (job.crewSize ? Math.ceil(job.crewSize / 3) : undefined),
+      freeformText: editableSnapshot?.freeformText ?? "",
+      suppliesItems: editableSnapshot?.suppliesItems ?? [],
     });
 
     if (!result.success) {
@@ -1039,10 +1049,29 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
     const {
       laborHours, hourlyRate, travelFee, stairFee, storageFee, packingFee,
       extraCharges, discounts, dueDate, notes: invoiceNotes, items,
+      // Task #43 additions
+      numTrucks, freeformText, suppliesItems,
     } = req.body;
 
+    const validatedSupplies: Array<{ name: string; quantity: number; unitPrice: number; total: number }> = Array.isArray(suppliesItems)
+      ? suppliesItems
+          .map((it: { name?: string; quantity?: number; unitPrice?: number }) => {
+            const qty = Math.max(0, Math.floor(Number(it?.quantity ?? 0)));
+            const unit = Math.max(0, Number(it?.unitPrice ?? 0));
+            return {
+              name: String(it?.name ?? "").slice(0, 120),
+              quantity: qty,
+              unitPrice: Math.round(unit * 100) / 100,
+              total: Math.round(qty * unit * 100) / 100,
+            };
+          })
+          .filter((it) => it.name.length > 0)
+      : [];
+    const suppliesTotal = validatedSupplies.reduce((sum, it) => sum + it.total, 0);
+
     const subtotal = ((laborHours ?? job.estimatedHours ?? 0) * (hourlyRate ?? job.hourlyRate ?? 0))
-      + (travelFee ?? 0) + (stairFee ?? 0) + (storageFee ?? 0) + (packingFee ?? 0);
+      + (travelFee ?? 0) + (stairFee ?? 0) + (storageFee ?? 0) + (packingFee ?? 0)
+      + suppliesTotal;
     const extras = extraCharges ?? job.extraCharges ?? 0;
     const disc = discounts ?? job.discounts ?? 0;
     const finalTotal = subtotal + extras - disc;
@@ -1060,6 +1089,10 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
         }))
       : [];
 
+    const numTrucksValidated = Number.isFinite(Number(numTrucks)) && Number(numTrucks) > 0
+      ? Math.max(1, Math.min(10, Math.floor(Number(numTrucks))))
+      : (job.crewSize ? Math.ceil(job.crewSize / 3) : 1);
+
     const snapshot = {
       laborHours: laborHours ?? job.estimatedHours ?? 0,
       hourlyRate: hourlyRate ?? job.hourlyRate ?? 0,
@@ -1069,6 +1102,11 @@ router.patch("/invoices/:jobId", requireAdmin, async (req, res) => {
       packingFee: packingFee ?? 0,
       notes: invoiceNotes ?? "",
       items: validatedItems,
+      // Task #43 additions
+      numTrucks: numTrucksValidated,
+      freeformText: typeof freeformText === "string" ? freeformText.slice(0, 4000) : "",
+      suppliesItems: validatedSupplies,
+      suppliesTotal,
     };
 
     const [existing] = await db.select().from(invoicesTable)
